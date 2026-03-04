@@ -1,6 +1,10 @@
 spring:
   application:
     name: woojudraw
+  data:
+    redis:
+      host: localhost
+      port: 6379
 
   profiles:
     active: local
@@ -18,6 +22,12 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+security:
+  jwt:
+    secret: "CHANGE_ME_TO_LONG_RANDOM_BASE64"
+    access-token-exp-min: 30
+    refresh-token-exp-day: 14
 
 server:
   port: 8080
