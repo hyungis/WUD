@@ -36,4 +36,7 @@ out/
 ### VS Code ###
 .vscode/
 
+# Local secret overrides
+src/main/resources/application.properties
+
 .env
