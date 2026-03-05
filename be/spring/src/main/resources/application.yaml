@@ -29,7 +29,7 @@ security:
     refresh-token-exp-day: 14
 
 server:
-  port: 8080
+  port: 8081
 
 logging:
   level:
