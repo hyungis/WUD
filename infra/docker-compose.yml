@@ -3,30 +3,17 @@ version: '3.8'
 services:
   backend:
     build: 
-      context: ./be/spring
+      context: ../be/spring
       dockerfile: Dockerfile
     ports:
       - "8081:8081"
     environment:
-      - SPRING_DATASOURCE_URL=${SPRING_DATASOURCE_URL}
-      - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
-      - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
+      - DB_URL=${DB_URL}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
     depends_on:
-      - db
       - redis
       - rabbitmq
-    networks:
-      - app-network
-    restart: always
-
-  db:
-    image: postgres:15-alpine
-    environment:
-      - POSTGRES_DB=${SPRING_DATASOURCE_DBNAME}
-      - POSTGRES_USER=${SPRING_DATASOURCE_USERNAME}
-      - POSTGRES_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
-    ports:
-      - "5432:5432"
     networks:
       - app-network
     restart: always
@@ -53,7 +40,7 @@ services:
 
   frontend:
     build:
-      context: ./fe
+      context: ../fe
       dockerfile: Dockerfile
     ports:
       - "80:80"
@@ -65,14 +52,14 @@ services:
 
   ai:
     build:
-      context: ./ai
+      context: ../ai
       dockerfile: Dockerfile
     volumes:
-      - ./ai:/app
+      - ../ai:/app
     ports:
       - "8000:8000"
     env_file:
-      - ./ai/.env
+      - ../ai/.env
     networks:
       - app-network
     restart: always
