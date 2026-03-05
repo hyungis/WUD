@@ -62,6 +62,7 @@ public enum ResponseCode {
 	LOGIN_REQUIRED(HttpStatus.UNAUTHORIZED, "A006", "로그인이 필요합니다."),
 	INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "A007", "아이디 또는 비밀번호가 올바르지 않습니다."),
 	AUTH_PROCESS_FAILED(HttpStatus.UNAUTHORIZED, "A008", "인증 처리에 실패했습니다."),
+	INVALID_LOGIN(HttpStatus.UNAUTHORIZED, "A009", "로그인 정보가 올바르지 않습니다."),
 
 	/* =========================================================
 	 * OAUTH
@@ -88,6 +89,7 @@ public enum ResponseCode {
 	USER_DELETED(HttpStatus.FORBIDDEN, "U006", "탈퇴한 사용자입니다."),
 	USER_SUSPENDED(HttpStatus.FORBIDDEN, "U007", "정지된 사용자입니다."),
 	USER_UPDATE_FAILED(HttpStatus.CONFLICT, "U008", "사용자 정보 수정에 실패했습니다."),
+	DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U009", "이미 사용 중인 이메일입니다."),
 
 	/* =========================================================
 	 * DAILY
