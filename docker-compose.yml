@@ -63,6 +63,20 @@ services:
       - app-network
     restart: always
 
+  ai:
+    build:
+      context: ./ai
+      dockerfile: Dockerfile
+    volumes:
+      - ./ai:/app
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./ai/.env
+    networks:
+      - app-network
+    restart: always
+
 networks:
   app-network:
     driver: bridge
