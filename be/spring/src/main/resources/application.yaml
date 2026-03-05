@@ -25,7 +25,7 @@ spring:
 
 security:
   jwt:
-    secret: "CHANGE_ME_TO_LONG_RANDOM_BASE64"
+    secret: "${JWT_SECRET:local-dev-secret-change-this-to-32+chars}"
     access-token-exp-min: 30
     refresh-token-exp-day: 14
 
