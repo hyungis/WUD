@@ -191,7 +191,22 @@ COMMENT : login controller 주석 추가
 
 모든 작업은 **Merge Request(MR)를 통해 dev 브랜치로 병합**한다.
 
-### MR 생성 규칙
+## MR 제목 규칙
+MR 제목은 다음 형식을 따른다.
+```
+[파트 : 타입] 작업 내용
+```
+### 예시
+- [BE : feat] JWT 발급 로직 구현
+- [FE : feat] 로그인 페이지 UI 구현
+- [INFRA : chore] GitLab MR 템플릿 추가
+
+### 작성 규칙
+- 작업 내용은 **가능한 한 한글로 작성**
+- **APIResponse, JWT 등 기술 용어는 영어 사용 가능**
+- 작업 내용을 **간결하고 명확하게 작성**
+
+## MR 생성 규칙
 
 - feature 브랜치 → dev 브랜치로 MR 생성
 - dev / master 브랜치 직접 push 금지
