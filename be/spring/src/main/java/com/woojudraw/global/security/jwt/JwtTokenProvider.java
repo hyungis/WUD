@@ -61,6 +61,10 @@ public class JwtTokenProvider {
 			.compact();
 	}
 
+	public long getAccessTokenExpiresInSec() {
+		return accessTokenExpMin * 60L;
+	}
+
 	public Claims parseClaims(String token) {
 		return Jwts.parser()
 			.verifyWith(key)
