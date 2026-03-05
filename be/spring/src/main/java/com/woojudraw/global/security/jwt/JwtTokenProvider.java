@@ -2,9 +2,10 @@ package com.woojudraw.global.security.jwt;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.Map;
 import java.util.Date;
+import java.util.Map;
 
+import jakarta.annotation.PostConstruct;
 import javax.crypto.SecretKey;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -13,21 +14,26 @@ import org.springframework.stereotype.Component;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.RequiredArgsConstructor;
+
 @Component
+@RequiredArgsConstructor
 public class JwtTokenProvider {
 
-	private final SecretKey key;
-	private final int accessTokenExpMin;
-	private final int refreshTokenExpDay;
+	@Value("${security.jwt.secret}")
+	private String secret;
 
-	public JwtTokenProvider(
-		@Value("${security.jwt.secret}") String secret,
-		@Value("${security.jwt.access-token-exp-min}") int accessTokenExpMin,
-		@Value("${security.jwt.refresh-token-exp-day}") int refreshTokenExpDay
-	) {
+	@Value("${security.jwt.access-token-exp-min}")
+	private int accessTokenExpMin;
+
+	@Value("${security.jwt.refresh-token-exp-day}")
+	private int refreshTokenExpDay;
+
+	private SecretKey key;
+
+	@PostConstruct
+	public void init() {
 		this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-		this.accessTokenExpMin = accessTokenExpMin;
-		this.refreshTokenExpDay = refreshTokenExpDay;
 	}
 
 	public String createAccessToken(Long memberId, String role) {
@@ -56,7 +62,7 @@ public class JwtTokenProvider {
 	}
 
 	public Claims parseClaims(String token) {
-		return (Claims)Jwts.parser()
+		return Jwts.parser()
 			.verifyWith(key)
 			.build()
 			.parseSignedClaims(token)

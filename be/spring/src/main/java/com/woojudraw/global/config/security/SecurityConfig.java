@@ -1,5 +1,9 @@
 package com.woojudraw.global.config.security;
 
+import com.woojudraw.global.security.jwt.JwtAuthenticationFilter;
+import com.woojudraw.global.security.jwt.JwtTokenProvider;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -8,10 +12,14 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+	private final JwtTokenProvider jwtTokenProvider;
 
 	private static final String[] PERMIT_ALL = {
 		"/health",
@@ -28,6 +36,7 @@ public class SecurityConfig {
 			.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.formLogin(form -> form.disable())
 			.httpBasic(basic -> basic.disable())
+			.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class)
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers(PERMIT_ALL).permitAll()
 				.anyRequest().authenticated()
