@@ -3,8 +3,10 @@ spring:
     name: woojudraw
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: ${REDIS_TIMEOUT:2s}
+      password: ${REDIS_PASSWORD:}
 
   profiles:
     active: local

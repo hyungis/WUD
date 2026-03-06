@@ -11,6 +11,8 @@ services:
       - DB_URL=${DB_URL}
       - DB_USERNAME=${DB_USERNAME}
       - DB_PASSWORD=${DB_PASSWORD}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
     depends_on:
       - redis
       - rabbitmq
@@ -38,17 +40,17 @@ services:
       - app-network
     restart: always
 
-  frontend:
-    build:
-      context: ../fe
-      dockerfile: Dockerfile
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    networks:
-      - app-network
-    restart: always
+  # frontend:
+  #   build:
+  #     context: ../fe
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "80:80"
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - app-network
+  #   restart: always
 
   ai:
     build:
