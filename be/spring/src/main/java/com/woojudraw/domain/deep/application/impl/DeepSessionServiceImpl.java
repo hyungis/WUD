@@ -22,6 +22,8 @@ import com.woojudraw.domain.deep.entity.SubmissionType;
 import com.woojudraw.domain.deep.repository.DeepPsychAssessmentRepository;
 import com.woojudraw.domain.deep.repository.DeepSessionRepository;
 import com.woojudraw.domain.deep.repository.DeepSubmissionRepository;
+import com.woojudraw.domain.image.entity.Image;
+import com.woojudraw.domain.image.repository.ImageRepository;
 import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
 
@@ -36,6 +38,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 	private final DeepSessionRepository deepSessionRepository;
 	private final DeepPsychAssessmentRepository deepPsychAssessmentRepository;
 	private final DeepSubmissionRepository deepSubmissionRepository;
+	private final ImageRepository imageRepository;
 	private final ObjectMapper objectMapper;
 
 	@Override
@@ -92,6 +95,10 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		}
 		validateSubmittableSession(deepSession);
 		validateHtpRequest(request);
+
+		Image houseImage = getOwnedImageOrThrow(request.getHouseImageId(), userId);
+		Image treeImage = getOwnedImageOrThrow(request.getTreeImageId(), userId);
+		Image personImage = getOwnedImageOrThrow(request.getPersonImageId(), userId);
 
 		deepSubmissionRepository.save(
 			DeepSubmission.create(sessionId, request.getHouseImageId(), SubmissionType.HOUSE)
@@ -153,6 +160,17 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 				"HTP 이미지는 서로 다른 이미지여야 합니다."
 			);
 		}
+	}
+
+	private Image getOwnedImageOrThrow(Long imageId, Long userId) {
+		Image image = imageRepository.findById(imageId)
+			.orElseThrow(() -> new BusinessException(ResponseCode.FILE_NOT_FOUND));
+
+		if (!image.getUser().getId().equals(userId)) {
+			throw new BusinessException(ResponseCode.FILE_ACCESS_DENIED);
+		}
+
+		return image;
 	}
 
 }
