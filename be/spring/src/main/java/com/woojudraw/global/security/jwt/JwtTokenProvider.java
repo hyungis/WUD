@@ -61,6 +61,21 @@ public class JwtTokenProvider {
 			.compact();
 	}
 
+	public long getAccessTokenExpiresInSec() {
+		return accessTokenExpMin * 60L;
+	}
+
+	public long getRefreshTokenExpiresInSec() {
+		return refreshTokenExpDay * 24L * 60L * 60L;
+	}
+
+	public long getRemainingValidityInSec(String token) {
+		Instant now = Instant.now();
+		Instant expiration = parseClaims(token).getExpiration().toInstant();
+		long remainingInSec = expiration.getEpochSecond() - now.getEpochSecond();
+		return Math.max(remainingInSec, 0L);
+	}
+
 	public Claims parseClaims(String token) {
 		return Jwts.parser()
 			.verifyWith(key)
