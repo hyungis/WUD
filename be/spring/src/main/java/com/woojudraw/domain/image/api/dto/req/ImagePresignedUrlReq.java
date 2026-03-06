@@ -1,11 +1,11 @@
-package com.woojudraw.domain.storage.api.dto.req;
+package com.woojudraw.domain.image.api.dto.req;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.Getter;
 
-import com.woojudraw.domain.storage.entity.ImagePurpose;
+import com.woojudraw.domain.image.entity.ImagePurpose;
 
 @Getter
 public class ImagePresignedUrlReq {

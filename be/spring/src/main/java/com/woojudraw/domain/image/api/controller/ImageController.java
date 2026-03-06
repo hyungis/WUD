@@ -1,4 +1,4 @@
-package com.woojudraw.domain.storage.api.controller;
+package com.woojudraw.domain.image.api.controller;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -6,11 +6,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.woojudraw.domain.storage.api.dto.req.ImageCreateReq;
-import com.woojudraw.domain.storage.api.dto.req.ImagePresignedUrlReq;
-import com.woojudraw.domain.storage.api.dto.resp.ImageCreateResp;
-import com.woojudraw.domain.storage.api.dto.resp.ImagePresignedUrlResp;
-import com.woojudraw.domain.storage.application.StorageService;
+import com.woojudraw.domain.image.api.dto.req.ImageCreateReq;
+import com.woojudraw.domain.image.api.dto.req.ImagePresignedUrlReq;
+import com.woojudraw.domain.image.api.dto.resp.ImageCreateResp;
+import com.woojudraw.domain.image.api.dto.resp.ImagePresignedUrlResp;
+import com.woojudraw.domain.image.application.ImageService;
 import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
 import com.woojudraw.global.response.ApiResponse;
@@ -25,7 +25,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/images")
 public class ImageController {
 
-	private final StorageService storageService;
+	private final ImageService imageService;
 
 	@PostMapping("/presigned-url")
 	@Operation(security = @SecurityRequirement(name = "bearerAuth"))
@@ -33,13 +33,16 @@ public class ImageController {
 		Authentication authentication,
 		@Valid @RequestBody ImagePresignedUrlReq req
 	) {
-		return ApiResponse.ok(storageService.issuePresignedUrl(resolveMemberId(authentication), req));
+		return ApiResponse.ok(imageService.issuePresignedUrl(resolveMemberId(authentication), req));
 	}
 
 	@PostMapping
 	@Operation(security = @SecurityRequirement(name = "bearerAuth"))
-	public ApiResponse<ImageCreateResp> createImage(@Valid @RequestBody ImageCreateReq req) {
-		return ApiResponse.ok(storageService.createImage(req));
+	public ApiResponse<ImageCreateResp> createImage(
+		Authentication authentication,
+		@Valid @RequestBody ImageCreateReq req
+	) {
+		return ApiResponse.ok(imageService.createImage(resolveMemberId(authentication), req));
 	}
 
 	private Long resolveMemberId(Authentication authentication) {

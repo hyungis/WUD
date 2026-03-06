@@ -1,4 +1,4 @@
-package com.woojudraw.domain.storage.entity;
+package com.woojudraw.domain.image.entity;
 
 public enum ImagePurpose {
 	DAILY_DRAWING

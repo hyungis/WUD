@@ -1,4 +1,4 @@
-package com.woojudraw.domain.storage.api.dto.resp;
+package com.woojudraw.domain.image.api.dto.resp;
 
 import lombok.Builder;
 import lombok.Getter;

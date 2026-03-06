@@ -1,4 +1,4 @@
-package com.woojudraw.domain.storage.application.impl;
+package com.woojudraw.domain.image.application.impl;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -10,14 +10,16 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.woojudraw.domain.storage.api.dto.req.ImageCreateReq;
-import com.woojudraw.domain.storage.api.dto.req.ImagePresignedUrlReq;
-import com.woojudraw.domain.storage.api.dto.resp.ImageCreateResp;
-import com.woojudraw.domain.storage.api.dto.resp.ImagePresignedUrlResp;
-import com.woojudraw.domain.storage.application.StorageService;
-import com.woojudraw.domain.storage.entity.Image;
-import com.woojudraw.domain.storage.entity.ImageStatus;
-import com.woojudraw.domain.storage.repository.ImageRepository;
+import com.woojudraw.domain.image.api.dto.req.ImageCreateReq;
+import com.woojudraw.domain.image.api.dto.req.ImagePresignedUrlReq;
+import com.woojudraw.domain.image.api.dto.resp.ImageCreateResp;
+import com.woojudraw.domain.image.api.dto.resp.ImagePresignedUrlResp;
+import com.woojudraw.domain.image.application.ImageService;
+import com.woojudraw.domain.image.entity.Image;
+import com.woojudraw.domain.image.entity.ImageStatus;
+import com.woojudraw.domain.image.repository.ImageRepository;
+import com.woojudraw.domain.user.entity.User;
+import com.woojudraw.domain.user.repository.UserRepository;
 import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
 
@@ -29,11 +31,12 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 @Service
 @RequiredArgsConstructor
 @Transactional
-public class StorageServiceImpl implements StorageService {
+public class ImageServiceImpl implements ImageService {
 
 	private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
 	private final ImageRepository imageRepository;
+	private final UserRepository userRepository;
 	private final S3Presigner s3Presigner;
 
 	@Value("${cloud.aws.s3.bucket}")
@@ -50,17 +53,18 @@ public class StorageServiceImpl implements StorageService {
 	public ImagePresignedUrlResp issuePresignedUrl(Long memberId, ImagePresignedUrlReq req) {
 		validateS3Settings();
 		validateImageMimeType(req.getMimeType());
+		User user = findUser(memberId);
 
 		String imageKey = generateImageKey(memberId, req.getMimeType());
 		Image image = imageRepository.save(
 			Image.builder()
+				.user(user)
 				.imageKey(imageKey)
 				.mimeType(req.getMimeType())
 				.byteSize(req.getByteSize())
 				.width(req.getWidth())
 				.height(req.getHeight())
-				.purpose(req.getPurpose())
-				.status(ImageStatus.PENDING)
+				.status(ImageStatus.UPLOADING)
 				.build()
 		);
 
@@ -83,7 +87,7 @@ public class StorageServiceImpl implements StorageService {
 				ImagePresignedUrlResp.ImageInfo.builder()
 					.id(image.getId())
 					.imageKey(imageKey)
-					.status(ImageStatus.PENDING.name())
+					.status(ImageStatus.UPLOADING.name())
 					.build()
 			)
 			.upload(
@@ -97,27 +101,50 @@ public class StorageServiceImpl implements StorageService {
 	}
 
 	@Override
-	public ImageCreateResp createImage(ImageCreateReq req) {
+	public ImageCreateResp createImage(Long memberId, ImageCreateReq req) {
 		validateImageKey(req.getImageKey());
 		validateImageMimeType(req.getMimeType());
+		User user = findUser(memberId);
 
-		if (imageRepository.existsByImageKey(req.getImageKey())) {
-			throw new BusinessException(ResponseCode.CONFLICT, Map.of("imageKey", "already exists"));
-		}
-
-		Image image = imageRepository.save(
-			Image.builder()
-				.imageKey(req.getImageKey())
-				.mimeType(req.getMimeType())
-				.byteSize(req.getByteSize())
-				.status(ImageStatus.REGISTERED)
-				.build()
-		);
+		Image image = imageRepository.findByImageKeyAndDeletedAtIsNull(req.getImageKey())
+			.map(existing -> syncExistingImage(memberId, existing, req))
+			.orElseGet(() -> createNewReadyImage(user, req));
 
 		return ImageCreateResp.builder()
 			.imageId(image.getId())
 			.imageKey(image.getImageKey())
 			.build();
+	}
+
+	private Image syncExistingImage(Long memberId, Image existing, ImageCreateReq req) {
+		if (!existing.isOwnedBy(memberId)) {
+			throw new BusinessException(ResponseCode.FORBIDDEN);
+		}
+
+		if (existing.getStatus() == ImageStatus.DELETED) {
+			throw new BusinessException(ResponseCode.RESOURCE_NOT_FOUND);
+		}
+
+		existing.updateUploadInfo(req.getMimeType(), req.getByteSize());
+		existing.markReady();
+		return existing;
+	}
+
+	private Image createNewReadyImage(User user, ImageCreateReq req) {
+		return imageRepository.save(
+			Image.builder()
+				.user(user)
+				.imageKey(req.getImageKey())
+				.mimeType(req.getMimeType())
+				.byteSize(req.getByteSize())
+				.status(ImageStatus.READY)
+				.build()
+		);
+	}
+
+	private User findUser(Long memberId) {
+		return userRepository.findById(memberId)
+			.orElseThrow(() -> new BusinessException(ResponseCode.USER_NOT_FOUND));
 	}
 
 	private void validateS3Settings() {
@@ -147,7 +174,8 @@ public class StorageServiceImpl implements StorageService {
 	private String generateImageKey(Long memberId, String mimeType) {
 		String extension = extractExtensionFromMimeType(mimeType);
 		String currentDate = LocalDate.now().format(DATE_FORMATTER);
-		return photoPath + "/users/" + memberId + "/" + currentDate + "/" + UUID.randomUUID() + extension;
+		String normalizedPhotoPath = photoPath.endsWith("/") ? photoPath.substring(0, photoPath.length() - 1) : photoPath;
+		return normalizedPhotoPath + "/users/" + memberId + "/" + currentDate + "/" + UUID.randomUUID() + extension;
 	}
 
 	private String extractExtensionFromMimeType(String mimeType) {
