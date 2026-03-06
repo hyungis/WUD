@@ -1,15 +1,19 @@
 package com.woojudraw.domain.deep.api.controller;
 
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.woojudraw.domain.deep.api.dto.req.CreateDeepSessionReq;
+import com.woojudraw.domain.deep.api.dto.req.SubmitWho5Req;
 import com.woojudraw.domain.deep.api.dto.resp.CreateDeepSessionResp;
+import com.woojudraw.domain.deep.api.dto.resp.SubmitWho5Resp;
 import com.woojudraw.domain.deep.application.DeepSessionService;
 import com.woojudraw.global.response.ApiResponse;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -29,6 +33,16 @@ public class DeepSessionController {
 		CreateDeepSessionReq actualRequest = (request == null) ? new CreateDeepSessionReq() : request;
 		CreateDeepSessionResp response = deepSessionService.createDeepSession(userId, actualRequest);
 
+		return ApiResponse.ok(response);
+	}
+
+	@PostMapping("/{sessionId}/psych-assessments/who5")
+	public ApiResponse<SubmitWho5Resp> submitWho5(
+		@PathVariable Long sessionId,
+		@Valid @RequestBody SubmitWho5Req request
+	){
+		Long userId = 1L;
+		SubmitWho5Resp response = deepSessionService.submitWho5(userId, sessionId, request);
 		return ApiResponse.ok(response);
 	}
 }

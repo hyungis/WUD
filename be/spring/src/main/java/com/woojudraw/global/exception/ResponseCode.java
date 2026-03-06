@@ -14,7 +14,7 @@ import org.springframework.http.HttpStatus;
  * - Rxxx: 드로잉(캔버스)
  * - Fxxx: 파일/S3
  * - Ixxx: AI 분석(FastAPI/모델/LLM)
- *
+ * - Pxxx: 심층분석 / 심리검사(Deep / Psych)
  */
 public enum ResponseCode {
 
@@ -122,6 +122,19 @@ public enum ResponseCode {
 	FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F004", "파일 업로드에 실패했습니다."),
 	FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "F005", "파일을 찾을 수 없습니다."),
 	FILE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "F006", "파일 접근 권한이 없습니다."),
+
+	/* =========================================================
+	 * DEEP / PSYCH
+	 * ========================================================= */
+
+	DEEP_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "심층 세션을 찾을 수 없습니다."),
+	DEEP_SESSION_ACCESS_DENIED(HttpStatus.FORBIDDEN, "P002", "해당 심층 세션에 접근할 권한이 없습니다."),
+	DEEP_TYPE_INVALID(HttpStatus.BAD_REQUEST, "P003", "유효하지 않은 심층 검사 유형입니다."),
+	DEEP_SUBMISSION_INVALID(HttpStatus.BAD_REQUEST, "P004", "심층 제출 데이터가 올바르지 않습니다."),
+	DEEP_ALREADY_SUBMITTED(HttpStatus.CONFLICT, "P005", "이미 제출된 심층 세션입니다."),
+	DEEP_RESULT_NOT_FOUND(HttpStatus.NOT_FOUND, "P006", "심층 분석 결과를 찾을 수 없습니다."),
+	WHO5_INVALID_ANSWER(HttpStatus.BAD_REQUEST, "P007", "WHO-5 응답 값이 올바르지 않습니다."),
+	WHO5_ALREADY_SUBMITTED(HttpStatus.CONFLICT, "P008", "이번 주 WHO-5 설문은 이미 제출되었습니다."),
 
 	/* =========================================================
 	 * AI
