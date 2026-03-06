@@ -9,6 +9,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.woojudraw.global.exception.ResponseCode;
+import com.woojudraw.global.response.ApiResponse;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -23,6 +26,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private static final String BEARER_PREFIX = "Bearer ";
 
 	private final JwtTokenProvider jwtTokenProvider;
+	private final RedisTokenStore redisTokenStore;
+	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	@Override
 	protected void doFilterInternal(
@@ -37,6 +42,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		}
 
 		try {
+			if (redisTokenStore.isBlacklisted(token)) {
+				SecurityContextHolder.clearContext();
+				writeErrorResponse(response, ResponseCode.INVALID_TOKEN);
+				return;
+			}
+
 			Claims claims = jwtTokenProvider.parseClaims(token);
 			Long memberId = Long.valueOf(claims.getSubject());
 			String role = claims.get("role", String.class);
@@ -46,9 +57,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 			SecurityContextHolder.getContext().setAuthentication(authentication);
 		} catch (JwtException | IllegalArgumentException exception) {
 			SecurityContextHolder.clearContext();
-			response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-			response.setContentType("application/json;charset=UTF-8");
-			response.getWriter().write("{\"message\":\"Invalid or expired token\"}");
+			writeErrorResponse(response, ResponseCode.INVALID_TOKEN);
 			return;
 		}
 
@@ -71,5 +80,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		}
 
 		return authorization.substring(BEARER_PREFIX.length());
+	}
+
+	private void writeErrorResponse(HttpServletResponse response, ResponseCode responseCode) throws IOException {
+		response.setStatus(responseCode.httpStatus().value());
+		response.setContentType("application/json;charset=UTF-8");
+		response.getWriter().write(
+			objectMapper.writeValueAsString(ApiResponse.fail(responseCode.code(), responseCode.message(), null))
+		);
 	}
 }
