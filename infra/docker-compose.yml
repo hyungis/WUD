@@ -13,6 +13,12 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - REDIS_HOST=${REDIS_HOST}
       - REDIS_PORT=${REDIS_PORT}
+      - AWS_S3_BUCKET=${AWS_S3_BUCKET}
+      - AWS_S3_PHOTO_PATH=${AWS_S3_PHOTO_PATH}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+      - AWS_SECRET_KEY=${AWS_SECRET_KEY}
+      - AWS_S3_PRESIGNED_URL_EXP_MIN=${AWS_S3_PRESIGNED_URL_EXP_MIN}
     depends_on:
       - redis
       - rabbitmq

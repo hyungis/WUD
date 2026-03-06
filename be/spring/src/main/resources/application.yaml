@@ -30,6 +30,21 @@ security:
     access-token-exp-min: 30
     refresh-token-exp-day: 14
 
+cloud:
+  aws:
+    s3:
+      bucket: ${AWS_S3_BUCKET:wud-upload}
+      path:
+        photo: ${AWS_S3_PHOTO_PATH:photos}
+      presigned-url-exp-min: ${AWS_S3_PRESIGNED_URL_EXP_MIN:5}
+    region:
+      static: ${AWS_REGION:ap-southeast-2}
+    stack:
+      auto: false
+    credentials:
+      accessKey: ${AWS_ACCESS_KEY:}
+      secretKey: ${AWS_SECRET_KEY:}
+
 server:
   port: 8081
 
