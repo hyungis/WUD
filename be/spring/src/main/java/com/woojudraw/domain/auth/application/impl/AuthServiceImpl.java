@@ -13,6 +13,7 @@ import com.woojudraw.domain.user.repository.UserRepository;
 import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
 import com.woojudraw.global.security.jwt.JwtTokenProvider;
+import com.woojudraw.global.security.jwt.RedisTokenStore;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,6 +25,7 @@ public class AuthServiceImpl implements AuthService {
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtTokenProvider jwtTokenProvider;
+	private final RedisTokenStore redisTokenStore;
 
 	@Override
 	public void signup(SignupReq req) {
@@ -58,11 +60,21 @@ public class AuthServiceImpl implements AuthService {
 			"ROLE_USER"
 		);
 		String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
+		redisTokenStore.saveRefreshToken(user.getId(), refreshToken, jwtTokenProvider.getRefreshTokenExpiresInSec());
 
 		return LoginResp.builder()
 			.accessToken(accessToken)
 			.refreshToken(refreshToken)
 			.expiresInSec(jwtTokenProvider.getAccessTokenExpiresInSec())
 			.build();
+	}
+
+	@Override
+	public void logout(String accessToken) {
+		Long memberId = jwtTokenProvider.getMemberId(accessToken);
+		long remainingValidityInSec = jwtTokenProvider.getRemainingValidityInSec(accessToken);
+
+		redisTokenStore.blacklistAccessToken(accessToken, remainingValidityInSec);
+		redisTokenStore.deleteRefreshToken(memberId);
 	}
 }

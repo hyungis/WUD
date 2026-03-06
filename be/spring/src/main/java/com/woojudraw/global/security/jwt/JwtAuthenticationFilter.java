@@ -26,6 +26,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 	private static final String BEARER_PREFIX = "Bearer ";
 
 	private final JwtTokenProvider jwtTokenProvider;
+	private final RedisTokenStore redisTokenStore;
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	@Override
@@ -41,6 +42,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		}
 
 		try {
+			if (redisTokenStore.isBlacklisted(token)) {
+				SecurityContextHolder.clearContext();
+				writeErrorResponse(response, ResponseCode.INVALID_TOKEN);
+				return;
+			}
+
 			Claims claims = jwtTokenProvider.parseClaims(token);
 			Long memberId = Long.valueOf(claims.getSubject());
 			String role = claims.get("role", String.class);

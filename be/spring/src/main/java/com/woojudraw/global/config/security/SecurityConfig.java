@@ -1,9 +1,16 @@
 package com.woojudraw.global.config.security;
 
+import java.io.IOException;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.woojudraw.global.exception.ResponseCode;
+import com.woojudraw.global.response.ApiResponse;
 import com.woojudraw.global.security.jwt.JwtAuthenticationFilter;
 import com.woojudraw.global.security.jwt.JwtTokenProvider;
+import com.woojudraw.global.security.jwt.RedisTokenStore;
 import lombok.RequiredArgsConstructor;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -20,13 +27,16 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
 	private final JwtTokenProvider jwtTokenProvider;
+	private final RedisTokenStore redisTokenStore;
+	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	private static final String[] PERMIT_ALL = {
 		"/health",
 		"/actuator/health",
 		"/swagger-ui/**",
 		"/v3/api-docs/**",
-		"/auth/**"
+		"/auth/signup",
+		"/auth/login"
 	};
 
 	@Bean
@@ -36,7 +46,13 @@ public class SecurityConfig {
 			.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 			.formLogin(form -> form.disable())
 			.httpBasic(basic -> basic.disable())
-			.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class)
+			.exceptionHandling(ex -> ex
+				.authenticationEntryPoint((request, response, authException) ->
+					writeErrorResponse(response, ResponseCode.LOGIN_REQUIRED))
+				.accessDeniedHandler((request, response, accessDeniedException) ->
+					writeErrorResponse(response, ResponseCode.FORBIDDEN))
+			)
+			.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, redisTokenStore), UsernamePasswordAuthenticationFilter.class)
 			.authorizeHttpRequests(auth -> auth
 				.requestMatchers(PERMIT_ALL).permitAll()
 				.anyRequest().authenticated()
@@ -48,5 +64,13 @@ public class SecurityConfig {
 	@Bean
 	public PasswordEncoder passwordEncoder() {
 		return new BCryptPasswordEncoder();
+	}
+
+	private void writeErrorResponse(HttpServletResponse response, ResponseCode responseCode) throws IOException {
+		response.setStatus(responseCode.httpStatus().value());
+		response.setContentType("application/json;charset=UTF-8");
+		response.getWriter().write(
+			objectMapper.writeValueAsString(ApiResponse.fail(responseCode.code(), responseCode.message(), null))
+		);
 	}
 }

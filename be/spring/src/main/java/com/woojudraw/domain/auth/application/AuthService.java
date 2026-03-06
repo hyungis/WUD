@@ -9,4 +9,6 @@ public interface AuthService {
 	void signup(SignupReq req);
 
 	LoginResp login(LoginReq req);
+
+	void logout(String accessToken);
 }
