@@ -1,6 +1,7 @@
 package com.woojudraw.domain.deep.api.controller;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -11,6 +12,7 @@ import com.woojudraw.domain.deep.api.dto.req.CreateDeepSessionReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitHtpReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitWho5Req;
 import com.woojudraw.domain.deep.api.dto.resp.CreateDeepSessionResp;
+import com.woojudraw.domain.deep.api.dto.resp.DeepSessionStatusResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitHtpResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitWho5Resp;
 import com.woojudraw.domain.deep.application.DeepSessionService;
@@ -63,6 +65,19 @@ public class DeepSessionController {
 		Long userId = resolveMemberId(authentication);
 		SubmitHtpResp response = deepSessionService.submitHtp(userId, sessionId, request);
 		return ApiResponse.ok(response);
+	}
+
+	@GetMapping("/{sessionId}/status")
+	@Operation(security = @SecurityRequirement(name = "bearerAuth"))
+	public ApiResponse<DeepSessionStatusResp> getSessionStatus(
+		Authentication authentication,
+		@PathVariable Long sessionId
+	) {
+		Long userId = resolveMemberId(authentication);
+
+		return ApiResponse.ok(
+			deepSessionService.getDeepSessionStatus(userId, sessionId)
+		);
 	}
 
 	private Long resolveMemberId(Authentication authentication) {

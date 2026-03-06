@@ -10,6 +10,7 @@ import com.woojudraw.domain.deep.api.dto.req.CreateDeepSessionReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitHtpReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitWho5Req;
 import com.woojudraw.domain.deep.api.dto.resp.CreateDeepSessionResp;
+import com.woojudraw.domain.deep.api.dto.resp.DeepSessionStatusResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitHtpResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitWho5Resp;
 import com.woojudraw.domain.deep.application.DeepSessionService;
@@ -115,6 +116,17 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		deepSession.changeStatus(DeepStatus.ANALYZING);
 
 		return SubmitHtpResp.builder()
+			.sessionId(deepSession.getId())
+			.status(deepSession.getStatus())
+			.build();
+	}
+
+	@Override
+	public DeepSessionStatusResp getDeepSessionStatus(Long userId, Long sessionId) {
+		DeepSession deepSession = deepSessionRepository.findByIdAndUserId(sessionId, userId)
+			.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
+
+		return DeepSessionStatusResp.builder()
 			.sessionId(deepSession.getId())
 			.status(deepSession.getStatus())
 			.build();
