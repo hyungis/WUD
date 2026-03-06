@@ -2,23 +2,17 @@ version: '3.8'
 
 services:
   backend:
+    platform: linux/amd64
     build: 
       context: ../be/spring
       dockerfile: Dockerfile
     ports:
       - "8081:8081"
+    env_file:
+      - ./.env
     environment:
-      - DB_URL=${DB_URL}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
-      - AWS_S3_BUCKET=${AWS_S3_BUCKET}
-      - AWS_S3_PHOTO_PATH=${AWS_S3_PHOTO_PATH}
-      - AWS_REGION=${AWS_REGION}
-      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
-      - AWS_SECRET_KEY=${AWS_SECRET_KEY}
-      - AWS_S3_PRESIGNED_URL_EXP_MIN=${AWS_S3_PRESIGNED_URL_EXP_MIN}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
     depends_on:
       - redis
       - rabbitmq
@@ -36,9 +30,8 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
-    environment:
-      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
-      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+    env_file:
+      - ./.env
     ports:
       - "5672:5672"
       - "15672:15672"
