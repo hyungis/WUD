@@ -7,8 +7,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.woojudraw.domain.deep.api.dto.req.CreateDeepSessionReq;
+import com.woojudraw.domain.deep.api.dto.req.SubmitHtpReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitWho5Req;
 import com.woojudraw.domain.deep.api.dto.resp.CreateDeepSessionResp;
+import com.woojudraw.domain.deep.api.dto.resp.SubmitHtpResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitWho5Resp;
 import com.woojudraw.domain.deep.application.DeepSessionService;
 import com.woojudraw.global.response.ApiResponse;
@@ -43,6 +45,16 @@ public class DeepSessionController {
 	){
 		Long userId = 1L;
 		SubmitWho5Resp response = deepSessionService.submitWho5(userId, sessionId, request);
+		return ApiResponse.ok(response);
+	}
+
+	@PostMapping("/{sessionId}/submissions/htp")
+	public ApiResponse<SubmitHtpResp> submitHtp(
+		@PathVariable Long sessionId,
+		@Valid @RequestBody SubmitHtpReq request
+	){
+		Long userId = 1L;
+		SubmitHtpResp response = deepSessionService.submitHtp(userId, sessionId, request);
 		return ApiResponse.ok(response);
 	}
 }

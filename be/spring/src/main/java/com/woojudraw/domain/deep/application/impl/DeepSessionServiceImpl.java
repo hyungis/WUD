@@ -7,14 +7,21 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.woojudraw.domain.deep.api.dto.req.CreateDeepSessionReq;
+import com.woojudraw.domain.deep.api.dto.req.SubmitHtpReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitWho5Req;
 import com.woojudraw.domain.deep.api.dto.resp.CreateDeepSessionResp;
+import com.woojudraw.domain.deep.api.dto.resp.SubmitHtpResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitWho5Resp;
 import com.woojudraw.domain.deep.application.DeepSessionService;
 import com.woojudraw.domain.deep.entity.DeepPsychAssessment;
 import com.woojudraw.domain.deep.entity.DeepSession;
+import com.woojudraw.domain.deep.entity.DeepStatus;
+import com.woojudraw.domain.deep.entity.DeepSubmission;
+import com.woojudraw.domain.deep.entity.DeepType;
+import com.woojudraw.domain.deep.entity.SubmissionType;
 import com.woojudraw.domain.deep.repository.DeepPsychAssessmentRepository;
 import com.woojudraw.domain.deep.repository.DeepSessionRepository;
+import com.woojudraw.domain.deep.repository.DeepSubmissionRepository;
 import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
 
@@ -28,6 +35,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 
 	private final DeepSessionRepository deepSessionRepository;
 	private final DeepPsychAssessmentRepository deepPsychAssessmentRepository;
+	private final DeepSubmissionRepository deepSubmissionRepository;
 	private final ObjectMapper objectMapper;
 
 	@Override
@@ -70,6 +78,41 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 			.build();
 	}
 
+	@Override
+	public SubmitHtpResp submitHtp(Long userId, Long sessionId, SubmitHtpReq request) {
+		DeepSession deepSession = deepSessionRepository.findById(sessionId)
+			.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
+
+		if (!deepSession.getUserId().equals(userId)) {
+			throw new BusinessException(ResponseCode.DEEP_SESSION_ACCESS_DENIED);
+		}
+
+		if (deepSession.getSubmittedAt() != null) {
+			throw new BusinessException(ResponseCode.DEEP_ALREADY_SUBMITTED);
+		}
+		validateSubmittableSession(deepSession);
+		validateHtpRequest(request);
+
+		deepSubmissionRepository.save(
+			DeepSubmission.create(sessionId, request.getHouseImageId(), SubmissionType.HOUSE)
+		);
+		deepSubmissionRepository.save(
+			DeepSubmission.create(sessionId, request.getTreeImageId(), SubmissionType.TREE)
+		);
+		deepSubmissionRepository.save(
+			DeepSubmission.create(sessionId, request.getPersonImageId(), SubmissionType.PERSON)
+		);
+
+		deepSession.updateDeepType(DeepType.HTP);
+		deepSession.markSubmitted();
+		deepSession.changeStatus(DeepStatus.ANALYZING);
+
+		return SubmitHtpResp.builder()
+			.sessionId(deepSession.getId())
+			.status(deepSession.getStatus())
+			.build();
+	}
+
 	private void validateWho5Answers(SubmitWho5Req request) {
 		boolean invalid = request.getAnswers().stream()
 			.anyMatch(answer -> answer == null || answer < 0 || answer > 5);
@@ -78,6 +121,36 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 			throw new BusinessException(
 				ResponseCode.WHO5_INVALID_ANSWER,
 				request.getAnswers()
+			);
+		}
+	}
+
+	private void validateSubmittableSession(DeepSession deepSession) {
+		if (deepSession.getSubmittedAt() != null) {
+			throw new BusinessException(ResponseCode.DEEP_ALREADY_SUBMITTED);
+		}
+
+		if (deepSession.getStatus() != DeepStatus.DRAFT) {
+			throw new BusinessException(ResponseCode.DEEP_ALREADY_SUBMITTED);
+		}
+	}
+
+	private void validateHtpRequest(SubmitHtpReq request) {
+		if (request.getHouseImageId() == null
+			|| request.getTreeImageId() == null
+			|| request.getPersonImageId() == null) {
+			throw new BusinessException(ResponseCode.DEEP_SUBMISSION_INVALID);
+		}
+
+		boolean duplicated =
+			request.getHouseImageId().equals(request.getTreeImageId()) ||
+				request.getHouseImageId().equals(request.getPersonImageId()) ||
+				request.getTreeImageId().equals(request.getPersonImageId());
+
+		if (duplicated) {
+			throw new BusinessException(
+				ResponseCode.DEEP_SUBMISSION_INVALID,
+				"HTP 이미지는 서로 다른 이미지여야 합니다."
 			);
 		}
 	}
