@@ -89,5 +89,4 @@ public class DeepSession {
 		this.completedAt = OffsetDateTime.now();
 		this.updatedAt = OffsetDateTime.now();
 	}
-
 }
