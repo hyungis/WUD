@@ -22,6 +22,7 @@ import com.woojudraw.domain.deep.api.dto.resp.SubmitWho5Resp;
 import com.woojudraw.domain.deep.application.DeepAiService;
 import com.woojudraw.domain.deep.application.DeepSessionService;
 import com.woojudraw.domain.deep.entity.DeepPsychAssessment;
+import com.woojudraw.domain.deep.entity.DeepResult;
 import com.woojudraw.domain.deep.entity.DeepSession;
 import com.woojudraw.domain.deep.entity.DeepStatus;
 import com.woojudraw.domain.deep.entity.DeepSubmission;
@@ -29,6 +30,7 @@ import com.woojudraw.domain.deep.entity.DeepType;
 import com.woojudraw.domain.deep.entity.PsychTestCode;
 import com.woojudraw.domain.deep.entity.SubmissionType;
 import com.woojudraw.domain.deep.repository.DeepPsychAssessmentRepository;
+import com.woojudraw.domain.deep.repository.DeepResultRepository;
 import com.woojudraw.domain.deep.repository.DeepSessionRepository;
 import com.woojudraw.domain.deep.repository.DeepSubmissionRepository;
 import com.woojudraw.domain.image.entity.Image;
@@ -50,6 +52,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 	private final ImageRepository imageRepository;
 	private final ObjectMapper objectMapper;
 	private final DeepAiService deepAiService;
+	private final DeepResultRepository deepResultRepository;
 
 	@Override
 	public CreateDeepSessionResp createDeepSession(Long userId, CreateDeepSessionReq request) {
@@ -142,20 +145,30 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 					.build();
 
 			AiAnalyzeResp aiResponse = deepAiService.analyzeHtp(aiRequest);
-
-			// 지금 1차 커밋은 연결 검증이 목적이니까 결과 저장 대신 로그 확인만 해도 됨
+			
 			if (aiResponse == null || aiResponse.getData() == null) {
 				throw new BusinessException(ResponseCode.AI_ANALYSIS_FAILED);
 			}
 
-			System.out.println("FastAPI status = " + aiResponse.getStatus());
-			System.out.println("FastAPI message = " + aiResponse.getMessage());
-			System.out.println("FastAPI summary = " + aiResponse.getData().getResultSummary());
+			Map<String, Object> rawMap = new java.util.HashMap<>();
+			rawMap.put("questions", aiResponse.getData().getQuestions());
+			rawMap.put("raw", aiResponse.getData().getRaw());
+
+			String rawJson = objectMapper.writeValueAsString(rawMap);
+
+			DeepResult deepResult = DeepResult.create(
+				sessionId,
+				aiResponse.getData().getResultSummary(),
+				rawJson
+			);
+
+			deepResultRepository.save(deepResult);
 
 			deepSession.changeStatus(DeepStatus.DONE);
-			deepSession.markCompleted(); // <-- 누락되었던 완료 시간 저장 코드 추가!
+			deepSession.markCompleted();
 
 		} catch (Exception e) {
+			e.printStackTrace();
 			deepSession.changeStatus(DeepStatus.FAILED);
 			throw new BusinessException(ResponseCode.AI_ANALYSIS_FAILED);
 		}
