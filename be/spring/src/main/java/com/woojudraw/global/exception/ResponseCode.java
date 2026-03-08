@@ -14,21 +14,25 @@ import org.springframework.http.HttpStatus;
  * - Rxxx: 드로잉(캔버스)
  * - Fxxx: 파일/S3
  * - Ixxx: AI 분석(FastAPI/모델/LLM)
- *
+ * - Pxxx: 심층분석 / 심리검사(Deep / Psych)
  */
 public enum ResponseCode {
 
-	/* =========================================================
+	/*
+	 * =========================================================
 	 * SUCCESS
-	 * ========================================================= */
+	 * =========================================================
+	 */
 
 	SUCCESS(HttpStatus.OK, "S000", "요청 성공"),
 	CREATED(HttpStatus.CREATED, "S001", "생성 성공"),
 	NO_CONTENT(HttpStatus.NO_CONTENT, "S002", "처리 성공"),
 
-	/* =========================================================
+	/*
+	 * =========================================================
 	 * COMMON
-	 * ========================================================= */
+	 * =========================================================
+	 */
 
 	INVALID_REQUEST(HttpStatus.BAD_REQUEST, "C001", "잘못된 요청입니다."),
 	VALIDATION_FAILED(HttpStatus.BAD_REQUEST, "C002", "요청 값 검증에 실패했습니다."),
@@ -42,17 +46,18 @@ public enum ResponseCode {
 	MESSAGE_NOT_READABLE(HttpStatus.BAD_REQUEST, "C010", "요청 본문(JSON)을 읽을 수 없습니다."),
 	TYPE_MISMATCH(HttpStatus.BAD_REQUEST, "C011", "요청 값 타입이 올바르지 않습니다."),
 	UNSUPPORTED_MEDIA_TYPE(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "C012", "지원하지 않는 Content-Type 입니다."),
-	//DB
+	// DB
 	DB_INTEGRITY_VIOLATION(HttpStatus.CONFLICT, "C020", "데이터 무결성 제약 위반입니다."),
 	DATA_ACCESS_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C021", "데이터 처리 중 오류가 발생했습니다."),
 	// EXTERNAL/AI (예: FastAPI)
 	EXTERNAL_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "C030", "외부 서비스에 연결할 수 없습니다."),
 	EXTERNAL_SERVICE_TIMEOUT(HttpStatus.GATEWAY_TIMEOUT, "C031", "외부 서비스 요청이 시간 초과되었습니다."),
 
-
-	/* =========================================================
+	/*
+	 * =========================================================
 	 * AUTH
-	 * ========================================================= */
+	 * =========================================================
+	 */
 
 	UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "A001", "인증이 필요합니다."),
 	FORBIDDEN(HttpStatus.FORBIDDEN, "A002", "접근 권한이 없습니다."),
@@ -64,9 +69,11 @@ public enum ResponseCode {
 	AUTH_PROCESS_FAILED(HttpStatus.UNAUTHORIZED, "A008", "인증 처리에 실패했습니다."),
 	INVALID_LOGIN(HttpStatus.UNAUTHORIZED, "A009", "로그인 정보가 올바르지 않습니다."),
 
-	/* =========================================================
+	/*
+	 * =========================================================
 	 * OAUTH
-	 * ========================================================= */
+	 * =========================================================
+	 */
 
 	OAUTH_CODE_MISSING(HttpStatus.BAD_REQUEST, "O001", "OAuth 인가 코드가 누락되었습니다."),
 	OAUTH_STATE_INVALID(HttpStatus.BAD_REQUEST, "O002", "OAuth state 값이 올바르지 않습니다."),
@@ -77,9 +84,11 @@ public enum ResponseCode {
 	OAUTH_ALREADY_LINKED(HttpStatus.CONFLICT, "O007", "이미 연결된 OAuth 계정입니다."),
 	OAUTH_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "O008", "OAuth 로그인에 실패했습니다."),
 
-	/* =========================================================
+	/*
+	 * =========================================================
 	 * USER
-	 * ========================================================= */
+	 * =========================================================
+	 */
 
 	USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "사용자를 찾을 수 없습니다."),
 	USER_ALREADY_EXISTS(HttpStatus.CONFLICT, "U002", "이미 존재하는 사용자입니다."),
@@ -91,9 +100,11 @@ public enum ResponseCode {
 	USER_UPDATE_FAILED(HttpStatus.CONFLICT, "U008", "사용자 정보 수정에 실패했습니다."),
 	DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U009", "이미 사용 중인 이메일입니다."),
 
-	/* =========================================================
+	/*
+	 * =========================================================
 	 * DAILY
-	 * ========================================================= */
+	 * =========================================================
+	 */
 
 	DAILY_NOT_FOUND(HttpStatus.NOT_FOUND, "D001", "데일리를 찾을 수 없습니다."),
 	DAILY_ALREADY_EXISTS(HttpStatus.CONFLICT, "D002", "이미 작성된 데일리입니다."),
@@ -104,9 +115,11 @@ public enum ResponseCode {
 	DAILY_UPDATE_NOT_ALLOWED(HttpStatus.CONFLICT, "D007", "현재 상태에서는 수정할 수 없습니다."),
 	DAILY_DELETE_NOT_ALLOWED(HttpStatus.CONFLICT, "D008", "현재 상태에서는 삭제할 수 없습니다."),
 
-	/* =========================================================
+	/*
+	 * =========================================================
 	 * DRAWING
-	 * ========================================================= */
+	 * =========================================================
+	 */
 
 	DRAWING_NOT_FOUND(HttpStatus.NOT_FOUND, "R001", "드로잉 데이터를 찾을 수 없습니다."),
 	DRAWING_ACCESS_DENIED(HttpStatus.FORBIDDEN, "R002", "드로잉 데이터에 접근할 권한이 없습니다."),
@@ -114,9 +127,11 @@ public enum ResponseCode {
 	DRAWING_TOO_LARGE(HttpStatus.PAYLOAD_TOO_LARGE, "R004", "드로잉 데이터 용량이 너무 큽니다."),
 	DRAWING_SAVE_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "R005", "드로잉 저장에 실패했습니다."),
 
-	/* =========================================================
+	/*
+	 * =========================================================
 	 * FILE / S3
-	 * ========================================================= */
+	 * =========================================================
+	 */
 
 	FILE_MISSING(HttpStatus.BAD_REQUEST, "F001", "업로드 파일이 존재하지 않습니다."),
 	FILE_TYPE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "F002", "허용되지 않는 파일 형식입니다."),
@@ -125,9 +140,27 @@ public enum ResponseCode {
 	FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "F005", "파일을 찾을 수 없습니다."),
 	FILE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "F006", "파일 접근 권한이 없습니다."),
 
-	/* =========================================================
+	/*
+	 * =========================================================
+	 * DEEP / PSYCH
+	 * =========================================================
+	 */
+
+	DEEP_SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "P001", "심층 세션을 찾을 수 없습니다."),
+	DEEP_SESSION_ACCESS_DENIED(HttpStatus.FORBIDDEN, "P002", "해당 심층 세션에 접근할 권한이 없습니다."),
+	DEEP_TYPE_INVALID(HttpStatus.BAD_REQUEST, "P003", "유효하지 않은 심층 검사 유형입니다."),
+	DEEP_SUBMISSION_INVALID(HttpStatus.BAD_REQUEST, "P004", "심층 제출 데이터가 올바르지 않습니다."),
+	DEEP_ALREADY_SUBMITTED(HttpStatus.CONFLICT, "P005", "이미 제출된 심층 세션입니다."),
+	DEEP_RESULT_NOT_FOUND(HttpStatus.NOT_FOUND, "P006", "심층 분석 결과를 찾을 수 없습니다."),
+	WHO5_INVALID_ANSWER(HttpStatus.BAD_REQUEST, "P007", "WHO-5 응답 값이 올바르지 않습니다."),
+	WHO5_ALREADY_SUBMITTED(HttpStatus.CONFLICT, "P008", "이번 주 WHO-5 설문은 이미 제출되었습니다."),
+	UNSUPPORTED_DEEP_CONTENT_TYPE(HttpStatus.BAD_REQUEST, "P009", "지원하지 않는 심층 컨텐츠 타입입니다."),
+
+	/*
+	 * =========================================================
 	 * AI
-	 * ========================================================= */
+	 * =========================================================
+	 */
 
 	AI_REQUEST_INVALID(HttpStatus.BAD_REQUEST, "I001", "AI 분석 요청 값이 올바르지 않습니다."),
 	AI_SERVER_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "I002", "AI 서버에 연결할 수 없습니다."),
@@ -143,18 +176,20 @@ public enum ResponseCode {
 	private final String code;
 	private final String message;
 
-	ResponseCode(HttpStatus httpStatus, String code, String message){
+	ResponseCode(HttpStatus httpStatus, String code, String message) {
 		this.httpStatus = httpStatus;
 		this.code = code;
 		this.message = message;
 	}
 
-	public HttpStatus httpStatus(){
+	public HttpStatus httpStatus() {
 		return httpStatus;
 	}
+
 	public String code() {
 		return code;
 	}
+
 	public String message() {
 		return message;
 	}
