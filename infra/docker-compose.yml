@@ -3,7 +3,7 @@ version: '3.8'
 services:
   backend:
     platform: linux/amd64
-    build: 
+    build:
       context: ../be/spring
       dockerfile: Dockerfile
     ports:
@@ -61,6 +61,16 @@ services:
       - "8000:8000"
     env_file:
       - ../ai/.env
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - AI_RABBITMQ_EXCHANGE=wud.deep.ai.exchange
+      - AI_RABBITMQ_REQUEST_QUEUE=wud.deep.ai.request.queue
+      - AI_RABBITMQ_ROUTING_KEY=wud.deep.ai.request.routing-key
+    depends_on:
+      - rabbitmq
     networks:
       - app-network
     restart: always

@@ -175,6 +175,9 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 			deepSession.changeStatus(DeepStatus.DONE);
 			deepSession.markCompleted();
 
+		} catch (BusinessException e) {
+			deepSession.changeStatus(DeepStatus.FAILED);
+			throw e;
 		} catch (Exception e) {
 			e.printStackTrace();
 			deepSession.changeStatus(DeepStatus.FAILED);
