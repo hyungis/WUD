@@ -12,6 +12,7 @@ import com.woojudraw.domain.deep.api.dto.req.CreateDeepSessionReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitHtpReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitWho5Req;
 import com.woojudraw.domain.deep.api.dto.resp.CreateDeepSessionResp;
+import com.woojudraw.domain.deep.api.dto.resp.DeepResultResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSessionStatusResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitHtpResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitWho5Resp;
@@ -78,6 +79,15 @@ public class DeepSessionController {
 		return ApiResponse.ok(
 			deepSessionService.getDeepSessionStatus(userId, sessionId)
 		);
+	}
+
+	@GetMapping("/{sessionId}/result")
+	public ApiResponse<DeepResultResp> getDeepResult(
+		Authentication authentication,
+		@PathVariable Long sessionId
+	){
+		Long userId = resolveMemberId(authentication);
+		return ApiResponse.ok(deepSessionService.getDeepResult(userId, sessionId));
 	}
 
 	private Long resolveMemberId(Authentication authentication) {

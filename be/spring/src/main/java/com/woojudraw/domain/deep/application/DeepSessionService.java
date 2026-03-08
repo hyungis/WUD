@@ -4,6 +4,7 @@ import com.woojudraw.domain.deep.api.dto.req.CreateDeepSessionReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitHtpReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitWho5Req;
 import com.woojudraw.domain.deep.api.dto.resp.CreateDeepSessionResp;
+import com.woojudraw.domain.deep.api.dto.resp.DeepResultResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSessionStatusResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitHtpResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitWho5Resp;
@@ -17,4 +18,6 @@ public interface DeepSessionService {
 	SubmitHtpResp submitHtp(Long userId, Long sessionId, SubmitHtpReq request);
 
 	DeepSessionStatusResp getDeepSessionStatus(Long userId, Long sessionId);
+
+	DeepResultResp getDeepResult(Long userId, Long sessionId);
 }

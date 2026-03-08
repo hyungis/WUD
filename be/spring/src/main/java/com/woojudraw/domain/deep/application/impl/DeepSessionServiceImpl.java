@@ -2,6 +2,7 @@ package com.woojudraw.domain.deep.application.impl;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
@@ -16,7 +17,11 @@ import com.woojudraw.domain.deep.api.dto.req.SubmitWho5Req;
 import com.woojudraw.domain.deep.api.dto.req.Who5AnalyzeReq;
 import com.woojudraw.domain.deep.api.dto.resp.AiAnalyzeResp;
 import com.woojudraw.domain.deep.api.dto.resp.CreateDeepSessionResp;
+import com.woojudraw.domain.deep.api.dto.resp.DeepAiResultResp;
+import com.woojudraw.domain.deep.api.dto.resp.DeepPsychAssessmentItemResp;
+import com.woojudraw.domain.deep.api.dto.resp.DeepResultResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSessionStatusResp;
+import com.woojudraw.domain.deep.api.dto.resp.DeepSubmissionItemResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitHtpResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitWho5Resp;
 import com.woojudraw.domain.deep.application.DeepAiService;
@@ -145,7 +150,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 					.build();
 
 			AiAnalyzeResp aiResponse = deepAiService.analyzeHtp(aiRequest);
-			
+
 			if (aiResponse == null || aiResponse.getData() == null) {
 				throw new BusinessException(ResponseCode.AI_ANALYSIS_FAILED);
 			}
@@ -188,6 +193,63 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 				.sessionId(deepSession.getId())
 				.status(deepSession.getStatus())
 				.build();
+	}
+
+	@Override
+	public DeepResultResp getDeepResult(Long userId, Long sessionId) {
+		DeepSession deepSession = deepSessionRepository.findById(sessionId)
+			.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
+
+		if (!deepSession.getUserId().equals(userId)) {
+			throw new BusinessException(ResponseCode.DEEP_SESSION_ACCESS_DENIED);
+		}
+
+		DeepResult deepResult = deepResultRepository.findByDeepSessionId(sessionId)
+			.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_RESULT_NOT_FOUND));
+
+		List<DeepSubmission> submissions = deepSubmissionRepository
+			.findAllByDeepSessionIdOrderByIdAsc(sessionId);
+		List<DeepPsychAssessment> assessments = deepPsychAssessmentRepository
+			.findAllByDeepSessionIdOrderByIdAsc(sessionId);
+
+		Map<String, Object> parsedRaw = parseDeepResultRaw(deepResult.getRaw());
+		List<String> questions = extractQuestions(parsedRaw);
+		Map<String, Object> rawOnly = extractRaw(parsedRaw);
+
+		List<DeepSubmissionItemResp> submissionResponses = submissions.stream()
+			.map(submission -> {
+				Image image = imageRepository.findById(submission.getImageId())
+					.orElseThrow(() -> new BusinessException(ResponseCode.FILE_NOT_FOUND));
+				return DeepSubmissionItemResp.builder()
+					.type(submission.getType())
+					.imageId(image.getId())
+					.imageKey(image.getImageKey())
+					.build();
+			})
+			.toList();
+
+		List<DeepPsychAssessmentItemResp> assessmentResponses = assessments.stream()
+			.map(assessment -> DeepPsychAssessmentItemResp.builder()
+				.testCode(assessment.getTestCode())
+				.scoreTotal(assessment.getScoreTotal())
+				.raw(parseAssessmentRaw(assessment.getRaw()))
+				.build())
+			.toList();
+
+		return DeepResultResp.builder()
+			.sessionId(deepSession.getId())
+			.deepType(deepSession.getDeepType())
+			.status(deepSession.getStatus())
+			.submissions(submissionResponses)
+			.questions(questions)
+			.aiResult(
+				DeepAiResultResp.builder()
+					.result(deepResult.getResult())
+					.raw(rawOnly)
+					.build()
+			)
+			.psychAssessments(assessmentResponses)
+			.build();
 	}
 
 	private void validateWho5Answers(SubmitWho5Req request) {
@@ -261,4 +323,57 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		}
 	}
 
+	private Map<String, Object> parseDeepResultRaw(String raw) {
+		try {
+			if (raw == null || raw.isBlank()) {
+				return new java.util.HashMap<>();
+			}
+
+			return objectMapper.readValue(
+				raw,
+				new TypeReference<Map<String, Object>>() {}
+			);
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new BusinessException(ResponseCode.INVALID_REQUEST);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private java.util.List<String> extractQuestions(Map<String, Object> parsedRaw) {
+		Object questionsObj = parsedRaw.get("questions");
+
+		if (questionsObj == null) {
+			return java.util.Collections.emptyList();
+		}
+
+		return (java.util.List<String>) questionsObj;
+	}
+
+	@SuppressWarnings("unchecked")
+	private Map<String, Object> extractRaw(Map<String, Object> parsedRaw) {
+		Object rawObj = parsedRaw.get("raw");
+
+		if (rawObj == null) {
+			return new java.util.HashMap<>();
+		}
+
+		return (Map<String, Object>) rawObj;
+	}
+
+	private Map<String, Object> parseAssessmentRaw(String raw) {
+		try {
+			if (raw == null || raw.isBlank()) {
+				return new java.util.HashMap<>();
+			}
+
+			return objectMapper.readValue(
+				raw,
+				new TypeReference<Map<String, Object>>() {}
+			);
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new BusinessException(ResponseCode.INVALID_REQUEST);
+		}
+	}
 }
