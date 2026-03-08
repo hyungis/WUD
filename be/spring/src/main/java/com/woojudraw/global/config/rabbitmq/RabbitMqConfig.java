@@ -10,6 +10,7 @@ import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @Configuration
 public class RabbitMqConfig {
@@ -17,6 +18,11 @@ public class RabbitMqConfig {
 	@Bean
 	public Queue testQueue() {
 		return QueueBuilder.durable(RabbitMqConstants.TEST_QUEUE).build();
+	}
+
+	@Bean
+	public Queue deepAiRequestQueue() {
+		return QueueBuilder.durable(RabbitMqConstants.DEEP_AI_REQUEST_QUEUE).build();
 	}
 
 	@Bean
@@ -28,11 +34,33 @@ public class RabbitMqConfig {
 	}
 
 	@Bean
-	public Binding testBinding(Queue testQueue, DirectExchange testExchange) {
+	public DirectExchange deepAiExchange() {
+		return ExchangeBuilder
+			.directExchange(RabbitMqConstants.DEEP_AI_EXCHANGE)
+			.durable(true)
+			.build();
+	}
+
+	@Bean
+	public Binding testBinding(
+		@Qualifier("testQueue") Queue testQueue,
+		@Qualifier("testExchange") DirectExchange testExchange
+	) {
 		return BindingBuilder
 			.bind(testQueue)
 			.to(testExchange)
 			.with(RabbitMqConstants.TEST_ROUTING_KEY);
+	}
+
+	@Bean
+	public Binding deepAiRequestBinding(
+		@Qualifier("deepAiRequestQueue") Queue deepAiRequestQueue,
+		@Qualifier("deepAiExchange") DirectExchange deepAiExchange
+	) {
+		return BindingBuilder
+			.bind(deepAiRequestQueue)
+			.to(deepAiExchange)
+			.with(RabbitMqConstants.DEEP_AI_REQUEST_ROUTING_KEY);
 	}
 
 	@Bean

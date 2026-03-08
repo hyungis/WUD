@@ -22,6 +22,8 @@ spring:
     port: ${RABBITMQ_PORT:5672}
     username: ${RABBITMQ_USER:guest}
     password: ${RABBITMQ_PASS:guest}
+    template:
+      reply-timeout: ${RABBITMQ_REPLY_TIMEOUT_MS:30000}
 
   jpa:
     hibernate:
@@ -55,8 +57,9 @@ server:
   port: 8081
 
 ai:
-  server:
-    url: http://localhost:8000
+  rabbitmq:
+    exchange: ${AI_RABBITMQ_EXCHANGE:wud.deep.ai.exchange}
+    routing-key: ${AI_RABBITMQ_ROUTING_KEY:wud.deep.ai.request.routing-key}
 
 logging:
   level:
