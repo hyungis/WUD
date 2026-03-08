@@ -48,6 +48,10 @@ cloud:
 server:
   port: 8081
 
+ai:
+  server:
+    url: http://localhost:8000
+
 logging:
   level:
     org.hibernate.SQL: debug
