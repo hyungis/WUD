@@ -1,5 +1,7 @@
 package com.woojudraw.domain.deep.application.impl;
 
+import static java.util.stream.Collectors.*;
+
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
@@ -20,6 +22,7 @@ import com.woojudraw.domain.deep.api.dto.resp.CreateDeepSessionResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepAiResultResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepPsychAssessmentItemResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepResultResp;
+import com.woojudraw.domain.deep.api.dto.resp.DeepSessionListItemResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSessionStatusResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSubmissionItemResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitHtpResp;
@@ -250,6 +253,37 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 			)
 			.psychAssessments(assessmentResponses)
 			.build();
+	}
+
+	@Override
+	public List<DeepSessionListItemResp> getDeepSessions(Long userId) {
+		List<DeepSession> deepSessions = deepSessionRepository
+			.findAllByUserIdOrderByCreatedAtDesc(userId);
+
+		List<Long> sessionIds = deepSessions.stream()
+			.map(DeepSession::getId)
+			.toList();
+		Map<Long, DeepResult> resultMap = deepResultRepository
+			.findAllByDeepSessionIdIn(sessionIds)
+			.stream()
+			.collect(toMap(
+				DeepResult::getDeepSessionId,
+				deepResult -> deepResult
+			));
+
+		return deepSessions.stream()
+			.map(session -> {
+				DeepResult deepResult = resultMap.get(session.getId());
+
+				return DeepSessionListItemResp.builder()
+					.sessionId(session.getId())
+					.deepType(session.getDeepType())
+					.status(session.getStatus())
+					.resultSummary(deepResult != null ? deepResult.getResult() : null)
+					.createdAt(session.getCreatedAt())
+					.build();
+			})
+			.toList();
 	}
 
 	private void validateWho5Answers(SubmitWho5Req request) {

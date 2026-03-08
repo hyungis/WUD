@@ -1,5 +1,7 @@
 package com.woojudraw.domain.deep.api.controller;
 
+import java.util.List;
+
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,6 +15,7 @@ import com.woojudraw.domain.deep.api.dto.req.SubmitHtpReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitWho5Req;
 import com.woojudraw.domain.deep.api.dto.resp.CreateDeepSessionResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepResultResp;
+import com.woojudraw.domain.deep.api.dto.resp.DeepSessionListItemResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSessionStatusResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitHtpResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitWho5Resp;
@@ -88,6 +91,15 @@ public class DeepSessionController {
 	){
 		Long userId = resolveMemberId(authentication);
 		return ApiResponse.ok(deepSessionService.getDeepResult(userId, sessionId));
+	}
+
+	@GetMapping
+	public ApiResponse<List<DeepSessionListItemResp>> getDeepSessions(
+		Authentication authentication
+	){
+		return ApiResponse.ok(
+			deepSessionService.getDeepSessions(resolveMemberId(authentication))
+		);
 	}
 
 	private Long resolveMemberId(Authentication authentication) {

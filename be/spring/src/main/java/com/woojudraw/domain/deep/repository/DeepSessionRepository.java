@@ -11,4 +11,6 @@ import com.woojudraw.domain.deep.entity.DeepSubmission;
 public interface DeepSessionRepository extends JpaRepository<DeepSession, Long> {
 
 	Optional<DeepSession> findByIdAndUserId(Long id, Long userId);
+
+	List<DeepSession> findAllByUserIdOrderByCreatedAtDesc(Long userId);
 }
