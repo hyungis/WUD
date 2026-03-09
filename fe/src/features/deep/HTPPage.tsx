@@ -317,7 +317,7 @@ function HTPPage() {
       byteSize: blob.size,
       width: bitmap.width,
       height: bitmap.height,
-      purpose: "HTP",
+      purpose: "DEEP_DRAWING",
     });
     bitmap.close();
 
