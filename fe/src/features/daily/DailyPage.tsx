@@ -71,7 +71,6 @@ function DailyPage() {
   const [brushSize, setBrushSize] = useState(4);
   const [memo, setMemo] = useState("");
   const [strokeCount, setStrokeCount] = useState(0);
-  const [moveCount, setMoveCount] = useState(0);
   const [totalDistance, setTotalDistance] = useState(0);
   const [totalDuration, setTotalDuration] = useState(0);
   const [colorUsage, setColorUsage] = useState<string[]>([]);
@@ -161,7 +160,6 @@ function DailyPage() {
       lastPointRef.current = { x: point.x, y: point.y, time: Date.now() };
     }
 
-    setMoveCount((count) => count + 1);
   };
 
   const handlePointerUp = () => {
@@ -177,7 +175,6 @@ function DailyPage() {
     }
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     setStrokeCount(0);
-    setMoveCount(0);
     setTotalDistance(0);
     setTotalDuration(0);
     setColorUsage([]);
