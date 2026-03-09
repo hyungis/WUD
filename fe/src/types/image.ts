@@ -4,7 +4,7 @@ export interface ImageUploadRequest {
     byteSize: number;
     width: number;
     height: number;
-    purpose: "PROFILE" | "HTP" | "DAILY";
+    purpose: "DAILY_DRAWING" | "DEEP_DRAWING";
 }
 
 export interface ImageUploadData {
