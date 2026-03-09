@@ -53,7 +53,12 @@ export interface DeepDetailResponse {
     status: "DRAFT" | "ANALYZING" | "DONE" | "FAILED";
     submissions: { type: string; imageId: number; imageKey: string }[];
     questions: string[];
-    aiResult: { result: string; raw: Record<string, unknown> };
+    aiResult: {
+        result?: string;
+        resultSummary?: string;
+        questions?: string[];
+        raw: Record<string, unknown>;
+    };
     psychAssessments: { testCode: string; scoreTotal: number; raw: Record<string, unknown> }[];
 }
 
@@ -63,4 +68,17 @@ export interface DeepHistoryItem {
     status: string;
     createdAt: string;
     resultSummary?: string | null;
+}
+
+export interface AnswerItem {
+    questionId: number;
+    answerText: string;
+}
+
+export interface QuestionAnswerRequest {
+    answers: AnswerItem[];
+}
+
+export interface QuestionAnswerResponse {
+    saved?: boolean;
 }

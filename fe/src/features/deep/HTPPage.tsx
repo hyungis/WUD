@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Button from "../../components/shared/Button";
 import { deepApi } from "../../api/deep";
 import { imageApi } from "../../api/image";
+import type { DeepDetailResponse } from "../../types/deep";
 
 type HtpStep = "house" | "tree" | "person";
 type HtpPhase = "draw" | "result";
@@ -29,6 +30,8 @@ const WHO5_QUESTIONS = [
   "지난 2주 동안 상쾌하게 잠에서 깼다.",
   "지난 2주 동안 일상생활이 흥미로웠다.",
 ];
+const POLLING_INTERVAL_MS = 4000;
+const POLLING_MAX_TRIES = 30;
 
 type ToolType = "brush" | "fill" | "eraser";
 
@@ -171,6 +174,9 @@ function HTPPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [stepDrawings, setStepDrawings] = useState<Partial<Record<HtpStep, string>>>({});
   const [who5Answers, setWho5Answers] = useState<number[]>([3, 3, 3, 3, 3]);
+  const [latestResult, setLatestResult] = useState<DeepDetailResponse | null>(null);
+  const [questionAnswers, setQuestionAnswers] = useState<Record<number, string>>({});
+  const [saveAnswerStatus, setSaveAnswerStatus] = useState<string | null>(null);
 
   const currentStep = STEPS[stepIndex];
 
@@ -345,6 +351,27 @@ function HTPPage() {
     return imageId;
   }, []);
 
+  const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+  const waitUntilAnalysisDone = useCallback(async (sessionId: number) => {
+    for (let attempt = 0; attempt < POLLING_MAX_TRIES; attempt += 1) {
+      const statusRes = await deepApi.getAnalysisStatus(sessionId);
+      const status = statusRes.data?.status;
+      localStorage.setItem("latestDeepStatus", status || "ANALYZING");
+
+      if (status === "DONE") {
+        return "DONE" as const;
+      }
+      if (status === "FAILED") {
+        return "FAILED" as const;
+      }
+
+      await sleep(POLLING_INTERVAL_MS);
+    }
+
+    return "TIMEOUT" as const;
+  }, []);
+
   const handleNext = () => {
     persistCurrentStepDrawing();
     if (stepIndex < STEPS.length - 1) {
@@ -390,6 +417,7 @@ function HTPPage() {
     }
 
     setIsSaving(true);
+    setSaveAnswerStatus(null);
     const toneLabel = totalStrokes > 180 ? "활력" : totalStrokes > 80 ? "안정" : "여백";
     const toneColor = totalStrokes > 180 ? "#F59E0B" : totalStrokes > 80 ? "#38BDF8" : "#94A3B8";
     const createdAt = new Date();
@@ -440,11 +468,19 @@ function HTPPage() {
           personImageId,
         });
 
-        try {
-          const statusRes = await deepApi.getAnalysisStatus(sessionId);
-          localStorage.setItem("latestDeepStatus", statusRes.data?.status || "ANALYZING");
-        } catch {
-          localStorage.setItem("latestDeepStatus", "ANALYZING");
+        const pollingResult = await waitUntilAnalysisDone(sessionId);
+        if (pollingResult === "DONE") {
+          const resultRes = await deepApi.getDeepResult(sessionId);
+          if (resultRes.success && resultRes.data) {
+            setLatestResult(resultRes.data);
+            const resultSummary = resultRes.data.aiResult.resultSummary || resultRes.data.aiResult.result || "";
+            localStorage.setItem("latestDeepResultSummary", resultSummary);
+            localStorage.setItem("latestDeepResult", JSON.stringify(resultRes.data));
+          }
+        } else if (pollingResult === "FAILED") {
+          setSaveError("AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+        } else {
+          setSaveError("분석이 지연되고 있습니다. 잠시 후 결과 화면에서 다시 확인해주세요.");
         }
       }
     } catch (error) {
@@ -454,6 +490,38 @@ function HTPPage() {
       window.setTimeout(() => {
         navigate("/dashboard", { replace: true });
       }, 1400);
+    }
+  };
+
+  const handleSaveAnswers = async () => {
+    if (!latestResult) {
+      setSaveAnswerStatus("분석 결과가 아직 없습니다.");
+      return;
+    }
+
+    const answersPayload = latestResult.questions
+      .map((_, index) => ({
+        questionId: index + 1,
+        answerText: questionAnswers[index + 1]?.trim() || "",
+      }))
+      .filter((item) => item.answerText.length > 0);
+
+    if (answersPayload.length === 0) {
+      setSaveAnswerStatus("답변을 1개 이상 입력해주세요.");
+      return;
+    }
+
+    try {
+      const sessionId = Number(localStorage.getItem("latestDeepSessionId"));
+      if (!sessionId) {
+        setSaveAnswerStatus("세션 정보가 없어 답변을 저장할 수 없습니다.");
+        return;
+      }
+
+      await deepApi.saveAnswers(sessionId, { answers: answersPayload });
+      setSaveAnswerStatus("질문 답변이 저장되었습니다.");
+    } catch {
+      setSaveAnswerStatus("현재 서버에서 질문 답변 저장 API를 지원하지 않습니다.");
     }
   };
 
@@ -629,8 +697,40 @@ function HTPPage() {
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
-                집과 나무의 선이 안정적으로 연결되어 있고, 사람 묘사에서 신중함이 느껴집니다.
+                {latestResult?.aiResult.resultSummary || latestResult?.aiResult.result || "집과 나무의 선이 안정적으로 연결되어 있고, 사람 묘사에서 신중함이 느껴집니다."}
               </div>
+
+              {latestResult?.questions?.length ? (
+                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">AI Follow-up Questions</p>
+                  <div className="mt-3 space-y-3">
+                    {latestResult.questions.map((question, index) => (
+                      <div key={`${question}-${index}`}>
+                        <p className="text-sm text-slate-200">Q{index + 1}. {question}</p>
+                        <textarea
+                          value={questionAnswers[index + 1] || ""}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            setQuestionAnswers((current) => ({
+                              ...current,
+                              [index + 1]: value,
+                            }));
+                          }}
+                          className="mt-2 w-full rounded-xl border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 outline-none ring-0"
+                          rows={2}
+                          placeholder="답변을 입력하세요"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3 flex items-center gap-3">
+                    <Button type="button" variant="secondary" onClick={handleSaveAnswers}>
+                      질문 답변 저장
+                    </Button>
+                    {saveAnswerStatus && <span className="text-xs text-slate-300">{saveAnswerStatus}</span>}
+                  </div>
+                </div>
+              ) : null}
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">WHO-5 (0-5)</p>
