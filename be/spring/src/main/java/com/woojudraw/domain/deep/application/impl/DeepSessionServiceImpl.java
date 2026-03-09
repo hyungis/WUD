@@ -17,7 +17,6 @@ import com.woojudraw.domain.deep.api.dto.req.HtpImagesAnalyzeReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitHtpReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitWho5Req;
 import com.woojudraw.domain.deep.api.dto.req.Who5AnalyzeReq;
-import com.woojudraw.domain.deep.api.dto.resp.AiAnalyzeResp;
 import com.woojudraw.domain.deep.api.dto.resp.CreateDeepSessionResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepAiResultResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepPsychAssessmentItemResp;
@@ -152,29 +151,12 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 									.build())
 					.build();
 
-			AiAnalyzeResp aiResponse = deepAiService.analyzeHtp(aiRequest);
-
-			if (aiResponse == null || aiResponse.getData() == null) {
-				throw new BusinessException(ResponseCode.AI_ANALYSIS_FAILED);
-			}
-
-			Map<String, Object> rawMap = new java.util.HashMap<>();
-			rawMap.put("questions", aiResponse.getData().getQuestions());
-			rawMap.put("raw", aiResponse.getData().getRaw());
-
-			String rawJson = objectMapper.writeValueAsString(rawMap);
-
-			DeepResult deepResult = DeepResult.create(
-				sessionId,
-				aiResponse.getData().getResultSummary(),
-				rawJson
-			);
-
-			deepResultRepository.save(deepResult);
-
-			deepSession.changeStatus(DeepStatus.DONE);
-			deepSession.markCompleted();
-
+			// 비동기 전송만 수행하고 즉시 반환한다.
+			// 실제 AI 결과 반영(DONE/FAILED)은 RabbitMQ 결과 consumer에서 처리한다.
+			deepAiService.requestHtpAnalysis(aiRequest);
+		} catch (BusinessException e) {
+			deepSession.changeStatus(DeepStatus.FAILED);
+			throw e;
 		} catch (Exception e) {
 			e.printStackTrace();
 			deepSession.changeStatus(DeepStatus.FAILED);

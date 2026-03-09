@@ -1,24 +1,16 @@
-version: '3.8'
-
 services:
   backend:
-    build: 
+    platform: linux/amd64
+    build:
       context: ../be/spring
       dockerfile: Dockerfile
     ports:
       - "8081:8081"
+    env_file:
+      - ./.env
     environment:
-      - DB_URL=${DB_URL}
-      - DB_USERNAME=${DB_USERNAME}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
-      - AWS_S3_BUCKET=${AWS_S3_BUCKET}
-      - AWS_S3_PHOTO_PATH=${AWS_S3_PHOTO_PATH}
-      - AWS_REGION=${AWS_REGION}
-      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
-      - AWS_SECRET_KEY=${AWS_SECRET_KEY}
-      - AWS_S3_PRESIGNED_URL_EXP_MIN=${AWS_S3_PRESIGNED_URL_EXP_MIN}
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
     depends_on:
       - redis
       - rabbitmq
@@ -36,6 +28,8 @@ services:
 
   rabbitmq:
     image: rabbitmq:3-management-alpine
+    env_file:
+      - ./.env
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
@@ -68,6 +62,18 @@ services:
       - "8000:8000"
     env_file:
       - ../ai/.env
+    environment:
+      - RABBITMQ_HOST=rabbitmq
+      - RABBITMQ_PORT=5672
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - AI_RABBITMQ_EXCHANGE=wud.deep.ai.exchange
+      - AI_RABBITMQ_REQUEST_QUEUE=wud.deep.ai.request.queue
+      - AI_RABBITMQ_ROUTING_KEY=wud.deep.ai.request.routing-key
+      - AI_RABBITMQ_RESULT_EXCHANGE=wud.deep.ai.exchange
+      - AI_RABBITMQ_RESULT_ROUTING_KEY=wud.deep.ai.result.routing-key
+    depends_on:
+      - rabbitmq
     networks:
       - app-network
     restart: always

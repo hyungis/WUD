@@ -35,6 +35,7 @@ public class SecurityConfig {
 		"/actuator/health",
 		"/swagger-ui/**",
 		"/v3/api-docs/**",
+		"/rabbitmq/**",
 		"/auth/signup",
 		"/auth/login"
 	};

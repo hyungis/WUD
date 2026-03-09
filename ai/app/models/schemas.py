@@ -33,6 +33,7 @@ class AiAnalysisData(BaseModel):
     raw: Dict[str, Any]
 
 class AiAnalyzeResp(BaseModel):
+    sessionId: Optional[int] = None
     status: str
     message: str
     data: Optional[AiAnalysisData] = None
