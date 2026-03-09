@@ -6,7 +6,6 @@ import { register } from "../../services/auth";
 
 function SignupPage() {
   const navigate = useNavigate();
-  const googleAuthUrl = "https://www.google.com";
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -146,7 +145,7 @@ function SignupPage() {
                   type="button"
                   aria-label="Google로 회원가입"
                   onClick={() => {
-                    window.location.href = googleAuthUrl;
+                    setError("현재 Google OAuth 회원가입은 백엔드 미구현으로 사용할 수 없습니다.");
                   }}
                   className="h-11 w-11 rounded-full p-0"
                 >

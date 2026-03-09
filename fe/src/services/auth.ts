@@ -1,64 +1,65 @@
 import { authApi } from "../api/auth";
 import { userApi } from "../api/user";
 import { useAuthStore, type User } from "../store/authStore";
+import type { ApiResponse } from "../types/api";
 
 export type LoginPayload = {
-  email?: string;
-  password?: string;
-};
-
-export type AuthOptions = {
-  persist?: boolean;
+  email: string;
+  password: string;
 };
 
 export type RegisterPayload = {
   name: string; // 원본 유지
   email: string;
-  password?: string;
+  password: string;
 };
 
-export async function login(payload: LoginPayload, options: AuthOptions = {}) {
-  // 실제 로그인 API 호출
+function extractApiErrorMessage(error: unknown, fallback: string) {
+  if (typeof error !== "object" || error === null) {
+    return fallback;
+  }
+
+  const maybeApiError = error as {
+    message?: string;
+    error?: { message?: string };
+  };
+
+  return maybeApiError.error?.message || maybeApiError.message || fallback;
+}
+
+function assertSuccess<T>(response: ApiResponse<T>, fallback: string) {
+  if (!response.success) {
+    throw new Error(response.error?.message || response.message || fallback);
+  }
+}
+
+export async function login(payload: LoginPayload) {
   const response = await authApi.login(payload);
+  assertSuccess(response, "로그인에 실패했습니다.");
 
-  // 에러 처리: success 필드가 false이거나 data가 없으면 예외 발생
-  if (!response.success || !response.data) {
-    throw new Error(response.message || "로그인에 실패했습니다.");
+  if (!response.data) {
+    throw new Error("로그인 응답 데이터가 비어 있습니다.");
   }
 
-  // 최신 JSON 명세 반영: tokens, user
-  const { tokens, user } = response.data;
-  const shouldPersist = options.persist ?? false;
+  const { accessToken, refreshToken } = response.data;
 
-  // 토큰 저장 로직
-  if (tokens?.accessToken && shouldPersist) {
-    useAuthStore.getState().setTokens(tokens.accessToken, tokens.refreshToken);
-  }
+  useAuthStore.getState().setTokens(accessToken, refreshToken);
 
-  // 유저 정보 저장 (userStore User 타입과 매핑)
-  if (user) {
-    useAuthStore.getState().setUser({
-      id: String(user.id),
-      email: user.email,
-      name: user.nickname,
-    });
-  }
+  // 현재 백엔드 로그인 응답에는 user 정보가 없으므로 입력 이메일만 우선 저장한다.
+  useAuthStore.getState().setUser({ email: payload.email });
 
-  return response.data; // LoginResponse 객체 반환
+  return response.data;
 }
 
 export async function register(payload: RegisterPayload) {
-  // SignUpRequest 인터페이스에 맞게 필드 맵핑 (name -> nickname)
   const response = await authApi.signup({
     email: payload.email,
     password: payload.password,
     nickname: payload.name,
   });
 
-  if (!response.success) {
-    throw new Error(response.message || "회원가입에 실패했습니다.");
-  }
-  return response.data;
+  assertSuccess(response, "회원가입에 실패했습니다.");
+  return true;
 }
 
 export async function fetchMe() {
@@ -75,16 +76,11 @@ export async function fetchMe() {
 }
 
 export async function logout() {
-  const currentRefreshToken = useAuthStore.getState().refreshToken;
-
   try {
-    if (currentRefreshToken) {
-      await authApi.logout({ refreshToken: currentRefreshToken });
-    }
+    await authApi.logout();
   } catch (e) {
-    console.error("로그아웃 API 실패:", e);
+    console.error("로그아웃 API 실패:", extractApiErrorMessage(e, "로그아웃에 실패했습니다."));
   } finally {
-    // API 성공 여부와 관계없이 스토어 클리어
     useAuthStore.getState().clearAuth();
   }
 }

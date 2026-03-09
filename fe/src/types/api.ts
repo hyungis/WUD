@@ -2,8 +2,13 @@
 export interface ApiResponse<T = any> {
     success: boolean;
     data?: T;
+    error?: {
+        code?: string;
+        message?: string;
+        details?: unknown;
+    };
     timestamp?: string;
-    message?: string; // image 등 글로벌 응답 형식 대응
+    message?: string; // 일부 레거시 응답 형식 대응
 }
 
 export interface ApiErrorDetail {
