@@ -139,6 +139,8 @@ public enum ResponseCode {
 	FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F004", "파일 업로드에 실패했습니다."),
 	FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "F005", "파일을 찾을 수 없습니다."),
 	FILE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "F006", "파일 접근 권한이 없습니다."),
+	IMAGE_NOT_READY(HttpStatus.BAD_REQUEST, "F007", "이미지 업로드가 아직 완료되지 않았습니다."),
+	S3_OBJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "F008", "S3 저장소에서 파일을 찾을 수 없습니다. 업로드를 진행해주세요."),
 
 	/*
 	 * =========================================================
