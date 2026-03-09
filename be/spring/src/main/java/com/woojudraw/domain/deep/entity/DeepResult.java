@@ -56,4 +56,9 @@ public class DeepResult{
 			.createdAt(LocalDateTime.now())
 			.build();
 	}
+
+	public void updateResult(String result, String raw) {
+		this.result = result;
+		this.raw = raw;
+	}
 }

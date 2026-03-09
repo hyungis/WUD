@@ -3,8 +3,8 @@ from app.models.schemas import AiAnalyzeReq, AiAnalyzeResp, AiAnalysisData
 
 def analyze_deep_session_request(request: AiAnalyzeReq) -> AiAnalyzeResp:
     """
-    심층(HTP, WHO5) 분석 로직 엔트리포인트.
-    현재는 Spring Boot와 RabbitMQ 연동 검증을 위한 mock 결과를 반환한다.
+    Deep(HTP/WHO5) analysis entrypoint.
+    Current implementation returns mock data for integration verification.
     """
     print(f"[FastAPI] Received Deep Analysis Request for Session: {request.sessionId}")
     print(f"[FastAPI] DeepType: {request.deepType}")
@@ -19,6 +19,7 @@ def analyze_deep_session_request(request: AiAnalyzeReq) -> AiAnalyzeResp:
     )
 
     return AiAnalyzeResp(
+        sessionId=request.sessionId,
         status="SUCCESS",
         message="분석이 정상적으로 완료되었습니다.",
         data=mock_data,

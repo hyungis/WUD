@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AiAnalyzeResp {
 
+	private Long sessionId;
 	private String status;
 	private String message;
 	private AiAnalyzeDataResp data;

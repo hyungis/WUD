@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     platform: linux/amd64
@@ -32,6 +30,9 @@ services:
     image: rabbitmq:3-management-alpine
     env_file:
       - ./.env
+    environment:
+      - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
+      - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -69,6 +70,8 @@ services:
       - AI_RABBITMQ_EXCHANGE=wud.deep.ai.exchange
       - AI_RABBITMQ_REQUEST_QUEUE=wud.deep.ai.request.queue
       - AI_RABBITMQ_ROUTING_KEY=wud.deep.ai.request.routing-key
+      - AI_RABBITMQ_RESULT_EXCHANGE=wud.deep.ai.exchange
+      - AI_RABBITMQ_RESULT_ROUTING_KEY=wud.deep.ai.result.routing-key
     depends_on:
       - rabbitmq
     networks:

@@ -60,6 +60,8 @@ ai:
   rabbitmq:
     exchange: ${AI_RABBITMQ_EXCHANGE:wud.deep.ai.exchange}
     routing-key: ${AI_RABBITMQ_ROUTING_KEY:wud.deep.ai.request.routing-key}
+    result-routing-key: ${AI_RABBITMQ_RESULT_ROUTING_KEY:wud.deep.ai.result.routing-key}
+    result-queue: ${AI_RABBITMQ_RESULT_QUEUE:wud.deep.ai.result.queue}
 
 logging:
   level:

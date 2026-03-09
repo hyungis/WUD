@@ -21,6 +21,10 @@ class DeepAiRabbitRpcConsumer:
         self.request_queue = os.getenv("AI_RABBITMQ_REQUEST_QUEUE", "wud.deep.ai.request.queue")
         self.routing_key = os.getenv("AI_RABBITMQ_ROUTING_KEY", "wud.deep.ai.request.routing-key")
 
+        # Async result path: FastAPI publishes completion events to this routing key.
+        self.result_exchange = os.getenv("AI_RABBITMQ_RESULT_EXCHANGE", self.exchange)
+        self.result_routing_key = os.getenv("AI_RABBITMQ_RESULT_ROUTING_KEY", "wud.deep.ai.result.routing-key")
+
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
 
@@ -56,6 +60,7 @@ class DeepAiRabbitRpcConsumer:
                 channel = connection.channel()
 
                 channel.exchange_declare(exchange=self.exchange, exchange_type="direct", durable=True)
+                channel.exchange_declare(exchange=self.result_exchange, exchange_type="direct", durable=True)
                 channel.queue_declare(queue=self.request_queue, durable=True)
                 channel.queue_bind(
                     queue=self.request_queue,
@@ -111,14 +116,16 @@ class DeepAiRabbitRpcConsumer:
         body: bytes,
     ) -> None:
         trace_id = self._extract_trace_id(properties)
+        request: AiAnalyzeReq | None = None
         response: AiAnalyzeResp
 
         try:
             request = AiAnalyzeReq.model_validate_json(body)
             response = analyze_deep_session_request(request)
         except Exception as exc:
+            session_id = request.sessionId if request else None
             print(f"[RabbitMQ RPC] analyze failed. traceId={trace_id} error={exc}")
-            response = AiAnalyzeResp(status="ERROR", message=str(exc), data=None)
+            response = AiAnalyzeResp(sessionId=session_id, status="ERROR", message=str(exc), data=None)
 
         self._publish_response(channel, properties, response, trace_id)
         channel.basic_ack(delivery_tag=method_frame.delivery_tag)
@@ -130,18 +137,34 @@ class DeepAiRabbitRpcConsumer:
         response: AiAnalyzeResp,
         trace_id: str,
     ) -> None:
-        if not properties.reply_to:
-            print(f"[RabbitMQ RPC] missing reply_to. traceId={trace_id}")
+        body = response.model_dump_json().encode("utf-8")
+
+        # Backward compatibility for legacy RPC callers that still use reply_to.
+        if properties.reply_to:
+            channel.basic_publish(
+                exchange="",
+                routing_key=properties.reply_to,
+                properties=pika.BasicProperties(
+                    correlation_id=properties.correlation_id,
+                    content_type="application/json",
+                ),
+                body=body,
+            )
             return
 
+        # Main async path: publish final result event to the dedicated routing key.
         channel.basic_publish(
-            exchange="",
-            routing_key=properties.reply_to,
+            exchange=self.result_exchange,
+            routing_key=self.result_routing_key,
             properties=pika.BasicProperties(
                 correlation_id=properties.correlation_id,
                 content_type="application/json",
+                headers={
+                    "traceId": trace_id,
+                    "sessionId": response.sessionId,
+                },
             ),
-            body=response.model_dump_json().encode("utf-8"),
+            body=body,
         )
 
     @staticmethod

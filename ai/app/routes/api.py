@@ -53,6 +53,7 @@ async def analyze_deep_session(request: AiAnalyzeReq):
     except Exception as e:
         print(f"Deep Analysis failed: {str(e)}")
         return AiAnalyzeResp(
+            sessionId=request.sessionId,
             status="ERROR",
             message=str(e),
             data=None,

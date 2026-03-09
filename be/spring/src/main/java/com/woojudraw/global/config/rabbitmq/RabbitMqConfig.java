@@ -26,6 +26,11 @@ public class RabbitMqConfig {
 	}
 
 	@Bean
+	public Queue deepAiResultQueue() {
+		return QueueBuilder.durable(RabbitMqConstants.DEEP_AI_RESULT_QUEUE).build();
+	}
+
+	@Bean
 	public DirectExchange testExchange() {
 		return ExchangeBuilder
 			.directExchange(RabbitMqConstants.TEST_EXCHANGE)
@@ -61,6 +66,17 @@ public class RabbitMqConfig {
 			.bind(deepAiRequestQueue)
 			.to(deepAiExchange)
 			.with(RabbitMqConstants.DEEP_AI_REQUEST_ROUTING_KEY);
+	}
+
+	@Bean
+	public Binding deepAiResultBinding(
+		@Qualifier("deepAiResultQueue") Queue deepAiResultQueue,
+		@Qualifier("deepAiExchange") DirectExchange deepAiExchange
+	) {
+		return BindingBuilder
+			.bind(deepAiResultQueue)
+			.to(deepAiExchange)
+			.with(RabbitMqConstants.DEEP_AI_RESULT_ROUTING_KEY);
 	}
 
 	@Bean

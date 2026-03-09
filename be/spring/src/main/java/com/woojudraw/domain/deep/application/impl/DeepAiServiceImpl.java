@@ -1,11 +1,8 @@
 package com.woojudraw.domain.deep.application.impl;
 
-import java.io.IOException;
 import java.util.UUID;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.woojudraw.domain.deep.api.dto.req.AiAnalyzeReq;
-import com.woojudraw.domain.deep.api.dto.resp.AiAnalyzeResp;
 import com.woojudraw.domain.deep.application.DeepAiService;
 import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
@@ -24,7 +21,6 @@ public class DeepAiServiceImpl implements DeepAiService {
 
 	private static final Logger log = LoggerFactory.getLogger(DeepAiServiceImpl.class);
 	private final RabbitTemplate rabbitTemplate;
-	private final ObjectMapper objectMapper;
 
 	@Value("${ai.rabbitmq.exchange}")
 	private String aiExchange;
@@ -33,50 +29,24 @@ public class DeepAiServiceImpl implements DeepAiService {
 	private String aiRoutingKey;
 
 	@Override
-	public AiAnalyzeResp analyzeHtp(AiAnalyzeReq request) {
+	public void requestHtpAnalysis(AiAnalyzeReq request) {
 		String traceId = UUID.randomUUID().toString();
 		try {
-			Object rawResponse = rabbitTemplate.convertSendAndReceive(
+			// Async fire-and-forget publish: HTTP 요청 스레드는 AI 응답을 기다리지 않는다.
+			rabbitTemplate.convertAndSend(
 				aiExchange,
 				aiRoutingKey,
 				request,
 				message -> {
 					message.getMessageProperties().setHeader("traceId", traceId);
+					message.getMessageProperties().setHeader("sessionId", request.getSessionId());
 					return message;
 				}
 			);
-
-			if (rawResponse == null) {
-				throw new BusinessException(ResponseCode.AI_TIMEOUT);
-			}
-
-			return parseAndValidateResponse(rawResponse);
-		} catch (BusinessException e) {
-			throw e;
+			log.info("Deep AI request published. traceId={}, sessionId={}", traceId, request.getSessionId());
 		} catch (AmqpException e) {
-			log.error("RabbitMQ AI analyze request failed. traceId={}", traceId, e);
+			log.error("RabbitMQ AI analyze publish failed. traceId={}, sessionId={}", traceId, request.getSessionId(), e);
 			throw new BusinessException(ResponseCode.AI_SERVER_UNAVAILABLE);
-		} catch (IOException | IllegalArgumentException e) {
-			log.error("RabbitMQ AI analyze response parse failed. traceId={}", traceId, e);
-			throw new BusinessException(ResponseCode.AI_RESPONSE_INVALID);
 		}
-	}
-
-	private AiAnalyzeResp parseAndValidateResponse(Object rawResponse) throws IOException {
-		AiAnalyzeResp aiResponse;
-		if (rawResponse instanceof AiAnalyzeResp response) {
-			aiResponse = response;
-		} else if (rawResponse instanceof byte[] bytes) {
-			aiResponse = objectMapper.readValue(bytes, AiAnalyzeResp.class);
-		} else if (rawResponse instanceof String text) {
-			aiResponse = objectMapper.readValue(text, AiAnalyzeResp.class);
-		} else {
-			aiResponse = objectMapper.convertValue(rawResponse, AiAnalyzeResp.class);
-		}
-
-		if (aiResponse == null || aiResponse.getData() == null) {
-			throw new BusinessException(ResponseCode.AI_RESPONSE_INVALID);
-		}
-		return aiResponse;
 	}
 }
