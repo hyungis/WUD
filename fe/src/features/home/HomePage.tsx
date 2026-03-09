@@ -327,7 +327,7 @@ function GalacticDust({ count = 12500, maxRadius }: { count?: number, maxRadius:
       let rFactor = Math.abs(gaussianRandom() - 0.5) * 2;
       rFactor = Math.pow(rFactor, 1.5);
       const r = rFactor * (maxRadius * 3.5);
-      let yFactor = (gaussianRandom() - 0.5) * 2;
+      const yFactor = (gaussianRandom() - 0.5) * 2;
       const thicknessFactor = Math.exp(-Math.pow(r / (maxRadius * 1.2), 2));
       const y = yFactor * 20.0 * thicknessFactor;
 
@@ -360,8 +360,8 @@ function GalacticDust({ count = 12500, maxRadius }: { count?: number, maxRadius:
   return (
     <points ref={pointsRef}>
       <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={positions.length / 3} array={positions} itemSize={3} />
-        <bufferAttribute attach="attributes-color" count={colors.length / 3} array={colors} itemSize={3} />
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        <bufferAttribute attach="attributes-color" args={[colors, 3]} />
       </bufferGeometry>
       <pointsMaterial
         size={0.15}
@@ -677,7 +677,7 @@ function StarScene({
         <ambientLight intensity={0.15} color="#4c1d95" />
         <pointLight position={[0, 0, 0]} intensity={150} color="#f97316" distance={60} decay={2} />
 
-        <EffectComposer disableNormalPass multisampling={0}>
+        <EffectComposer enableNormalPass={false} multisampling={0}>
           {/* Threshold를 1.0 이상으로 높여 Emissive가 높은 핵심 광원만 Bloom이 발생하도록 설정 */}
           <Bloom luminanceThreshold={1.1} mipmapBlur luminanceSmoothing={0.1} intensity={1.5} />
         </EffectComposer>
@@ -1320,11 +1320,6 @@ function HomePage() {
       setSelectedStarId(mypageStar.id);
     }
   }, [selectedStarId, mypageStar]);
-
-  const selectedPlanet = useMemo(() => {
-    if (selectedStarId === mypageStar.id) return mypageStar;
-    return timelineItems.find(i => i.id === selectedStarId) || mypageStar;
-  }, [selectedStarId, timelineItems, mypageStar]);
 
   const hoveredPlanetMeta = useMemo(() => (hoveredPlanet ? timelineItems.find(i => i.id === hoveredPlanet.id) : null), [hoveredPlanet, timelineItems]);
 

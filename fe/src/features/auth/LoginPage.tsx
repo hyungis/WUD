@@ -6,6 +6,7 @@ import { login } from "../../services/auth";
 
 function LoginPage() {
   const navigate = useNavigate();
+  const googleAuthUrl = "https://www.google.com";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -17,7 +18,7 @@ function LoginPage() {
     setIsSubmitting(true);
 
     try {
-      await login({ email, password });
+      await login({ email, password }, { persist: true });
       const shouldShowWelcome = localStorage.getItem("showWelcomeOnce") === "true";
       navigate(shouldShowWelcome ? "/welcome" : "/dashboard");
     } catch (submitError) {
@@ -132,7 +133,7 @@ function LoginPage() {
                   type="button"
                   aria-label="Google로 로그인"
                   onClick={() => {
-                    setError("현재 Google OAuth 로그인은 백엔드 미구현으로 사용할 수 없습니다.");
+                    window.location.href = googleAuthUrl;
                   }}
                   className="h-11 w-11 rounded-full p-0"
                 >
@@ -142,7 +143,7 @@ function LoginPage() {
               </div>
 
               <p className="mt-3 text-xs text-slate-400">
-                현재 Google OAuth API가 없어 이메일 로그인만 지원됩니다.
+                현재 버튼은 임시이며 추후 OAuth URL로 변경 필요
               </p>
             </form>
           </div>
