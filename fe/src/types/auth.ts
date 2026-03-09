@@ -1,13 +1,13 @@
 // src/types/auth.ts
 export interface SignupRequest {
     email: string;
-    password?: string;
+    password: string;
     nickname: string;
 }
 
 export interface LoginRequest {
-    email?: string;
-    password?: string;
+    email: string;
+    password: string;
 }
 
 export interface GoogleLoginRequest {
@@ -27,14 +27,13 @@ export interface AuthUser {
 }
 
 export interface LoginResponse {
-    isNewUser?: boolean;
-    user?: AuthUser;
-    tokens: AuthTokens;
+    accessToken: string;
+    refreshToken: string;
+    expiresInSec: number;
 }
 
 export interface SignupResponse {
-    user: AuthUser;
-    tokens: AuthTokens;
+    success: boolean;
 }
 
 export interface RefreshRequest {
