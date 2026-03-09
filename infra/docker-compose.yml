@@ -1,11 +1,22 @@
 services:
+  # 단일 진입점: frontend(nginx)만 80 포트 노출
+  frontend:
+    build:
+      context: ../fe
+      dockerfile: Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: always
+
   backend:
     platform: linux/amd64
     build:
       context: ../be/spring
       dockerfile: Dockerfile
-    ports:
-      - "8081:8081"
     env_file:
       - ./.env
     environment:
@@ -20,8 +31,6 @@ services:
 
   redis:
     image: redis:alpine
-    ports:
-      - "6379:6379"
     networks:
       - app-network
     restart: always
@@ -34,23 +43,10 @@ services:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "127.0.0.1:15672:15672"  # SSH 터널링용 (관리 UI)
     networks:
       - app-network
     restart: always
-
-  # frontend:
-  #   build:
-  #     context: ../fe
-  #     dockerfile: Dockerfile
-  #   ports:
-  #     - "80:80"
-  #   depends_on:
-  #     - backend
-  #   networks:
-  #     - app-network
-  #   restart: always
 
   ai:
     build:
@@ -58,8 +54,6 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ../ai:/app
-    ports:
-      - "8000:8000"
     env_file:
       - ../ai/.env
     environment:
