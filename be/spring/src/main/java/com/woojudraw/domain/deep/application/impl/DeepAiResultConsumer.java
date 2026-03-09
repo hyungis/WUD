@@ -10,6 +10,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.woojudraw.domain.constellation.application.ConstellationService;
 import com.woojudraw.domain.deep.api.dto.resp.AiAnalyzeResp;
 import com.woojudraw.domain.deep.entity.DeepResult;
 import com.woojudraw.domain.deep.entity.DeepSession;
@@ -29,6 +30,7 @@ public class DeepAiResultConsumer {
 	private final DeepSessionRepository deepSessionRepository;
 	private final DeepResultRepository deepResultRepository;
 	private final ObjectMapper objectMapper;
+	private final ConstellationService constellationService;
 
 	@RabbitListener(queues = "${ai.rabbitmq.result-queue:wud.deep.ai.result.queue}")
 	@Transactional
@@ -75,6 +77,8 @@ public class DeepAiResultConsumer {
 
 			deepSession.changeStatus(DeepStatus.DONE);
 			deepSession.markCompleted();
+
+			constellationService.createDeepStarIfNeeded(deepSession);
 
 			log.info("Deep AI result applied. sessionId={}, traceId={}", sessionId, traceId);
 		} catch (Exception e) {

@@ -121,7 +121,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 
 		DeepPsychAssessment who5Assessment = deepPsychAssessmentRepository
 				.findByDeepSessionIdAndTestCode(sessionId, PsychTestCode.WHO5)
-				.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
+				.orElseThrow(() -> new BusinessException(ResponseCode.WHO5_NOT_FOUND));
 
 		deepSubmissionRepository.save(
 				DeepSubmission.create(sessionId, request.getHouseImageId(), SubmissionType.HOUSE));
