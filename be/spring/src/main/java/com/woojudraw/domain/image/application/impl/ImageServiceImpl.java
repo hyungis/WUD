@@ -24,6 +24,9 @@ import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
 
 import lombok.RequiredArgsConstructor;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
@@ -37,6 +40,7 @@ public class ImageServiceImpl implements ImageService {
 
 	private final ImageRepository imageRepository;
 	private final UserRepository userRepository;
+	private final S3Client s3Client;
 	private final S3Presigner s3Presigner;
 
 	@Value("${cloud.aws.s3.bucket}")
@@ -118,16 +122,29 @@ public class ImageServiceImpl implements ImageService {
 
 	private Image syncExistingImage(Long memberId, Image existing, ImageCreateReq req) {
 		if (!existing.isOwnedBy(memberId)) {
-			throw new BusinessException(ResponseCode.FORBIDDEN);
+			throw new BusinessException(ResponseCode.FILE_ACCESS_DENIED);
+		}
+		if (existing.getDeletedAt() != null) {
+			throw new BusinessException(ResponseCode.FILE_NOT_FOUND);
 		}
 
-		if (existing.getStatus() == ImageStatus.DELETED) {
-			throw new BusinessException(ResponseCode.RESOURCE_NOT_FOUND);
-		}
+		verifyS3ObjectExists(existing.getImageKey());
 
 		existing.updateUploadInfo(req.getMimeType(), req.getByteSize());
 		existing.markReady();
-		return existing;
+		return imageRepository.save(existing);
+	}
+
+	private void verifyS3ObjectExists(String imageKey) {
+		try {
+			HeadObjectRequest headObjectRequest = HeadObjectRequest.builder()
+					.bucket(bucket)
+					.key(imageKey)
+					.build();
+			s3Client.headObject(headObjectRequest);
+		} catch (NoSuchKeyException e) {
+			throw new BusinessException(ResponseCode.S3_OBJECT_NOT_FOUND);
+		}
 	}
 
 	private Image createNewReadyImage(User user, ImageCreateReq req) {

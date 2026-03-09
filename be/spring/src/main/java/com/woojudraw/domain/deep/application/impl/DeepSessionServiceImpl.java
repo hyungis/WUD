@@ -41,6 +41,7 @@ import com.woojudraw.domain.deep.repository.DeepResultRepository;
 import com.woojudraw.domain.deep.repository.DeepSessionRepository;
 import com.woojudraw.domain.deep.repository.DeepSubmissionRepository;
 import com.woojudraw.domain.image.entity.Image;
+import com.woojudraw.domain.image.entity.ImageStatus;
 import com.woojudraw.domain.image.repository.ImageRepository;
 import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
@@ -119,9 +120,11 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		Image treeImage = getOwnedImageOrThrow(request.getTreeImageId(), userId);
 		Image personImage = getOwnedImageOrThrow(request.getPersonImageId(), userId);
 
+		validateImagesAreReady(houseImage, treeImage, personImage);
+
 		DeepPsychAssessment who5Assessment = deepPsychAssessmentRepository
 				.findByDeepSessionIdAndTestCode(sessionId, PsychTestCode.WHO5)
-				.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
+				.orElseThrow(() -> new BusinessException(ResponseCode.WHO5_NOT_FOUND));
 
 		deepSubmissionRepository.save(
 				DeepSubmission.create(sessionId, request.getHouseImageId(), SubmissionType.HOUSE));
@@ -316,6 +319,14 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		}
 
 		return image;
+	}
+
+	private void validateImagesAreReady(Image... images) {
+		for (Image image : images) {
+			if (image.getStatus() != ImageStatus.READY) {
+				throw new BusinessException(ResponseCode.IMAGE_NOT_READY);
+			}
+		}
 	}
 
 	private Map<String, Integer> convertWho5Raw(DeepPsychAssessment assessment) {

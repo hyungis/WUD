@@ -139,6 +139,8 @@ public enum ResponseCode {
 	FILE_UPLOAD_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "F004", "파일 업로드에 실패했습니다."),
 	FILE_NOT_FOUND(HttpStatus.NOT_FOUND, "F005", "파일을 찾을 수 없습니다."),
 	FILE_ACCESS_DENIED(HttpStatus.FORBIDDEN, "F006", "파일 접근 권한이 없습니다."),
+	IMAGE_NOT_READY(HttpStatus.BAD_REQUEST, "F007", "이미지 업로드가 아직 완료되지 않았습니다."),
+	S3_OBJECT_NOT_FOUND(HttpStatus.NOT_FOUND, "F008", "S3 저장소에서 파일을 찾을 수 없습니다. 업로드를 진행해주세요."),
 
 	/*
 	 * =========================================================
@@ -155,6 +157,8 @@ public enum ResponseCode {
 	WHO5_INVALID_ANSWER(HttpStatus.BAD_REQUEST, "P007", "WHO-5 응답 값이 올바르지 않습니다."),
 	WHO5_ALREADY_SUBMITTED(HttpStatus.CONFLICT, "P008", "이번 주 WHO-5 설문은 이미 제출되었습니다."),
 	UNSUPPORTED_DEEP_CONTENT_TYPE(HttpStatus.BAD_REQUEST, "P009", "지원하지 않는 심층 컨텐츠 타입입니다."),
+	INVALID_DEEP_SESSION_STATUS(HttpStatus.BAD_REQUEST, "P010", "유효하지 않은 심층 세션입니다."),
+	WHO5_NOT_FOUND(HttpStatus.NOT_FOUND, "P011", "WHO5설문이 제출되지 않았습니다."),
 
 	/*
 	 * =========================================================
