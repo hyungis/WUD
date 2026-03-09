@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../../components/shared/Button";
 import { deepApi } from "../../api/deep";
+import { imageApi } from "../../api/image";
 
 type HtpStep = "house" | "tree" | "person";
 type HtpPhase = "draw" | "result";
@@ -21,6 +22,13 @@ const PALETTE = [
   "#F43F5E",
 ];
 const BRUSH_PRESETS = [2, 4, 6, 8, 12];
+const WHO5_QUESTIONS = [
+  "지난 2주 동안 기분이 밝고 명랑했다.",
+  "지난 2주 동안 마음이 차분하고 안정적이었다.",
+  "지난 2주 동안 활동적이고 활력이 있었다.",
+  "지난 2주 동안 상쾌하게 잠에서 깼다.",
+  "지난 2주 동안 일상생활이 흥미로웠다.",
+];
 
 type ToolType = "brush" | "fill" | "eraser";
 
@@ -161,6 +169,8 @@ function HTPPage() {
   const [totalStrokes, setTotalStrokes] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [stepDrawings, setStepDrawings] = useState<Partial<Record<HtpStep, string>>>({});
+  const [who5Answers, setWho5Answers] = useState<number[]>([3, 3, 3, 3, 3]);
 
   const currentStep = STEPS[stepIndex];
 
@@ -179,11 +189,23 @@ function HTPPage() {
       ctx.fillRect(0, 0, rect.width, rect.height);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
+
+      const savedDrawing = stepDrawings[currentStep.key];
+      if (savedDrawing) {
+        const img = new Image();
+        img.onload = () => {
+          ctx.clearRect(0, 0, rect.width, rect.height);
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, rect.width, rect.height);
+          ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        };
+        img.src = savedDrawing;
+      }
     };
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
     return () => window.removeEventListener("resize", resizeCanvas);
-  }, [stepIndex]);
+  }, [currentStep.key, stepDrawings]);
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
@@ -269,7 +291,62 @@ function HTPPage() {
 
   const canvasCursor = tool === "fill" ? "crosshair" : tool === "eraser" ? "cell" : "default";
 
+  const persistCurrentStepDrawing = useCallback(() => {
+    const dataUrl = canvasRef.current?.toDataURL("image/png");
+    if (!dataUrl) {
+      return;
+    }
+    setStepDrawings((current) => ({
+      ...current,
+      [currentStep.key]: dataUrl,
+    }));
+  }, [currentStep.key]);
+
+  const uploadDrawingAndCreateImage = useCallback(async (dataUrl: string) => {
+    const blob = await (await fetch(dataUrl)).blob();
+    const bitmap = await createImageBitmap(blob);
+
+    const presignedRes = await imageApi.getPresignedUrl({
+      mimeType: blob.type || "image/png",
+      byteSize: blob.size,
+      width: bitmap.width,
+      height: bitmap.height,
+      purpose: "HTP",
+    });
+    bitmap.close();
+
+    const upload = presignedRes.data?.upload;
+    const image = presignedRes.data?.image;
+    if (!upload || !image) {
+      throw new Error("이미지 업로드 준비 정보가 없습니다.");
+    }
+
+    const uploadRes = await fetch(upload.url, {
+      method: upload.method || "PUT",
+      headers: upload.headers || { "Content-Type": blob.type || "application/octet-stream" },
+      body: blob,
+    });
+
+    if (!uploadRes.ok) {
+      throw new Error("이미지 업로드에 실패했습니다.");
+    }
+
+    const createRes = await imageApi.registerImage({
+      imageKey: image.imageKey,
+      mimeType: blob.type || "image/png",
+      byteSize: blob.size,
+    });
+
+    const imageId = createRes.data?.imageId;
+    if (!imageId) {
+      throw new Error("이미지 등록에 실패했습니다.");
+    }
+
+    return imageId;
+  }, []);
+
   const handleNext = () => {
+    persistCurrentStepDrawing();
     if (stepIndex < STEPS.length - 1) {
       setStepIndex((current) => current + 1);
       return;
@@ -295,6 +372,23 @@ function HTPPage() {
       const weekOfMonth = Math.ceil((date.getDate() + new Date(date.getFullYear(), date.getMonth(), 1).getDay()) / 7);
       return `${month}월 ${weekOfMonth}주`;
     };
+    persistCurrentStepDrawing();
+
+    const drawings = {
+      ...stepDrawings,
+      [currentStep.key]: canvasRef.current?.toDataURL("image/png") || stepDrawings[currentStep.key],
+    };
+
+    if (!drawings.house || !drawings.tree || !drawings.person) {
+      setSaveError("집/나무/사람 그림을 모두 완료한 뒤 저장해주세요.");
+      return;
+    }
+
+    if (who5Answers.length !== 5 || who5Answers.some((answer) => answer < 0 || answer > 5)) {
+      setSaveError("WHO-5 문항 5개 점수를 모두 선택해주세요.");
+      return;
+    }
+
     setIsSaving(true);
     const toneLabel = totalStrokes > 180 ? "활력" : totalStrokes > 80 ? "안정" : "여백";
     const toneColor = totalStrokes > 180 ? "#F59E0B" : totalStrokes > 80 ? "#38BDF8" : "#94A3B8";
@@ -327,28 +421,30 @@ function HTPPage() {
     }));
 
     try {
-      const sessionRes = await deepApi.createSession({ type: "HTP" });
+      const houseImageId = await uploadDrawingAndCreateImage(drawings.house);
+      const treeImageId = await uploadDrawingAndCreateImage(drawings.tree);
+      const personImageId = await uploadDrawingAndCreateImage(drawings.person);
+
+      const sessionRes = await deepApi.createSession();
       const sessionId = sessionRes.data?.sessionId;
       if (sessionId) {
         localStorage.setItem("latestDeepSessionId", String(sessionId));
 
-        const submissionIds = localStorage.getItem("htpSubmissionImageIds");
-        const parsedIds = submissionIds ? (JSON.parse(submissionIds) as number[]) : [];
-        if (parsedIds.length > 0) {
-          await deepApi.submitSubmissions(sessionId, {
-            submissions: [
-              { imageId: parsedIds[0], type: "HOUSE" },
-              { imageId: parsedIds[1] ?? parsedIds[0], type: "TREE" },
-              { imageId: parsedIds[2] ?? parsedIds[0], type: "PERSON" },
-            ],
-          });
+        await deepApi.submitWho5Assessment(sessionId, {
+          answers: who5Answers,
+        });
 
-          try {
-            const statusRes = await deepApi.getAnalysisStatus(sessionId);
-            localStorage.setItem("latestDeepStatus", statusRes.data?.status || "ANALYZING");
-          } catch {
-            localStorage.setItem("latestDeepStatus", "ANALYZING");
-          }
+        await deepApi.submitSubmissions(sessionId, {
+          houseImageId,
+          treeImageId,
+          personImageId,
+        });
+
+        try {
+          const statusRes = await deepApi.getAnalysisStatus(sessionId);
+          localStorage.setItem("latestDeepStatus", statusRes.data?.status || "ANALYZING");
+        } catch {
+          localStorage.setItem("latestDeepStatus", "ANALYZING");
         }
       }
     } catch (error) {
@@ -534,6 +630,38 @@ function HTPPage() {
 
               <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
                 집과 나무의 선이 안정적으로 연결되어 있고, 사람 묘사에서 신중함이 느껴집니다.
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">WHO-5 (0-5)</p>
+                <div className="mt-4 space-y-3">
+                  {WHO5_QUESTIONS.map((question, index) => (
+                    <div key={question} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                      <p className="text-sm text-slate-200">{index + 1}. {question}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {[0, 1, 2, 3, 4, 5].map((score) => (
+                          <button
+                            key={`${question}-${score}`}
+                            type="button"
+                            onClick={() => {
+                              setWho5Answers((current) => {
+                                const next = [...current];
+                                next[index] = score;
+                                return next;
+                              });
+                            }}
+                            className={`rounded-lg px-3 py-1.5 text-xs transition ${who5Answers[index] === score
+                              ? "bg-emerald-500/30 text-emerald-100 ring-1 ring-emerald-300/40"
+                              : "bg-white/5 text-slate-300 hover:bg-white/10"
+                              }`}
+                          >
+                            {score}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="flex items-center justify-center gap-3">
