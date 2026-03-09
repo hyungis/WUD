@@ -33,12 +33,12 @@ security:
 cloud:
   aws:
     s3:
-      bucket: ${AWS_S3_BUCKET:wud-upload}
+      bucket: ${AWS_S3_BUCKET:wud-s3}
       path:
         photo: ${AWS_S3_PHOTO_PATH:photos}
       presigned-url-exp-min: ${AWS_S3_PRESIGNED_URL_EXP_MIN:5}
     region:
-      static: ${AWS_REGION:ap-southeast-2}
+      static: ${AWS_REGION:ap-northeast-2}
     stack:
       auto: false
     credentials:
