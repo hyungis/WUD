@@ -16,8 +16,6 @@ RUN pip install --no-cache-dir torch torchvision torchaudio --index-url https://
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# YOLOv8 가중치 다운로드
-RUN wget https://github.com/ultralytics/assets/releases/download/v8.2.0/yolov8n.pt -O yolov8n.pt || true
 
 COPY . .
 
