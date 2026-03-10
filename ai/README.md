@@ -10,7 +10,8 @@ AWS_ACCESS_KEY_ID=your_aws_access_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret_key
 AWS_REGION_NAME=ap-northeast-2
 S3_BUCKET_NAME=your_s3_bucket
-UPSTAGE_API_KEY=your_upstage_solar_api_key
+GMS_KEY=your_ssafy_gms_key
+GMS_MODEL=gpt-4o
 YOLO_MODEL_PATH=yolov8n.pt
 ```
 
