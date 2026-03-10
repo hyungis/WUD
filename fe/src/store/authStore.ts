@@ -11,9 +11,11 @@ type AuthState = {
   accessToken: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
+  authTransitioning: boolean;
   setUser: (user: User | null) => void;
   setTokens: (accessToken: string, refreshToken?: string) => void;
   clearAuth: () => void;
+  setAuthTransitioning: (isTransitioning: boolean) => void;
 };
 
 const initialAccessToken = null;
@@ -24,6 +26,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   accessToken: initialAccessToken,
   refreshToken: initialRefreshToken,
   isAuthenticated: !!initialAccessToken,
+  authTransitioning: false,
   setUser: (user) => set({ user }),
   setTokens: (accessToken, refreshToken) => {
     set({
@@ -33,6 +36,13 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
   clearAuth: () => {
-    set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
+    set({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
+      authTransitioning: false,
+    });
   },
+  setAuthTransitioning: (isTransitioning) => set({ authTransitioning: isTransitioning }),
 }));
