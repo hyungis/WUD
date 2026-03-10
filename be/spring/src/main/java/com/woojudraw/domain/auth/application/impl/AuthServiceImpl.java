@@ -1,13 +1,15 @@
 package com.woojudraw.domain.auth.application.impl;
 
+import java.util.UUID;
+
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.woojudraw.domain.auth.api.dto.req.LoginReq;
 import com.woojudraw.domain.auth.api.dto.req.SignupReq;
-import com.woojudraw.domain.auth.api.dto.resp.LoginResp;
 import com.woojudraw.domain.auth.application.AuthService;
+import com.woojudraw.domain.auth.application.dto.IssuedTokens;
 import com.woojudraw.domain.user.entity.User;
 import com.woojudraw.domain.user.repository.UserRepository;
 import com.woojudraw.global.exception.BusinessException;
@@ -15,12 +17,18 @@ import com.woojudraw.global.exception.ResponseCode;
 import com.woojudraw.global.security.jwt.JwtTokenProvider;
 import com.woojudraw.global.security.jwt.RedisTokenStore;
 
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class AuthServiceImpl implements AuthService {
+
+	private static final String DEFAULT_ROLE = "ROLE_USER";
+	private static final String SESSION_ID_CLAIM = "sid";
 
 	private final UserRepository userRepository;
 	private final PasswordEncoder passwordEncoder;
@@ -44,7 +52,7 @@ public class AuthServiceImpl implements AuthService {
 	}
 
 	@Override
-	public LoginResp login(LoginReq req) {
+	public IssuedTokens login(LoginReq req) {
 
 		User user = userRepository.findByEmail(req.getEmail())
 			.orElseThrow(() -> new BusinessException(ResponseCode.INVALID_LOGIN));
@@ -54,27 +62,73 @@ public class AuthServiceImpl implements AuthService {
 		}
 
 		user.updateLastLogin();
+		String sessionId = UUID.randomUUID().toString();
+		return issueTokens(user.getId(), sessionId);
+	}
 
-		String accessToken = jwtTokenProvider.createAccessToken(
-			user.getId(),
-			"ROLE_USER"
-		);
-		String refreshToken = jwtTokenProvider.createRefreshToken(user.getId());
-		redisTokenStore.saveRefreshToken(user.getId(), refreshToken, jwtTokenProvider.getRefreshTokenExpiresInSec());
+	@Override
+	public IssuedTokens refresh(String refreshToken) {
+		if (refreshToken == null || refreshToken.isBlank()) {
+			throw new BusinessException(ResponseCode.TOKEN_MISSING);
+		}
 
-		return LoginResp.builder()
-			.accessToken(accessToken)
-			.refreshToken(refreshToken)
-			.expiresInSec(jwtTokenProvider.getAccessTokenExpiresInSec())
-			.build();
+		Claims claims = parseRefreshClaims(refreshToken);
+		Long memberId = parseMemberId(claims.getSubject());
+		String sessionId = claims.get(SESSION_ID_CLAIM, String.class);
+
+		if (sessionId == null || sessionId.isBlank()) {
+			throw new BusinessException(ResponseCode.INVALID_TOKEN);
+		}
+
+		boolean matched = redisTokenStore.isRefreshTokenMatched(memberId, sessionId, refreshToken);
+		if (!matched) {
+			throw new BusinessException(ResponseCode.INVALID_TOKEN);
+		}
+
+		return issueTokens(memberId, sessionId);
 	}
 
 	@Override
 	public void logout(String accessToken) {
 		Long memberId = jwtTokenProvider.getMemberId(accessToken);
+		String sessionId = jwtTokenProvider.getSessionId(accessToken);
 		long remainingValidityInSec = jwtTokenProvider.getRemainingValidityInSec(accessToken);
 
 		redisTokenStore.blacklistAccessToken(accessToken, remainingValidityInSec);
-		redisTokenStore.deleteRefreshToken(memberId);
+		redisTokenStore.deleteRefreshToken(memberId, sessionId);
+	}
+
+	private Claims parseRefreshClaims(String refreshToken) {
+		try {
+			return jwtTokenProvider.parseClaims(refreshToken);
+		} catch (ExpiredJwtException exception) {
+			throw new BusinessException(ResponseCode.EXPIRED_TOKEN);
+		} catch (JwtException | IllegalArgumentException exception) {
+			throw new BusinessException(ResponseCode.INVALID_TOKEN);
+		}
+	}
+
+	private Long parseMemberId(String subject) {
+		try {
+			return Long.valueOf(subject);
+		} catch (NumberFormatException exception) {
+			throw new BusinessException(ResponseCode.INVALID_TOKEN);
+		}
+	}
+
+	private IssuedTokens issueTokens(Long memberId, String sessionId) {
+		String accessToken = jwtTokenProvider.createAccessToken(memberId, DEFAULT_ROLE, sessionId);
+		String refreshToken = jwtTokenProvider.createRefreshToken(memberId, sessionId);
+		long accessTokenExpiresInSec = jwtTokenProvider.getAccessTokenExpiresInSec();
+		long refreshTokenExpiresInSec = jwtTokenProvider.getRefreshTokenExpiresInSec();
+
+		redisTokenStore.saveRefreshToken(memberId, sessionId, refreshToken, refreshTokenExpiresInSec);
+
+		return IssuedTokens.builder()
+			.accessToken(accessToken)
+			.refreshToken(refreshToken)
+			.accessTokenExpiresInSec(accessTokenExpiresInSec)
+			.refreshTokenExpiresInSec(refreshTokenExpiresInSec)
+			.build();
 	}
 }

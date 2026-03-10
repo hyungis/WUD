@@ -37,6 +37,10 @@ security:
     secret: "${JWT_SECRET:local-dev-secret-change-this-to-32+chars}"
     access-token-exp-min: 30
     refresh-token-exp-day: 14
+    refresh-cookie-name: ${JWT_REFRESH_COOKIE_NAME:refreshToken}
+    refresh-cookie-secure: ${JWT_REFRESH_COOKIE_SECURE:false}
+    refresh-cookie-same-site: ${JWT_REFRESH_COOKIE_SAME_SITE:Lax}
+    refresh-cookie-path: ${JWT_REFRESH_COOKIE_PATH:/}
 
 cloud:
   aws:
