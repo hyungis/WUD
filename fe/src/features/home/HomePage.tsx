@@ -1,6 +1,7 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Stars, Line, Float } from "@react-three/drei";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, createContext, useContext } from "react";
+import type { MutableRefObject } from "react";
 import type { Group, InstancedMesh, Points } from "three";
 import { Vector3, Object3D, Color, Texture } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
@@ -257,36 +258,98 @@ function DeepPlanet({
   );
 }
 
+/* 진입 시 별들이 중심에서 퍼져나가는 애니메이션 – 위치만 보간 (크기 유지) */
+const SpreadCtx = createContext<MutableRefObject<number>>({ current: 1 });
+
+function SpreadDriver() {
+  const ref = useContext(SpreadCtx);
+  const elapsed = useRef(0);
+  const done = useRef(false);
+  useFrame((_, delta) => {
+    if (done.current) return;
+    elapsed.current += delta;
+    const t = Math.min(elapsed.current / 8.0, 1); // 8초간 퍼짐
+    // 초반 바로 움직임(0.05 오프셋) + 후반 가속 정착
+    ref.current = 0.05 * t + 0.95 * t * t * t;
+    if (t >= 1) { ref.current = 1; done.current = true; }
+  });
+  return null;
+}
+
+/* 개별 별 위치를 (0,0,0)→target으로 useFrame 보간 */
+function SpreadItem({ target, children }: { target: [number, number, number]; children: React.ReactNode }) {
+  const ref = useContext(SpreadCtx);
+  const groupRef = useRef<Group>(null);
+  useFrame(() => {
+    if (!groupRef.current) return;
+    const p = ref.current;
+    groupRef.current.position.set(target[0] * p, target[1] * p, target[2] * p);
+  });
+  return <group ref={groupRef}>{children}</group>;
+}
+
+/* constellationLines 전용: 위치만 scale (lineWidth는 px이라 불변) */
+function SpreadScaleGroup({ children }: { children: React.ReactNode }) {
+  const ref = useContext(SpreadCtx);
+  const groupRef = useRef<Group>(null);
+  useFrame(() => {
+    if (!groupRef.current) return;
+    const p = Math.max(ref.current, 0.001);
+    groupRef.current.scale.set(p, p, p);
+  });
+  return <group ref={groupRef} scale={[0.001, 0.001, 0.001]}>{children}</group>;
+}
+
 function MacroGalaxy({ timelineItems, positionMap, starTone, hiddenIds }: any) {
   const meshRef = useRef<InstancedMesh>(null);
   const tempObject = useMemo(() => new Object3D(), []);
   const tempColor = useMemo(() => new Color(), []);
+  const spreadRef = useContext(SpreadCtx);
+  const prevSpread = useRef(-1);
+  const initialized = useRef(false);
 
+  // 색상은 한 번만 설정 + 초기 위치를 (0,0,0)으로 설정
   useEffect(() => {
     if (!meshRef.current) return;
     timelineItems.forEach((item: any, i: number) => {
-      const pos = positionMap.get(item.id) || [0, 0, 0];
-      tempObject.position.set(pos[0], pos[1], pos[2]);
-
+      // 초기 위치 0,0,0 (spread가 아직 0이므로)
+      tempObject.position.set(0, 0, 0);
       const isHidden = hiddenIds.has(item.id);
       const scale = isHidden ? 0 : (item.kind === "deep" ? 0.4 : 0.25);
-
       tempObject.scale.set(scale, scale, scale);
       tempObject.updateMatrix();
       meshRef.current!.setMatrixAt(i, tempObject.matrix);
 
       const baseColor = new Color(item.kind === "deep" ? (item.toneColor || starTone) : item.planet.shell);
       baseColor.multiplyScalar(1.2);
-      meshRef.current!.setColorAt(i, tempColor.set(baseColor));
+      meshRef.current!.setColorAt(i, new Color().set(baseColor));
     });
     meshRef.current.instanceMatrix.needsUpdate = true;
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
-  }, [timelineItems, positionMap, starTone, hiddenIds]);
+    initialized.current = true;
+  }, [timelineItems, starTone, hiddenIds]);
 
+  // 위치는 매 프레임 spread에 따라 보간
   useFrame((state) => {
-    if (meshRef.current) {
+    if (!meshRef.current || !initialized.current) return;
+    const p = spreadRef.current;
+    // spread가 변하지 않고 이미 완료된 상태면 매트릭스 안 건드림
+    if (p === prevSpread.current && p >= 1) {
       meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.5;
+      return;
     }
+    prevSpread.current = p;
+    timelineItems.forEach((item: any, i: number) => {
+      const pos = positionMap.get(item.id) || [0, 0, 0];
+      tempObject.position.set(pos[0] * p, pos[1] * p, pos[2] * p);
+      const isHidden = hiddenIds.has(item.id);
+      const scale = isHidden ? 0 : (item.kind === "deep" ? 0.4 : 0.25);
+      tempObject.scale.set(scale, scale, scale);
+      tempObject.updateMatrix();
+      meshRef.current!.setMatrixAt(i, tempObject.matrix);
+    });
+    meshRef.current.instanceMatrix.needsUpdate = true;
+    meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.5;
   });
 
   return (
@@ -350,17 +413,37 @@ function GalacticDust({ count = 12500, maxRadius }: { count?: number, maxRadius:
     return [pos, col];
   }, [count, maxRadius]);
 
+  // 초기 위치는 0,0,0 (spread=0에서 시작)
+  const zeroPositions = useMemo(() => new Float32Array(positions.length), [positions.length]);
+
+  const spreadRef = useContext(SpreadCtx);
+  const targetPositions = useRef(positions);
+  targetPositions.current = positions;
+  const spreadDone = useRef(false);
+
   useFrame((state) => {
-    if (pointsRef.current) {
-      pointsRef.current.rotation.y = state.clock.elapsedTime * 0.002;
-      pointsRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.2) * 1.0;
+    if (!pointsRef.current) return;
+    const p = spreadRef.current;
+    // spread 진행 중일 때만 위치 보간
+    if (!spreadDone.current) {
+      const geo = pointsRef.current.geometry;
+      const posAttr = geo.getAttribute('position');
+      const arr = posAttr.array as Float32Array;
+      const tgt = targetPositions.current;
+      for (let i = 0; i < arr.length; i++) {
+        arr[i] = tgt[i] * p;
+      }
+      posAttr.needsUpdate = true;
+      if (p >= 1) spreadDone.current = true;
     }
+    pointsRef.current.rotation.y = state.clock.elapsedTime * 0.002;
+    pointsRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.2) * 1.0;
   });
 
   return (
     <points ref={pointsRef}>
       <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        <bufferAttribute attach="attributes-position" args={[zeroPositions, 3]} />
         <bufferAttribute attach="attributes-color" args={[colors, 3]} />
       </bufferGeometry>
       <pointsMaterial
@@ -433,11 +516,18 @@ function CameraFocus({ focusPosition, focusKey, controlsRef }: any) {
   const { camera } = useThree();
   const isActiveRef = useRef(false);
   const lastKeyRef = useRef<string | null>(null);
+  const isFirstMount = useRef(true);
 
   useFrame(() => {
     if (!focusPosition || !controlsRef.current) return;
     if (focusKey && focusKey !== lastKeyRef.current) {
+      const wasNull = lastKeyRef.current === null;
       lastKeyRef.current = focusKey;
+      // 최초 마운트 시 자동 포커스는 건너뜀 (초기 카메라 위치 유지)
+      if (wasNull && isFirstMount.current) {
+        isFirstMount.current = false;
+        return;
+      }
       isActiveRef.current = true;
     }
     if (!isActiveRef.current) return;
@@ -559,6 +649,7 @@ function StarScene({
   dailyPlanets, deepStars, mypageStar, onStarClick, onDeepStarClick, onPlanetClick, onStarSelect, selectedStarId, hoveredStarId, onStarHover, onViewModeChange,
 }: StarSceneProps) {
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
+  const spreadRef = useRef(0);
   const starTone = useMemo(() => localStorage.getItem("htpToneColor") || "#f8fafc", []);
 
   const timelineItems = useMemo(() => {
@@ -673,7 +764,7 @@ function StarScene({
 
   return (
     <div className="absolute inset-0 bg-[#000000]">
-      <Canvas camera={{ position: [0, 0, 55], fov: 45 }}>
+      <Canvas camera={{ position: [0, 105, 0.1], fov: 45 }}>
         <ambientLight intensity={0.15} color="#4c1d95" />
         <pointLight position={[0, 0, 0]} intensity={150} color="#f97316" distance={60} decay={2} />
 
@@ -682,8 +773,10 @@ function StarScene({
           <Bloom luminanceThreshold={1.1} mipmapBlur luminanceSmoothing={0.1} intensity={1.5} />
         </EffectComposer>
 
+        <SpreadCtx.Provider value={spreadRef}>
+        <SpreadDriver />
+
         <GalaxyStars />
-        <GalacticDust count={12500} maxRadius={maxRadius} />
 
         <ViewModeTracker controlsRef={controlsRef} onModeChange={(m: "macro" | "micro") => { setViewMode(m); onViewModeChange?.(m); }} />
 
@@ -693,21 +786,25 @@ function StarScene({
           </Float>
         </group>
 
-        {constellationLines.map(({ weekKey, pts }, idx) => (
-          <AnimatedConstellationLine
-            key={`constellation-${idx}`}
-            weekKey={weekKey}
-            pts={pts}
-            isHovered={hoveredWeekKey === weekKey}
-          />
-        ))}
+        <GalacticDust count={12500} maxRadius={maxRadius} />
+
+        <SpreadScaleGroup>
+          {constellationLines.map(({ weekKey, pts }, idx) => (
+            <AnimatedConstellationLine
+              key={`constellation-${idx}`}
+              weekKey={weekKey}
+              pts={pts}
+              isHovered={hoveredWeekKey === weekKey}
+            />
+          ))}
+        </SpreadScaleGroup>
 
         <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={detailedItemIds} />
 
         {detailedItems.map((item) => {
           const position = positionMap.get(item.id) || [0, 0, 0];
           return (
-            <group key={item.id} position={position}>
+            <SpreadItem key={item.id} target={position as [number, number, number]}>
               <DeepPlanet
                 onClick={() => { onStarSelect?.(item.id); item.kind === "deep" ? onDeepStarClick?.(item as unknown as DeepStar) : onPlanetClick(item.planet); }}
                 onHover={(data) => onStarHover?.({ id: data.isHovered ? item.id : null, x: data.x, y: data.y })}
@@ -717,9 +814,10 @@ function StarScene({
                 glow={item.kind === "deep" ? 0.8 : 0.35}
                 seed={hashSeed(item.id)}
               />
-            </group>
+            </SpreadItem>
           );
         })}
+        </SpreadCtx.Provider>
 
         <CameraFocus focusPosition={selectedFocus} focusKey={selectedStarId} controlsRef={controlsRef} />
 
@@ -1324,7 +1422,9 @@ function HomePage() {
   const hoveredPlanetMeta = useMemo(() => (hoveredPlanet ? timelineItems.find(i => i.id === hoveredPlanet.id) : null), [hoveredPlanet, timelineItems]);
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black text-slate-100">
+    <div className="relative min-h-screen overflow-hidden bg-black text-slate-100 animate-[fadeIn_0.6s_ease-out]"
+      style={{ animation: "fadeIn 0.6s ease-out" }}
+    >
 
       {/* 🔥 [시네마틱 눈꺼풀 & 눈동자 UI 레이어] */}
       {/* 홍채(Iris): 화면 밖으로 멀어질수록 비네팅처럼 눈동자 경계선 생성 */}

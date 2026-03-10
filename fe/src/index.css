@@ -4,6 +4,45 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes suckIn {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0px);
+  }
+  40% {
+    opacity: 0.85;
+    transform: translateY(12vh) scale(0.75);
+    filter: blur(2px);
+  }
+  70% {
+    opacity: 0.4;
+    transform: translateY(28vh) scale(0.35);
+    filter: blur(6px);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(42vh) scale(0);
+    filter: blur(12px);
+  }
+}
+
+.animate-suckIn {
+  animation: suckIn 2s cubic-bezier(0.3, 0, 0.8, 0.4) forwards;
+  transform-origin: center bottom;
+}
+
+@keyframes warpFlash {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 body {
   font-family: "Noto Sans KR", "Pretendard", sans-serif;
   margin: 0;
