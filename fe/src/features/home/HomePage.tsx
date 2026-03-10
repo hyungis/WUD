@@ -303,7 +303,6 @@ function SpreadScaleGroup({ children }: { children: React.ReactNode }) {
 function MacroGalaxy({ timelineItems, positionMap, starTone, hiddenIds }: any) {
   const meshRef = useRef<InstancedMesh>(null);
   const tempObject = useMemo(() => new Object3D(), []);
-  const tempColor = useMemo(() => new Color(), []);
   const spreadRef = useContext(SpreadCtx);
   const prevSpread = useRef(-1);
   const initialized = useRef(false);
@@ -774,49 +773,49 @@ function StarScene({
         </EffectComposer>
 
         <SpreadCtx.Provider value={spreadRef}>
-        <SpreadDriver />
+          <SpreadDriver />
 
-        <GalaxyStars />
+          <GalaxyStars />
 
-        <ViewModeTracker controlsRef={controlsRef} onModeChange={(m: "macro" | "micro") => { setViewMode(m); onViewModeChange?.(m); }} />
+          <ViewModeTracker controlsRef={controlsRef} onModeChange={(m: "macro" | "micro") => { setViewMode(m); onViewModeChange?.(m); }} />
 
-        <group position={[0, 0, 0]}>
-          <Float speed={1.2} rotationIntensity={0.5} floatIntensity={0.8} floatingRange={[-0.3, 0.3]}>
-            <DeepPlanet onClick={() => { onStarSelect?.(mypageStar.id); onStarClick(); }} color={mypageStar.toneColor} size={viewMode === "macro" ? 0.5 : 0.8} glow={1.0} seed={999} />
-          </Float>
-        </group>
+          <group position={[0, 0, 0]}>
+            <Float speed={1.2} rotationIntensity={0.5} floatIntensity={0.8} floatingRange={[-0.3, 0.3]}>
+              <DeepPlanet onClick={() => { onStarSelect?.(mypageStar.id); onStarClick(); }} color={mypageStar.toneColor} size={viewMode === "macro" ? 0.5 : 0.8} glow={1.0} seed={999} />
+            </Float>
+          </group>
 
-        <GalacticDust count={12500} maxRadius={maxRadius} />
+          <GalacticDust count={12500} maxRadius={maxRadius} />
 
-        <SpreadScaleGroup>
-          {constellationLines.map(({ weekKey, pts }, idx) => (
-            <AnimatedConstellationLine
-              key={`constellation-${idx}`}
-              weekKey={weekKey}
-              pts={pts}
-              isHovered={hoveredWeekKey === weekKey}
-            />
-          ))}
-        </SpreadScaleGroup>
-
-        <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={detailedItemIds} />
-
-        {detailedItems.map((item) => {
-          const position = positionMap.get(item.id) || [0, 0, 0];
-          return (
-            <SpreadItem key={item.id} target={position as [number, number, number]}>
-              <DeepPlanet
-                onClick={() => { onStarSelect?.(item.id); item.kind === "deep" ? onDeepStarClick?.(item as unknown as DeepStar) : onPlanetClick(item.planet); }}
-                onHover={(data) => onStarHover?.({ id: data.isHovered ? item.id : null, x: data.x, y: data.y })}
-                color={item.kind === "deep" ? (item.toneColor || starTone) : item.planet.shell}
-                variant={item.kind === "deep" ? "star" : "planet"}
-                size={item.kind === "deep" ? 0.55 : 0.22}
-                glow={item.kind === "deep" ? 0.8 : 0.35}
-                seed={hashSeed(item.id)}
+          <SpreadScaleGroup>
+            {constellationLines.map(({ weekKey, pts }, idx) => (
+              <AnimatedConstellationLine
+                key={`constellation-${idx}`}
+                weekKey={weekKey}
+                pts={pts}
+                isHovered={hoveredWeekKey === weekKey}
               />
-            </SpreadItem>
-          );
-        })}
+            ))}
+          </SpreadScaleGroup>
+
+          <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={detailedItemIds} />
+
+          {detailedItems.map((item) => {
+            const position = positionMap.get(item.id) || [0, 0, 0];
+            return (
+              <SpreadItem key={item.id} target={position as [number, number, number]}>
+                <DeepPlanet
+                  onClick={() => { onStarSelect?.(item.id); item.kind === "deep" ? onDeepStarClick?.(item as unknown as DeepStar) : onPlanetClick(item.planet); }}
+                  onHover={(data) => onStarHover?.({ id: data.isHovered ? item.id : null, x: data.x, y: data.y })}
+                  color={item.kind === "deep" ? (item.toneColor || starTone) : item.planet.shell}
+                  variant={item.kind === "deep" ? "star" : "planet"}
+                  size={item.kind === "deep" ? 0.55 : 0.22}
+                  glow={item.kind === "deep" ? 0.8 : 0.35}
+                  seed={hashSeed(item.id)}
+                />
+              </SpreadItem>
+            );
+          })}
         </SpreadCtx.Provider>
 
         <CameraFocus focusPosition={selectedFocus} focusKey={selectedStarId} controlsRef={controlsRef} />
