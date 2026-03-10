@@ -5,12 +5,29 @@ from fastapi import FastAPI
 from app.routes import api
 from app.services.rabbitmq_rpc_service import deep_ai_rpc_consumer
 from app.services.yolo_service import YoloService
+from app.core.config import settings
+from pathlib import Path
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Starting up AI Server...")
-    YoloService.load_model()
+    # Preload default model for /daily and HTP models if available.
+    try:
+        YoloService.load_model(settings.yolo_model_path)
+    except Exception as e:
+        print(f"[Startup] default YOLO preload failed: {e}")
+
+    try:
+        base_dir = Path(__file__).resolve().parent / "app"
+        yolo_models_dir = (base_dir / "yolo_models").resolve()
+        for model_name in ("house.pt", "tree.pt", "person.pt"):
+            model_path = str(yolo_models_dir / model_name)
+            if Path(model_path).exists():
+                YoloService.load_model(model_path)
+    except Exception as e:
+        print(f"[Startup] HTP YOLO preload failed: {e}")
+
     deep_ai_rpc_consumer.start()
     try:
         yield
