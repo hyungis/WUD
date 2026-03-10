@@ -52,9 +52,9 @@
 
 - `fe/src/api/axios.ts`
 : 기본 API URL을 `http://localhost:8081`로 정렬.
-: 토큰 조회 키를 스토어와 동일한 `tokenStorage` 기반으로 통일.
+: 액세스 토큰은 스토어(메모리)에서 읽어 헤더에만 첨부.
 - `fe/src/store/authStore.ts`
-: 초기 `isAuthenticated` 계산 오류 수정(`!!initialAccessToken`).
+: 인증 상태는 메모리 기준으로만 관리(로컬스토리지 미사용).
 - `fe/src/types/api.ts`
 : 백엔드 `ApiResponse.error` 구조를 타입에 반영.
 - `fe/src/types/auth.ts`

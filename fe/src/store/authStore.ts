@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import { tokenStorage } from "../utils/tokenStorage";
 
 export type User = {
   id?: string;
@@ -17,8 +16,8 @@ type AuthState = {
   clearAuth: () => void;
 };
 
-const initialAccessToken = tokenStorage.getAccessToken();
-const initialRefreshToken = tokenStorage.getRefreshToken();
+const initialAccessToken = null;
+const initialRefreshToken = null;
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
@@ -27,18 +26,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   isAuthenticated: !!initialAccessToken,
   setUser: (user) => set({ user }),
   setTokens: (accessToken, refreshToken) => {
-    tokenStorage.setAccessToken(accessToken);
-    if (refreshToken) {
-      tokenStorage.setRefreshToken(refreshToken);
-    }
     set({
       accessToken,
-      refreshToken: refreshToken ?? tokenStorage.getRefreshToken(),
+      refreshToken: refreshToken ?? null,
       isAuthenticated: true,
     });
   },
   clearAuth: () => {
-    tokenStorage.clear();
     set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false });
   },
 }));

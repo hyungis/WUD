@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { AxiosInstance, AxiosError } from "axios";
 import type { ApiErrorResponse } from "../types/api";
-import { tokenStorage } from "../utils/tokenStorage";
+import { useAuthStore } from "../store/authStore";
 
 const api: AxiosInstance = axios.create({
     baseURL: import.meta.env.VITE_API_BASE_URL || "http://localhost:8081",
@@ -14,7 +14,7 @@ const api: AxiosInstance = axios.create({
 // Request Interceptor: 토큰이 있다면 헤더에 추가
 api.interceptors.request.use(
     (config) => {
-        const token = tokenStorage.getAccessToken();
+        const token = useAuthStore.getState().accessToken;
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -28,12 +28,17 @@ api.interceptors.response.use(
     (response) => response.data,
     (error: AxiosError<ApiErrorResponse>) => {
         if (error.response) {
+            // 서버에서 응답을 반환한 경우 (4xx, 5xx)
             const data = error.response.data;
             if (error.response.status === 401) {
+                // 인증 에러 시 처리 (예: 토큰 삭제, 로그인 페이지 이동)
+                // localStorage.removeItem("accessToken");
+                // window.location.href = "/login";
                 console.error("Unauthorized: Please login again.");
             }
-            return Promise.reject(data ?? { success: false, message: "Request failed", status: error.response.status });
+            return Promise.reject(data);
         } else if (error.request) {
+            // 요청은 성공했으나 응답이 오지 않은 경우
             console.error("No response from server:", error.message);
             return Promise.reject({ success: false, message: "Server not responding", status: 0 });
         } else {
