@@ -77,7 +77,7 @@ class LLMService:
         try:
             print("Requesting SSAFY GMS(OpenAI SDK) for analysis...")
             resp = client.chat.completions.create(
-                model=(settings.gms_model or "gpt-4"),
+                model=(settings.gms_model or "gpt-4o"),
                 messages=[
                     {"role": "developer", "content": developer_prompt},
                     {"role": "user", "content": user_prompt},
@@ -101,7 +101,7 @@ class LLMService:
         prompt_guide_text: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        HTP + WHO5 + YOLO 결과 + 원본 이미지(멀티모달)로 GPT-4o-mini 분석을 요청하고
+        HTP + WHO5 + YOLO 결과 + 원본 이미지(멀티모달)로 GPT-4o 분석을 요청하고
         JSON 형태의 결과를 반환합니다.
         """
         client = self._get_client()
@@ -197,7 +197,7 @@ class LLMService:
 
         attach_images(content)
 
-        model_name = (settings.gms_model or "").strip() or "gpt-4o-mini"
+        model_name = (settings.gms_model or "").strip() or "gpt-4o"
 
         try:
             def request_once(user_content: List[Dict[str, Any]]):
