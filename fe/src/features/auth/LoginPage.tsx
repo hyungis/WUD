@@ -1,14 +1,18 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { login } from "../../services/auth";
+import { useNavigate } from "react-router-dom";
+import { login, register } from "../../services/auth";
 import Button from "../../components/shared/Button";
 import Input from "../../components/shared/Input";
 import LoginStarScene from "../../components/shared/LoginStarScene";
 import { useAuthStore } from "../../store/authStore";
 
 export default function LoginPage() {
+  const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [name, setName] = useState("");
+  const [nickname, setNickname] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [phase, setPhase] = useState<"idle" | "login" | "success">("idle");
@@ -25,6 +29,7 @@ export default function LoginPage() {
   const handleClose = () => {
     setPhase("idle");
     setError(null);
+    setIsSignup(false);
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -33,17 +38,29 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      // 전환 중 플래그를 먼저 설정하여 DashboardGate가 LoginPage를 언마운트하지 않도록 방지
-      useAuthStore.getState().setAuthTransitioning(true);
-      await login({ email, password }, { persist: true });
-      setPhase("success");
+      if (isSignup) {
+        if (password !== confirmPassword) {
+          throw new Error("비밀번호가 일치하지 않습니다.");
+        }
+        await register({ name, nickname, email, password });
+        // 회원가입 성공 후 자동으로 로그인 모드로 전환하거나 바로 로그인 처리
+        // 여기서는 편의상 로그인 모드로 전환하고 안내 메시지 표시
+        setIsSignup(false);
+        setError("회원가입이 완료되었습니다. 로그인해 주세요.");
+        setIsSubmitting(false);
+      } else {
+        // 전환 중 플래그를 먼저 설정하여 DashboardGate가 LoginPage를 언마운트하지 않도록 방지
+        useAuthStore.getState().setAuthTransitioning(true);
+        await login({ email, password }, { persist: true });
+        setPhase("success");
 
-      setTimeout(() => {
-        useAuthStore.getState().setAuthTransitioning(false);
-        navigate("/dashboard");
-      }, 3000);
+        setTimeout(() => {
+          useAuthStore.getState().setAuthTransitioning(false);
+          navigate("/");
+        }, 3000);
+      }
     } catch (err: any) {
-      setError(err.message || "로그인 중 오류가 발생했습니다.");
+      setError(err.message || "오류가 발생했습니다.");
       setIsSubmitting(false);
       useAuthStore.getState().setAuthTransitioning(false);
     }
@@ -57,7 +74,7 @@ export default function LoginPage() {
     authStore.setUser({ email: "mock@local", name: "Mock User" });
     setTimeout(() => {
       authStore.setAuthTransitioning(false);
-      navigate("/dashboard");
+      navigate("/");
     }, 3000);
   };
 
@@ -78,7 +95,7 @@ export default function LoginPage() {
         </div>
       )}
 
-      {/* 로그인 폼 */}
+      {/* 로그인/회원가입 폼 */}
       {phase !== "idle" && (
       <div
         className={`relative z-10 w-full max-w-md mx-4 ${
@@ -102,18 +119,55 @@ export default function LoginPage() {
           <h1 className="text-2xl font-bold text-center text-white mb-1">
             Would You Draw
           </h1>
-          <p className="text-sm text-white/40 text-center mb-8">로그인</p>
+          <p className="text-sm text-white/40 text-center mb-8">
+            {isSignup ? "회원가입" : "로그인"}
+          </p>
 
           <div className="space-y-4">
+            {isSignup && (
+              <>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-white/50" htmlFor="signup-name">
+                    이름
+                  </label>
+                  <Input
+                    id="signup-name"
+                    type="text"
+                    placeholder="이름을 입력하세요"
+                    value={name}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
+                    required
+                    disabled={isSubmitting}
+                    className="w-full bg-white/5 border-white/10 text-white placeholder-white/25 focus:border-white/30 focus:ring-1 focus:ring-white/20 rounded-xl h-11"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-white/50" htmlFor="signup-nickname">
+                    닉네임
+                  </label>
+                  <Input
+                    id="signup-nickname"
+                    type="text"
+                    placeholder="닉네임을 입력하세요"
+                    value={nickname}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNickname(e.target.value)}
+                    required
+                    disabled={isSubmitting}
+                    className="w-full bg-white/5 border-white/10 text-white placeholder-white/25 focus:border-white/30 focus:ring-1 focus:ring-white/20 rounded-xl h-11"
+                  />
+                </div>
+              </>
+            )}
+
             <div className="space-y-1.5">
               <label
                 className="block text-xs font-medium text-white/50"
-                htmlFor="login-email"
+                htmlFor="auth-email"
               >
                 이메일
               </label>
               <Input
-                id="login-email"
+                id="auth-email"
                 type="email"
                 placeholder="email@example.com"
                 value={email}
@@ -129,12 +183,12 @@ export default function LoginPage() {
             <div className="space-y-1.5">
               <label
                 className="block text-xs font-medium text-white/50"
-                htmlFor="login-password"
+                htmlFor="auth-password"
               >
                 비밀번호
               </label>
               <Input
-                id="login-password"
+                id="auth-password"
                 type="password"
                 placeholder="••••••••"
                 value={password}
@@ -146,10 +200,32 @@ export default function LoginPage() {
                 className="w-full bg-white/5 border-white/10 text-white placeholder-white/25 focus:border-white/30 focus:ring-1 focus:ring-white/20 rounded-xl h-11"
               />
             </div>
+
+            {isSignup && (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-medium text-white/50" htmlFor="auth-confirm-password">
+                  비밀번호 확인
+                </label>
+                <Input
+                  id="auth-confirm-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
+                  required
+                  disabled={isSubmitting}
+                  className="w-full bg-white/5 border-white/10 text-white placeholder-white/25 focus:border-white/30 focus:ring-1 focus:ring-white/20 rounded-xl h-11"
+                />
+              </div>
+            )}
           </div>
 
           {error && (
-            <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300 text-center">
+            <p className={`mt-4 rounded-xl border px-4 py-3 text-sm text-center ${
+              error.includes("완료") 
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                : "border-red-500/20 bg-red-500/10 text-red-300"
+            }`}>
               {error}
             </p>
           )}
@@ -160,9 +236,9 @@ export default function LoginPage() {
               disabled={isSubmitting}
               className="w-full h-11 bg-white/10 hover:bg-white/20 text-white font-medium rounded-xl border border-white/15 transition-all"
             >
-              {isSubmitting ? "로그인 중..." : "로그인"}
+              {isSubmitting ? (isSignup ? "가입 중..." : "로그인 중...") : (isSignup ? "회원가입" : "로그인")}
             </Button>
-            {isMockEnabled && (
+            {isMockEnabled && !isSignup && (
               <Button
                 type="button"
                 disabled={isSubmitting}
@@ -175,12 +251,16 @@ export default function LoginPage() {
           </div>
 
           <div className="mt-5 text-center">
-            <Link
-              to="/signup"
+            <button
+              type="button"
+              onClick={() => {
+                setIsSignup(!isSignup);
+                setError(null);
+              }}
               className="text-xs text-white/40 hover:text-white/70 underline underline-offset-4 transition-colors"
             >
-              계정이 없으신가요? 회원가입
-            </Link>
+              {isSignup ? "이미 계정이 있으신가요? 로그인" : "계정이 없으신가요? 회원가입"}
+            </button>
           </div>
 
           <div className="my-5 flex items-center gap-3 text-[10px] text-white/30">
@@ -212,15 +292,11 @@ export default function LoginPage() {
                 fill="#34A853"
               />
               <path
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                fill="#FBBC05"
-              />
-              <path
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                 fill="#EA4335"
               />
             </svg>
-            <span className="text-sm text-white/70">Google로 로그인</span>
+            <span className="text-sm text-white/70">Google로 {isSignup ? "회원가입" : "로그인"}</span>
           </Button>
         </form>
       </div>

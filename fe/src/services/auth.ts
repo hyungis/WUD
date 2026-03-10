@@ -12,7 +12,8 @@ export type AuthOptions = {
 };
 
 export type RegisterPayload = {
-  name: string; // 원본 유지
+  name: string;
+  nickname: string;
   email: string;
   password: string;
 };
@@ -40,11 +41,12 @@ export async function login(payload: LoginPayload, options: AuthOptions = {}) {
 }
 
 export async function register(payload: RegisterPayload) {
-  // SignUpRequest 인터페이스에 맞게 필드 맵핑 (name -> nickname)
+  // SignUpRequest 인터페이스에 맞게 필드 맵핑
   const response = await authApi.signup({
     email: payload.email,
     password: payload.password,
-    nickname: payload.name,
+    name: payload.name,
+    nickname: payload.nickname,
   });
 
   if (!response.success) {

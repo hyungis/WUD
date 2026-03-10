@@ -24,7 +24,7 @@ function WeeklyDrawPage() {
           <Button type="button" onClick={() => navigate("/daily")}>
             데일리로
           </Button>
-          <Button type="button" variant="secondary" onClick={() => navigate("/dashboard")}>
+          <Button type="button" variant="secondary" onClick={() => navigate("/")}>
             메인으로
           </Button>
         </div>

@@ -1,7 +1,6 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useState, useEffect } from "react";
 import LoginPage from "./features/auth/LoginPage";
-import SignupPage from "./features/auth/SignupPage";
 import DailyDetailPage from "./features/daily/DailyDetailPage";
 import DailyContentPage from "./features/daily/DailyContentPage";
 import DailyCompletePage from "./features/daily/DailyCompletePage";
@@ -78,12 +77,12 @@ function DashboardGate() {
 }
 
 function App() {
+  const { isAuthenticated } = useAuthStore();
   return (
     <>
       <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route
-          path="/dashboard"
+          path="/"
           element={
             <PublicRoute redirectIfAuthenticated={false}>
               <DashboardGate />
@@ -181,20 +180,12 @@ function App() {
         <Route
           path="/login"
           element={
-            <Navigate to="/dashboard" replace />
+            <Navigate to="/" replace />
           }
         />
-        <Route
-          path="/signup"
-          element={
-            <PublicRoute redirectIfAuthenticated={false}>
-              <SignupPage />
-            </PublicRoute>
-          }
-        />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <FloatingDock />
+      {isAuthenticated && <FloatingDock />}
     </>
   );
 }
