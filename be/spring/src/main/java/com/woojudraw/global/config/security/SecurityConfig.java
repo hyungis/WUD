@@ -42,7 +42,8 @@ public class SecurityConfig {
 		"/v3/api-docs/**",
 		"/rabbitmq/**",
 		"/auth/signup",
-		"/auth/login"
+		"/auth/login",
+		"/auth/refresh"
 	};
 
 	@Bean

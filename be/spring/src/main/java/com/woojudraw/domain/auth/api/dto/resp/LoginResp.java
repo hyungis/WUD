@@ -7,6 +7,5 @@ import lombok.Getter;
 @Builder
 public class LoginResp {
 	private final String accessToken;
-	private final String refreshToken;
 	private final long expiresInSec;
 }
