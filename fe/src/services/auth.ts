@@ -35,7 +35,6 @@ export async function login(payload: LoginPayload, options: AuthOptions = {}) {
     useAuthStore.getState().setTokens(accessToken, refreshToken);
   }
 
-  // 로그인 응답에는 user가 없어 입력 email만 우선 저장
   useAuthStore.getState().setUser({ email: payload.email });
 
   return response.data; // LoginResponse 객체 반환
