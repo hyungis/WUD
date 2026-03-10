@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     
     # LLM config
     upstage_api_key: str = ""
+
+    # SSAFY GMS(OpenAI compatible) config
+    gms_key: str = ""
+    gms_base_url: str = "https://gms.ssafy.io/gmsapi/api.openai.com/v1"
+    gms_chat_completions_path: str = "/chat/completions"
+    gms_model: str = "gpt-4o"
     
     # YOLO Model Path
     yolo_model_path: str = "yolov8n.pt" # default
