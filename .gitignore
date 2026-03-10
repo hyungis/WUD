@@ -10,6 +10,3 @@ Thumbs.db
 __pycache__/
 *.pyc
 
-# AI Models
-*.pt
-ai/yolov8n.pt
