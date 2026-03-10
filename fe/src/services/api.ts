@@ -1,5 +1,4 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
-import { tokenStorage } from "../utils/tokenStorage";
 import { useAuthStore } from "../store/authStore";
 
 const baseURL = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
@@ -20,7 +19,7 @@ let pendingRequests: Array<(token: string) => void> = [];
 type RetryConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
 api.interceptors.request.use((config) => {
-  const token = tokenStorage.getAccessToken();
+  const token = useAuthStore.getState().accessToken;
 
   if (token) {
     config.headers = config.headers ?? {};
@@ -31,7 +30,10 @@ api.interceptors.request.use((config) => {
 });
 
 async function refreshAccessToken() {
-  const refreshToken = tokenStorage.getRefreshToken();
+  const refreshToken = useAuthStore.getState().refreshToken;
+  if (!refreshToken) {
+    throw new Error("No refresh token available");
+  }
   const response = await refreshApi.post("/auth/refresh", { refreshToken });
   const { accessToken, refreshToken: newRefreshToken } = response.data ?? {};
 

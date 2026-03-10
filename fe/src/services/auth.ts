@@ -28,10 +28,9 @@ export async function login(payload: LoginPayload, options: AuthOptions = {}) {
 
   // 백엔드 login 응답: accessToken, refreshToken, expiresInSec
   const { accessToken, refreshToken } = response.data;
-  const shouldPersist = options.persist ?? false;
+  void options;
 
-  // 토큰 저장 로직
-  if (accessToken && shouldPersist) {
+  if (accessToken) {
     useAuthStore.getState().setTokens(accessToken, refreshToken);
   }
 
