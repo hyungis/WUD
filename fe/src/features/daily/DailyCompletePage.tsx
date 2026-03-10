@@ -94,12 +94,12 @@ function DailyCompletePage() {
       }
 
       persistLocalPlanet();
-      navigate("/dashboard");
+      navigate("/");
     } catch (error) {
       console.error("daily submit failed", error);
       setSubmitError("API 저장에 실패해 로컬 저장으로 전환합니다.");
       persistLocalPlanet();
-      navigate("/dashboard");
+      navigate("/");
     } finally {
       setIsSubmitting(false);
     }

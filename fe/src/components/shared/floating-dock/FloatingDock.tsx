@@ -23,14 +23,8 @@ export default function FloatingDock() {
                     to="/"
                     className={`text-xs font-medium uppercase tracking-widest transition-colors ${location.pathname === "/" ? "text-white" : "text-slate-400 hover:text-white"}`}
                 >
-                    홈
+                    Would You Draw
                 </Link>
-                <button
-                    onClick={() => navigate("/dashboard")}
-                    className={`text-xs font-medium uppercase tracking-widest transition-colors ${location.pathname === "/dashboard" ? "text-white" : "text-slate-400 hover:text-white"}`}
-                >
-                    대시보드
-                </button>
             </div>
 
             {/* 2. 주요 액션 (데일리, 심층) */}

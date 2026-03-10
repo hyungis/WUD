@@ -27,7 +27,7 @@ function WelcomePage() {
   useEffect(() => {
     const shouldShowWelcome = localStorage.getItem("showWelcomeOnce") === "true";
     if (!shouldShowWelcome) {
-      navigate("/dashboard", { replace: true });
+      navigate("/", { replace: true });
     }
   }, [navigate]);
 

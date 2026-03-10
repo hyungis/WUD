@@ -1,4 +1,5 @@
 
+
 export type BlackHoleSpinnerProps = {
   phase: "idle" | "login" | "success";
   onClick: () => void;

@@ -285,7 +285,7 @@ function DailyDetailPage() {
             <Button type="button" variant="secondary" onClick={() => navigate("/daily/content")}>
               선택으로
             </Button>
-            <Button type="button" onClick={() => navigate("/dashboard")}>메인으로</Button>
+            <Button type="button" onClick={() => navigate("/")}>메인으로</Button>
           </div>
         </header>
 

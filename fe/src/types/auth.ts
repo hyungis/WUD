@@ -2,6 +2,7 @@
 export interface SignupRequest {
     email: string;
     password: string;
+    name: string;
     nickname: string;
 }
 
@@ -59,6 +60,4 @@ export interface ProviderItem {
     enabled: boolean;
 }
 
-export interface OAuthProviderResponse {
-    // data가 배열 자체임 ApiResponse<ProviderItem[]>
-}
+export type OAuthProviderResponse = unknown;

@@ -6,7 +6,7 @@ import { imageApi } from "../../api/image";
 import type { DeepDetailResponse } from "../../types/deep";
 
 type HtpStep = "house" | "tree" | "person";
-type HtpPhase = "draw" | "result";
+type HtpPhase = "survey" | "draw" | "result";
 
 const PALETTE = [
   "#111827",
@@ -164,7 +164,7 @@ function HTPPage() {
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
-  const [phase, setPhase] = useState<HtpPhase>("draw");
+  const [phase, setPhase] = useState<HtpPhase>("survey");
   const [paintColor, setPaintColor] = useState(PALETTE[0]);
   const [brushSize, setBrushSize] = useState(4);
   const [tool, setTool] = useState<ToolType>("brush");
@@ -488,7 +488,7 @@ function HTPPage() {
       setSaveError("심층 API 저장에 실패해 로컬 저장 결과로 이동합니다.");
     } finally {
       window.setTimeout(() => {
-        navigate("/dashboard", { replace: true });
+        navigate("/", { replace: true });
       }, 1400);
     }
   };
@@ -549,7 +549,62 @@ function HTPPage() {
         </header>
 
         <section className="htp-card flex-1 min-h-0 overflow-hidden">
-          {phase === "draw" ? (
+          {phase === "survey" ? (
+            <div className="h-full min-h-0 space-y-8 overflow-y-auto text-center custom-scrollbar pr-1">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-300">
+                  Pre-Assessment
+                </p>
+                <h2 className="mt-4 text-3xl font-semibold text-slate-100">
+                  심층 검사 전 설문
+                </h2>
+                <p className="mt-3 text-sm text-slate-300">
+                  최근 2주간의 기분을 솔직하게 선택해 주세요.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">WHO-5 (0-5)</p>
+                <div className="mt-4 space-y-3">
+                  {WHO5_QUESTIONS.map((question, index) => (
+                    <div key={question} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                      <p className="text-sm text-slate-200">{index + 1}. {question}</p>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {[0, 1, 2, 3, 4, 5].map((score) => (
+                          <button
+                            key={`${question}-${score}`}
+                            type="button"
+                            onClick={() => {
+                              setWho5Answers((current) => {
+                                const next = [...current];
+                                next[index] = score;
+                                return next;
+                              });
+                            }}
+                            className={`rounded-lg px-3 py-1.5 text-xs transition ${who5Answers[index] === score
+                              ? "bg-emerald-500/30 text-emerald-100 ring-1 ring-emerald-300/40"
+                              : "bg-white/5 text-slate-300 hover:bg-white/10"
+                              }`}
+                          >
+                            {score}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-3">
+                <Button type="button" variant="secondary" onClick={() => navigate("/deep/content")}>
+                  취소
+                </Button>
+                <Button type="button" onClick={() => setPhase("draw")}>
+                  검사 시작하기
+                </Button>
+              </div>
+            </div>
+          ) : phase === "draw" ? (
             <div className="flex h-full min-h-0 flex-col gap-3">
               <div className="shrink-0 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 backdrop-blur-sm">
                 <div className="flex flex-wrap items-center gap-3">
@@ -654,7 +709,7 @@ function HTPPage() {
                   variant="secondary"
                   onClick={() => {
                     if (stepIndex === 0) {
-                      navigate("/welcome");
+                      setPhase("survey");
                       return;
                     }
                     setStepIndex((current) => current - 1);
@@ -732,44 +787,12 @@ function HTPPage() {
                 </div>
               ) : null}
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">WHO-5 (0-5)</p>
-                <div className="mt-4 space-y-3">
-                  {WHO5_QUESTIONS.map((question, index) => (
-                    <div key={question} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                      <p className="text-sm text-slate-200">{index + 1}. {question}</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {[0, 1, 2, 3, 4, 5].map((score) => (
-                          <button
-                            key={`${question}-${score}`}
-                            type="button"
-                            onClick={() => {
-                              setWho5Answers((current) => {
-                                const next = [...current];
-                                next[index] = score;
-                                return next;
-                              });
-                            }}
-                            className={`rounded-lg px-3 py-1.5 text-xs transition ${who5Answers[index] === score
-                              ? "bg-emerald-500/30 text-emerald-100 ring-1 ring-emerald-300/40"
-                              : "bg-white/5 text-slate-300 hover:bg-white/10"
-                              }`}
-                          >
-                            {score}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center justify-center gap-3 pt-6">
                 <Button type="button" variant="secondary" onClick={() => setPhase("draw")}>
-                  다시 보기
+                  그림 다시 보기
                 </Button>
-                <Button type="button" onClick={handleSave}>
-                  별 저장
+                <Button type="button" onClick={handleSave} className="liquid-btn">
+                  분석 완료 및 별 저장
                 </Button>
               </div>
               {saveError && (
@@ -787,7 +810,7 @@ function HTPPage() {
           <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
             <div
               className={`h-full rounded-full transition-all duration-300 ${phase === "result" ? "bg-gradient-to-r from-sky-400 to-indigo-400" : "bg-gradient-to-r from-emerald-400 to-cyan-400"}`}
-              style={{ width: `${phase === "result" ? progressPercent : strokeDensity}%` }}
+              style={{ width: `${phase === "result" ? progressPercent : (phase === "survey" ? 0 : strokeDensity)}%` }}
             />
           </div>
         </div>

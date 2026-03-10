@@ -118,7 +118,7 @@ function WeeklyPage() {
         </div>
 
         <div className="flex items-center gap-4">
-          <Button type="button" onClick={() => navigate("/dashboard")}>
+          <Button type="button" onClick={() => navigate("/")}>
             메인으로
           </Button>
         </div>
