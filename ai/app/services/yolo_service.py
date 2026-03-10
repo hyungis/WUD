@@ -2,30 +2,34 @@ from ultralytics import YOLO
 import os
 from fastapi import HTTPException
 from app.core.config import settings
+from typing import Dict, List, Optional, Any
+from pathlib import Path
 
 class YoloService:
-    _model = None
+    _models: Dict[str, YOLO] = {}
 
     @classmethod
-    def load_model(cls):
-        if cls._model is None:
-            try:
-                # 로컬에 있는 모델 파일 로드 (예: yolov8n.pt)
-                model_path = settings.yolo_model_path
-                print(f"Loading YOLO model from: {model_path}")
-                cls._model = YOLO(model_path)
-            except Exception as e:
-                print(f"Failed to load YOLO model: {e}")
-                raise Exception("Failed to load YOLO model")
+    def load_model(cls, model_path: str) -> YOLO:
+        key = str(Path(model_path).resolve())
+        if key in cls._models:
+            return cls._models[key]
+        try:
+            print(f"Loading YOLO model from: {model_path}")
+            model = YOLO(model_path)
+            cls._models[key] = model
+            return model
+        except Exception as e:
+            print(f"Failed to load YOLO model: {e}")
+            raise Exception("Failed to load YOLO model")
 
     @classmethod
-    def classify_image(cls, image_path: str) -> list:
-        if cls._model is None:
-            cls.load_model()
+    def classify_image(cls, image_path: str, model_path: Optional[str] = None) -> List[Dict[str, Any]]:
+        model_path = model_path or settings.yolo_model_path
+        model = cls.load_model(model_path)
             
         try:
-            print(f"Running YOLO classification on: {image_path}")
-            results = cls._model(image_path)
+            print(f"Running YOLO on: {image_path} (model={model_path})")
+            results = model(image_path)
             
             classifications = []
             
@@ -49,15 +53,26 @@ class YoloService:
                              "class": result.names[int(box.cls)],
                              "confidence": float(box.conf)
                          })
-                         
-            # 임시로 만들어진 이미지 파일 삭제
-            if os.path.exists(image_path):
-                try:
-                    os.remove(image_path)
-                except OSError:
-                    pass
             
             return classifications
         except Exception as e:
             print(f"Error classifying image: {str(e)}")
             raise HTTPException(status_code=500, detail=f"YOLO classification failed: {str(e)}")
+
+    @staticmethod
+    def summarize_detections(detections: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        detection list -> count/top confidence summary for prompt/raw payload.
+        """
+        counts: Dict[str, int] = {}
+        best_conf: Dict[str, float] = {}
+        for d in detections:
+            name = str(d.get("class", "unknown"))
+            conf = float(d.get("confidence", 0.0))
+            counts[name] = counts.get(name, 0) + 1
+            best_conf[name] = max(best_conf.get(name, 0.0), conf)
+        return {
+            "counts": counts,
+            "bestConfidence": best_conf,
+            "total": len(detections),
+        }

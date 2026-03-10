@@ -1,5 +1,6 @@
 import boto3
 import os
+import tempfile
 from fastapi import HTTPException
 from app.core.config import settings
 
@@ -21,7 +22,7 @@ class S3Service:
             raise HTTPException(status_code=500, detail="S3_BUCKET_NAME is not configured")
         
         # 다운로드 경로 설정 (도커 컨테이너 내부 혹은 로컬의 임시 폴더)
-        temp_dir = "/tmp/ai_images"
+        temp_dir = os.path.join(tempfile.gettempdir(), "ai_images")
         os.makedirs(temp_dir, exist_ok=True)
         
         file_name = object_key.split("/")[-1]
@@ -34,5 +35,22 @@ class S3Service:
         except Exception as e:
             print(f"Error downloading from S3: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to download image from S3: {str(e)}")
+
+    def generate_presigned_url(self, object_key: str, expires_in: int = 600) -> str:
+        """
+        S3 객체에 대한 presigned GET URL을 생성합니다.
+        (LLM에 base64 대신 URL 전달용)
+        """
+        if not self.bucket_name:
+            raise HTTPException(status_code=500, detail="S3_BUCKET_NAME is not configured")
+        try:
+            return self.s3_client.generate_presigned_url(
+                ClientMethod="get_object",
+                Params={"Bucket": self.bucket_name, "Key": object_key},
+                ExpiresIn=expires_in,
+            )
+        except Exception as e:
+            print(f"Error generating presigned url: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to generate presigned url: {str(e)}")
 
 s3_service = S3Service()
