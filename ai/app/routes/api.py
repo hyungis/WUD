@@ -18,7 +18,7 @@ async def analyze_daily_image(request: AnalyzeRequest):
     try:
         image_path = s3_service.download_image(request.s3_object_key)
         classifications = YoloService.classify_image(image_path)
-        analysis_text = llm_service.analyze_results(classifications)
+        analysis_text = llm_service.analyze_daily_results(classifications)
 
         return AnalyzeResponse(
             status="success",
