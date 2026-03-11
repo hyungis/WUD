@@ -73,10 +73,46 @@ export const getWeekKey = (date: Date) => {
 };
 
 export const formatDate = (value: string) => {
-  const date = new Date(value);
+  const normalized = normalizeUtcTimestamp(value);
+  const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString("ko-KR", { month: "short", day: "numeric" });
+  return new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    month: "short",
+    day: "numeric",
+  }).format(date);
 };
+
+export const formatDateTimeKST = (value: string) => {
+  const normalized = normalizeUtcTimestamp(value);
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return value;
+
+  const parts = new Intl.DateTimeFormat("ko-KR", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${get("year")}년 ${get("month")}월 ${get("day")}일 ${get("hour")}:${get("minute")}`;
+};
+
+function normalizeUtcTimestamp(value: string) {
+  // If backend sends timezone-less ISO (e.g. 2026-03-11T19:01:00), treat it as UTC.
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?$/.test(value)) {
+    return `${value}Z`;
+  }
+  // Also support space-separated local-date time from backend (e.g. 2026-03-11 19:01:00).
+  if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?$/.test(value)) {
+    return `${value.replace(" ", "T")}Z`;
+  }
+  return value;
+}
 
 export const ZOOM_THRESHOLD = 120;
 export const MAX_DISTANCE = 500;

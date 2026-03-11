@@ -6,31 +6,52 @@ interface HTPResultViewProps {
   onRestart: () => void;
   onComplete: () => void;
   saveError?: string | null;
+  isAnalyzing?: boolean;
 }
 
 const HTPResultView: React.FC<HTPResultViewProps> = ({ 
   result, 
   onRestart, 
   onComplete, 
-  saveError
+  saveError,
+  isAnalyzing = false,
 }) => {
-  const S3_BASE_URL = "https://wud-s3.s3.ap-northeast-2.amazonaws.com";
-  const resultText = result.aiResult.result || result.aiResult.resultSummary || "";
+  const S3_BASE_URL = (import.meta.env.VITE_S3_BASE_URL as string | undefined) ?? "https://wud-s3.s3.ap-northeast-2.amazonaws.com";
 
-  // 개선된 파싱 로직: 여러 구분자에 대응
+  const buildPublicImageUrl = (imageKey?: string) => {
+    if (!imageKey) return "";
+    const normalized = imageKey
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+    return `${S3_BASE_URL}/${normalized}`;
+  };
+
+  const normalizeDeepReportText = (text?: string) => {
+    if (!text) return "";
+    return text
+      .replace(/\r/g, "")
+      .replace(/\n\s*\d+\s*\n\s*(\d+\.)/g, "\n$1")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+  };
+
+  const resultText = normalizeDeepReportText(result.aiResult.result || result.aiResult.resultSummary || "");
+
+  // 개선된 파싱 로직: coreInsights 배열 우선 사용
   const parseResult = (text: string) => {
     if (!text) return { summary: "", insights: [] };
 
-    // 인사이트 섹션 구분자 찾기
-    const sections = text.split(/(?:Core Insights|핵심 인사이트|Insight)/i);
+    // "Core Insights" 구분자 기준으로 분리
+    const sections = text.split(/(?:Core Insights|핵심 인사이트)/i);
     const summary = sections[0].trim();
     const insightsPart = sections[1] || "";
-    
-    // 숫자+점 조합 또는 불렛 포인트를 기준으로 항목 분리
+
+    // 숫자+점 또는 불렛 기준으로 항목 분리
     const insights = insightsPart
-      .split(/(?:\d+\.|\*|\-)/)
+      .split(/\n(?=\d+\.)/)       // "1. ", "2. " 앞 줄바꿈 기준
       .map(s => s.trim())
-      .filter(s => s.length > 5); // 너무 짧은 문자열 제외
+      .filter(s => s.length > 5);
 
     return { summary, insights };
   };
@@ -45,10 +66,26 @@ const HTPResultView: React.FC<HTPResultViewProps> = ({
           <div className="inline-block rounded-full bg-indigo-500/10 px-3 py-1 ring-1 ring-indigo-400/30">
             <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-300">HTP Analysis Report</span>
           </div>
-          <h2 className="mt-4 text-3xl font-bold text-white tracking-tight">당신의 내면 세계</h2>
-          <p className="mt-2 text-sm text-slate-400">그림 속에 담긴 무의식의 메시지를 확인해 보세요.</p>
+          <h2 className="mt-4 text-3xl font-bold text-white tracking-tight">
+            {isAnalyzing ? "AI가 분석 중입니다..." : "당신의 내면 세계"}
+          </h2>
+          <p className="mt-2 text-sm text-slate-400">
+            {isAnalyzing
+              ? "그림 속에 담긴 당신의 마음을 읽고 있습니다. 잠시만 기다려주세요."
+              : "그림 속에 담긴 무의식의 메시지를 확인해 보세요."}
+          </p>
         </section>
 
+        {isAnalyzing ? (
+          <section className="flex flex-col items-center justify-center py-16">
+            <div className="relative h-16 w-16">
+              <div className="absolute inset-0 rounded-full border-2 border-indigo-400/30" />
+              <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-indigo-400" />
+            </div>
+            <p className="mt-6 text-sm text-slate-400 animate-pulse">분석이 진행 중입니다...</p>
+          </section>
+        ) : (
+          <>
         {/* Summary Card */}
         <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent p-8 shadow-2xl backdrop-blur-md">
            <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-500/10 blur-[80px]" />
@@ -79,7 +116,7 @@ const HTPResultView: React.FC<HTPResultViewProps> = ({
                       {idx + 1}
                     </span>
                     <p className="text-sm leading-relaxed text-slate-300 group-hover:text-slate-100 italic transition-colors">
-                      {insight}
+                      {insight.replace(/^\d+\.\s*/, "")}
                     </p>
                   </div>
                   <div className="absolute inset-0 -z-10 bg-gradient-to-br from-indigo-500/0 via-transparent to-indigo-500/0 opacity-0 transition-opacity duration-500 group-hover:opacity-10" />
@@ -109,13 +146,16 @@ const HTPResultView: React.FC<HTPResultViewProps> = ({
                     </div>
                     {sub.imageKey ? (
                       <img 
-                        src={`${S3_BASE_URL}/${sub.imageKey}`} 
+                        src={buildPublicImageUrl(sub.imageKey)} 
                         alt={sub.type}
                         className="h-full w-full object-contain rounded-lg bg-slate-800/50"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.style.display = 'none';
-                          target.parentElement!.innerHTML += '<div class="h-full w-full flex items-center justify-center text-[10px] text-slate-500 uppercase">' + sub.type + '</div>';
+                          const placeholder = document.createElement('div');
+                          placeholder.className = 'h-full w-full flex flex-col items-center justify-center gap-1 bg-slate-800/50 rounded-lg';
+                          placeholder.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-6 w-6 text-slate-600"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><span style="font-size:9px;text-transform:uppercase;color:#64748b">${sub.type}</span><span style="font-size:9px;color:#94a3b8">이미지 접근 권한 없음</span>`;
+                          target.parentElement?.appendChild(placeholder);
                         }}
                       />
                     ) : (
@@ -128,6 +168,8 @@ const HTPResultView: React.FC<HTPResultViewProps> = ({
             </div>
           </section>
         )}
+          </>
+        )}
       </div>
 
       {/* Footer Actions */}
@@ -139,16 +181,18 @@ const HTPResultView: React.FC<HTPResultViewProps> = ({
           <button 
             type="button" 
             onClick={onRestart}
-            className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-slate-300 transition-all hover:bg-white/10 hover:text-white"
+            disabled={isAnalyzing}
+            className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-slate-300 transition-all hover:bg-white/10 hover:text-white disabled:opacity-40"
           >
             그림 다시 보기
           </button>
           <button 
             type="button" 
             onClick={onComplete}
-            className="relative flex items-center justify-center overflow-hidden rounded-xl bg-indigo-600 px-10 py-3 text-sm font-semibold text-white shadow-[0_0_20px_rgba(79,70,229,0.4)] transition-all hover:bg-indigo-500 hover:shadow-[0_0_30px_rgba(79,70,229,0.6)] active:scale-95"
+            disabled={isAnalyzing}
+            className="relative flex items-center justify-center overflow-hidden rounded-xl bg-indigo-600 px-10 py-3 text-sm font-semibold text-white shadow-[0_0_20px_rgba(79,70,229,0.4)] transition-all hover:bg-indigo-500 hover:shadow-[0_0_30px_rgba(79,70,229,0.6)] active:scale-95 disabled:opacity-40"
           >
-            분석 완료 및 별 저장
+            {isAnalyzing ? "분석 중..." : "별 확인하러 가기"}
           </button>
         </div>
       </div>
