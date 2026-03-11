@@ -38,9 +38,11 @@ export const generateMockPlanets = () => {
     let dailyIndex = 0;
     let deepIndex = 0;
 
-    // 1년 365일: 주간 단위로 데일리 5개 + 심층 2개 섞기
-    for (let i = 0; i < 365; i++) {
-        const date = new Date(now.getTime() - (364 - i) * 24 * 60 * 60 * 1000);
+    const TOTAL_MOCK_ENTRIES = 50;
+
+    // 50개 기준: 주간 패턴(데일리 5 + 심층 2)을 유지
+    for (let i = 0; i < TOTAL_MOCK_ENTRIES; i++) {
+        const date = new Date(now.getTime() - (TOTAL_MOCK_ENTRIES - 1 - i) * 24 * 60 * 60 * 1000);
         const weekDay = i % 7;
 
         if (weekDay < 5) {

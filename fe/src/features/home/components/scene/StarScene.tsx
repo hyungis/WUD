@@ -3,7 +3,7 @@ import { OrbitControls, Stars, Line, Float } from "@react-three/drei";
 import { useEffect, useMemo, useRef, useState, createContext, useContext } from "react";
 import type { MutableRefObject } from "react";
 import type { Group, InstancedMesh, Points } from "three";
-import { Vector3, Object3D, Color, Texture } from "three";
+import { Vector3, Object3D, Color, Texture, IcosahedronGeometry, BufferGeometry, Float32BufferAttribute } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import { useUiStore } from "../../../../store/uiStore";
@@ -19,15 +19,55 @@ import {
 // 2. 3D 컴포넌트
 // ==========================================
 
+function createStellatedPolyhedronGeometry(baseRadius = 1, spikeLength = 0.62) {
+  const baseGeometry = new IcosahedronGeometry(baseRadius, 0).toNonIndexed();
+  const positions = baseGeometry.getAttribute("position").array as Float32Array;
+  const vertices: number[] = [];
+
+  for (let i = 0; i < positions.length; i += 9) {
+    const a = new Vector3(positions[i], positions[i + 1], positions[i + 2]);
+    const b = new Vector3(positions[i + 3], positions[i + 4], positions[i + 5]);
+    const c = new Vector3(positions[i + 6], positions[i + 7], positions[i + 8]);
+
+    const centroid = new Vector3().add(a).add(b).add(c).multiplyScalar(1 / 3);
+    const normal = new Vector3().subVectors(b, a).cross(new Vector3().subVectors(c, a)).normalize();
+    if (normal.dot(centroid) < 0) {
+      normal.multiplyScalar(-1);
+    }
+
+    const apex = centroid.clone().addScaledVector(normal, spikeLength);
+
+    // 각 삼각면 위에 3개의 삼각 스파이크 면을 생성
+    vertices.push(
+      a.x, a.y, a.z, b.x, b.y, b.z, apex.x, apex.y, apex.z,
+      b.x, b.y, b.z, c.x, c.y, c.z, apex.x, apex.y, apex.z,
+      c.x, c.y, c.z, a.x, a.y, a.z, apex.x, apex.y, apex.z,
+    );
+  }
+
+  const stellated = new BufferGeometry();
+  stellated.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+  stellated.computeVertexNormals();
+
+  baseGeometry.dispose();
+  return stellated;
+}
+
+const STAR_STELLATED_GEOMETRY = createStellatedPolyhedronGeometry(1, 0.62);
+
 function DeepPlanet({
-  onClick, onHover, color, size = 1, glow = 1.1, seed = 0, variant = "star",
+  onClick, onOpen, onHover, color, size = 1, glow = 1.1, seed = 0, variant = "star",
 }: {
-  onClick: () => void; onHover?: (data: { isHovered: boolean; x?: number; y?: number }) => void;
+  onClick: () => void;
+  onOpen?: () => void;
+  onHover?: (data: { isHovered: boolean; x?: number; y?: number }) => void;
   color: string; size?: number; glow?: number; seed?: number; variant?: "star" | "planet";
 }) {
   const [isHovered, setIsHovered] = useState(false);
+
   const handlers = {
     onClick,
+    onDoubleClick: onOpen,
     onPointerOver: (event: any) => { setIsHovered(true); onHover?.({ isHovered: true, x: event.clientX, y: event.clientY }); },
     onPointerOut: () => { setIsHovered(false); onHover?.({ isHovered: false }); },
   };
@@ -36,11 +76,15 @@ function DeepPlanet({
     <Float speed={1 + seededRandom(seed) * 1.5} rotationIntensity={variant === "star" ? 0.5 : 0.2} floatIntensity={0.5}>
       <group>
         {variant === "planet" ? (
-          /* ── 데일리 행성: 정팔면체 + 고리 ── */
+          /* ── 데일리 행성: 정팔면체 ── */
           <>
             {/* 메인 정팔면체 */}
-            <mesh {...handlers} scale={isHovered ? [1.25, 1.25, 1.25] : [1, 1, 1]}>
-              <octahedronGeometry args={[size, 0]} />
+            <mesh
+              {...handlers}
+              scale={isHovered ? [size * 1.25, size * 1.25, size * 1.25] : [size, size, size]}
+              rotation={[0.16, 0.28, isHovered ? 0.2 : 0.06]}
+            >
+              <octahedronGeometry args={[1, 0]} />
               <meshPhysicalMaterial
                 color={color}
                 emissive={color}
@@ -54,38 +98,50 @@ function DeepPlanet({
               />
             </mesh>
             {/* 외곽 글로우 */}
-            <mesh scale={[1.4, 1.4, 1.4]}>
-              <octahedronGeometry args={[glow * 0.55, 0]} />
+            <mesh
+              scale={isHovered ? [glow * 1.18, glow * 1.18, glow * 1.18] : [glow * 1.02, glow * 1.02, glow * 1.02]}
+              rotation={[0.16, 0.28, 0.06]}
+            >
+              <octahedronGeometry args={[1, 0]} />
               <meshBasicMaterial color={color} transparent opacity={isHovered ? 0.18 : 0.08} blending={2} depthWrite={false} />
             </mesh>
           </>
         ) : (
-          /* ── 심층별: 정팔면체 결정체 ── */
+          /* ── 심층별: 성형 다면체(stellated polyhedron) ── */
           <>
-            {/* 메인 별 */}
-            <mesh {...handlers} scale={isHovered ? [1.2, 1.2, 1.2] : [1, 1, 1]}>
-              <octahedronGeometry args={[size, 0]} />
+            {/* 메인 성형 다면체 */}
+            <mesh
+              {...handlers}
+              geometry={STAR_STELLATED_GEOMETRY}
+              rotation={[0.2, 0.4, isHovered ? 0.24 : 0.08]}
+              scale={isHovered ? [size * 1.2, size * 1.2, size * 1.2] : [size, size, size]}
+            >
               <meshPhysicalMaterial
                 color={color}
                 emissive={color}
-                emissiveIntensity={isHovered ? 5.0 : 2.5}
+                emissiveIntensity={isHovered ? 4.6 : 2.8}
                 transparent
-                opacity={0.9}
-                transmission={0.9}
-                thickness={1.5}
-                roughness={0}
-                metalness={0.1}
-                ior={2.4}
+                opacity={0.95}
+                transmission={0.08}
+                thickness={1.1}
+                roughness={0.12}
+                clearcoat={0.9}
+                clearcoatRoughness={0.12}
+                metalness={0.18}
+                ior={1.5}
               />
             </mesh>
-            {/* 잔상 후광 */}
-            <mesh scale={isHovered ? [1.3, 1.3, 1.3] : [1.1, 1.1, 1.1]} rotation={[0, Math.PI / 4, 0]}>
-              <octahedronGeometry args={[glow * 0.8, 0]} />
-              <meshBasicMaterial color={color} transparent opacity={isHovered ? 0.3 : 0.15} blending={2} depthWrite={false} />
+            {/* 다면체 외곽 후광 */}
+            <mesh
+              geometry={STAR_STELLATED_GEOMETRY}
+              rotation={[0.2, 0.4, 0.08]}
+              scale={isHovered ? [glow * 1.22, glow * 1.22, glow * 1.22] : [glow * 1.05, glow * 1.05, glow * 1.05]}
+            >
+              <meshBasicMaterial color={color} transparent opacity={isHovered ? 0.26 : 0.14} blending={2} depthWrite={false} />
             </mesh>
-            {/* 핵심 광원 */}
-            <mesh scale={[0.3, 0.3, 0.3]}>
-              <octahedronGeometry args={[size, 0]} />
+            {/* 중심 광원 */}
+            <mesh scale={[size * 0.26, size * 0.26, size * 0.26]} position={[size * 0.2, size * 0.2, size * 0.18]}>
+              <sphereGeometry args={[1, 20, 20]} />
               <meshBasicMaterial color="#ffffff" toneMapped={false} />
             </mesh>
           </>
@@ -105,9 +161,19 @@ function SpreadDriver() {
   useFrame((_, delta) => {
     if (done.current) return;
     elapsed.current += delta;
-    const t = Math.min(elapsed.current / 8.0, 1); // 8초간 퍼짐
-    // 초반 바로 움직임(0.05 오프셋) + 후반 가속 정착
-    ref.current = 0.05 * t + 0.95 * t * t * t;
+    const durationSec = 6.0;
+    const t = Math.min(elapsed.current / durationSec, 1);
+
+    // 초반 3초(=t 0.5)는 의도적으로 천천히 퍼지고,
+    // 이후 3초 동안 빠르게 따라가며 최종 위치로 수렴한다.
+    if (t < 0.5) {
+      const u = t / 0.5;
+      ref.current = 0.18 * Math.pow(u, 1.25);
+    } else {
+      const u = (t - 0.5) / 0.5;
+      ref.current = 0.18 + 0.82 * (1 - Math.pow(1 - u, 2.1));
+    }
+
     if (t >= 1) { ref.current = 1; done.current = true; }
   });
   return null;
@@ -117,7 +183,7 @@ function SpreadDriver() {
 function SpreadItem({ target, children }: { target: [number, number, number]; children: React.ReactNode }) {
   const ref = useContext(SpreadCtx);
   const groupRef = useRef<Group>(null);
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!groupRef.current) return;
     const p = ref.current;
     groupRef.current.position.set(target[0] * p, target[1] * p, target[2] * p);
@@ -129,7 +195,7 @@ function SpreadItem({ target, children }: { target: [number, number, number]; ch
 function SpreadScaleGroup({ children }: { children: React.ReactNode }) {
   const ref = useContext(SpreadCtx);
   const groupRef = useRef<Group>(null);
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!groupRef.current) return;
     const p = Math.max(ref.current, 0.001);
     groupRef.current.scale.set(p, p, p);
@@ -301,7 +367,7 @@ function GalacticDust({ count = 12500, maxRadius }: { count?: number, maxRadius:
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ViewModeTracker({ controlsRef, onModeChange }: any) {
+function ViewModeTracker({ controlsRef, onModeChange, zoomThreshold, minDistance, maxDistance }: any) {
   const { camera } = useThree();
   const lastMode = useRef<"macro" | "micro">("micro");
   const setDockHidden = useUiStore((state: any) => state.setDockHidden);
@@ -309,7 +375,7 @@ function ViewModeTracker({ controlsRef, onModeChange }: any) {
   useFrame(() => {
     if (!controlsRef.current) return;
     const dist = camera.position.distanceTo(controlsRef.current.target);
-    const currentMode = dist > ZOOM_THRESHOLD ? "macro" : "micro";
+    const currentMode = dist > zoomThreshold ? "macro" : "micro";
 
     if (currentMode !== lastMode.current) {
       lastMode.current = currentMode;
@@ -318,7 +384,7 @@ function ViewModeTracker({ controlsRef, onModeChange }: any) {
 
     const zoomEl = document.getElementById("zoom-indicator");
     if (zoomEl) {
-      const percent = Math.max(0, Math.min(100, ((MAX_DISTANCE - dist) / (MAX_DISTANCE - MIN_DISTANCE)) * 100));
+      const percent = Math.max(0, Math.min(100, ((maxDistance - dist) / (maxDistance - minDistance)) * 100));
       zoomEl.style.height = `${percent}%`;
     }
 
@@ -339,47 +405,71 @@ function ViewModeTracker({ controlsRef, onModeChange }: any) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CameraFocus({ focusPosition, focusKey, controlsRef }: any) {
+function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio }: any) {
   const { camera } = useThree();
-  const isActiveRef = useRef(false);
-  const lastKeyRef = useRef<string | null>(null);
+  const isTransitioningRef = useRef(false);
+  const progressRef = useRef(0);
+  const fromCamRef = useRef(new Vector3());
+  const toCamRef = useRef(new Vector3());
+  const fromTargetRef = useRef(new Vector3());
+  const toTargetRef = useRef(new Vector3());
+  const lastKeyRef = useRef<string | number | null>(null);
   const isFirstMount = useRef(true);
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!focusPosition || !controlsRef.current) return;
-    if (focusKey && focusKey !== lastKeyRef.current) {
+
+    const nextTarget = focusPosition.lengthSq() < 0.01
+      ? new Vector3(0, 0, 0)
+      : focusPosition.clone();
+    const keyChanged = focusKey !== lastKeyRef.current;
+    const targetChanged = toTargetRef.current.distanceToSquared(nextTarget) > 0.0001;
+
+    if (keyChanged || (!isTransitioningRef.current && targetChanged)) {
       const wasNull = lastKeyRef.current === null;
-      lastKeyRef.current = focusKey;
+      lastKeyRef.current = focusKey ?? null;
+
       // 최초 마운트 시 자동 포커스는 건너뜀 (초기 카메라 위치 유지)
       if (wasNull && isFirstMount.current) {
         isFirstMount.current = false;
+        toTargetRef.current.copy(nextTarget);
         return;
       }
-      isActiveRef.current = true;
+
+      const currentTarget = controlsRef.current.target.clone();
+      let viewDir = camera.position.clone().sub(nextTarget).normalize();
+
+      if (viewDir.lengthSq() < 0.01) {
+        viewDir = camera.position.clone().sub(currentTarget).normalize();
+      }
+      if (viewDir.lengthSq() < 0.01) {
+        viewDir.set(0.45, 0.28, 1).normalize();
+      }
+
+      const desiredDistance = nextTarget.lengthSq() < 0.01 ? 18 * countRatio : Math.max(2.8, 3.2 * countRatio);
+      const desiredCam = nextTarget.clone().add(viewDir.multiplyScalar(desiredDistance));
+
+      fromCamRef.current.copy(camera.position);
+      toCamRef.current.copy(desiredCam);
+      fromTargetRef.current.copy(currentTarget);
+      toTargetRef.current.copy(nextTarget);
+      progressRef.current = 0;
+      isTransitioningRef.current = true;
     }
-    if (!isActiveRef.current) return;
 
-    let targetPos = new Vector3();
+    if (!isTransitioningRef.current) return;
 
-    if (focusPosition.lengthSq() < 0.01) {
-      const currentDir = camera.position.clone().normalize();
-      if (currentDir.lengthSq() < 0.01) currentDir.set(0, 0, 1);
-      targetPos = currentDir.multiplyScalar(18);
-    } else {
-      const dir = focusPosition.clone().normalize();
-      targetPos = focusPosition.clone().add(dir.multiplyScalar(6));
-    }
+    const transitionDuration = 1.0;
+    progressRef.current = Math.min(progressRef.current + delta / transitionDuration, 1);
+    const t = progressRef.current;
+    const eased = 1 - Math.pow(1 - t, 3);
 
-    camera.position.lerp(targetPos, 0.05);
+    camera.position.lerpVectors(fromCamRef.current, toCamRef.current, eased);
+    controlsRef.current.target.lerpVectors(fromTargetRef.current, toTargetRef.current, eased);
+    controlsRef.current.update();
 
-    if (controlsRef.current) {
-      controlsRef.current.target.lerp(new Vector3(0, 0, 0), 0.08);
-      controlsRef.current.update();
-    }
-
-    // autoRotate로 인해 완벽한 수렴이 불가능하여 줌이 갇히는 현상을 방지
-    if (camera.position.distanceTo(targetPos) < 2.5 && controlsRef.current?.target.lengthSq() < 0.5) {
-      isActiveRef.current = false;
+    if (t >= 1) {
+      isTransitioningRef.current = false;
     }
   });
   return null;
@@ -388,7 +478,7 @@ function CameraFocus({ focusPosition, focusKey, controlsRef }: any) {
 function AnimatedConstellationLine({ weekKey, pts, isHovered }: { weekKey: string; pts: Vector3[]; isHovered: boolean }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const lineRef = useRef<any>(null);
-  const seed = useMemo(() => hashSeed(weekKey), [weekKey]);
+  void weekKey;
 
   const { subdividedPts, vertexColors } = useMemo(() => {
     const sPts: Vector3[] = [];
@@ -425,20 +515,11 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered }: { weekKey: strin
       lineRef.current.material.opacity += (0.8 - lineRef.current.material.opacity) * (delta * 10);
       lineRef.current.material.linewidth = 1.0;
     } else {
-      const time = state.clock.elapsedTime;
-      const speed = 0.5 + (seed % 5) * 0.1;
-      const phase = seed % 100;
-
-      const wave = Math.sin(time * speed + phase);
-
-      let targetOpacity = 0.0;
-      if (wave > 0.6) {
-        targetOpacity = ((wave - 0.6) / 0.4) * 0.25;
-      }
-
-      lineRef.current.material.opacity += (targetOpacity - lineRef.current.material.opacity) * (delta * 8);
+      const baselineOpacity = 0.22;
+      lineRef.current.material.opacity += (baselineOpacity - lineRef.current.material.opacity) * (delta * 8);
       lineRef.current.material.linewidth = 0.5;
     }
+    void state;
   });
 
   return (
@@ -477,8 +558,14 @@ export function StarScene({
   dailyPlanets, deepStars, mypageStar, onStarClick, onDeepStarClick, onPlanetClick, onStarSelect, selectedStarId, hoveredStarId, onStarHover, onViewModeChange,
 }: StarSceneProps) {
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
+  const [focusRequestNonce, setFocusRequestNonce] = useState(0);
   const spreadRef = useRef(0);
   const starTone = useMemo(() => localStorage.getItem("htpToneColor") || "#f8fafc", []);
+
+  const requestFocus = (id: string) => {
+    onStarSelect?.(id);
+    setFocusRequestNonce((prev) => prev + 1);
+  };
 
   const timelineItems = useMemo(() => {
     const deepItems = deepStars.map((star) => ({
@@ -490,9 +577,21 @@ export function StarScene({
     return [...deepItems, ...dailyItems].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [dailyPlanets, deepStars]);
 
+  const itemCount = timelineItems.length;
+  const countRatio = useMemo(() => {
+    const baselineCount = 50;
+    if (itemCount <= 0) return 1;
+    return Math.max(0.55, Math.min(2.2, Math.sqrt(itemCount / baselineCount)));
+  }, [itemCount]);
+
+  const dynamicZoomThreshold = Math.max(60, ZOOM_THRESHOLD * countRatio);
+  const dynamicMaxDistance = Math.max(180, MAX_DISTANCE * countRatio);
+  const dynamicMinDistance = Math.max(2.2, MIN_DISTANCE * 0.35 * countRatio);
+  const dynamicDustCount = Math.round(Math.max(3500, Math.min(9500, 3200 + itemCount * 35)));
+
   const uniqueWeeksCount = useMemo(() => Array.from(new Set(timelineItems.map(item => item.weekKey))).filter(Boolean).length, [timelineItems]);
-  const minRadius = 12.0;
-  const maxRadius = Math.max(18.0, minRadius + Math.pow(uniqueWeeksCount, 0.6) * 3.5);
+  const minRadius = 12.0 * countRatio;
+  const maxRadius = Math.max(minRadius + 8.0, (minRadius + Math.pow(uniqueWeeksCount, 0.6) * 3.5) * countRatio);
 
   const timelinePositions = useMemo(() => {
     const uniqueWeeks = Array.from(new Set(timelineItems.map(item => item.weekKey))).filter(Boolean) as string[];
@@ -576,7 +675,6 @@ export function StarScene({
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
   const detailedItems = useMemo(() => {
-    if (viewMode === "macro") return [];
     const focusPos = selectedFocus || new Vector3(0, 0, 0);
     return timelineItems
       .map(item => {
@@ -586,7 +684,7 @@ export function StarScene({
       })
       .sort((a, b) => a.distSq - b.distSq)
       .map(d => d.item);
-  }, [timelineItems, positionMap, selectedFocus, viewMode]);
+  }, [timelineItems, positionMap, selectedFocus]);
 
   const detailedItemIds = useMemo(() => new Set(detailedItems.map(i => i.id)), [detailedItems]);
 
@@ -606,15 +704,21 @@ export function StarScene({
 
           <GalaxyStars />
 
-          <ViewModeTracker controlsRef={controlsRef} onModeChange={(m: "macro" | "micro") => { setViewMode(m); onViewModeChange?.(m); }} />
+          <ViewModeTracker
+            controlsRef={controlsRef}
+            onModeChange={(m: "macro" | "micro") => { setViewMode(m); onViewModeChange?.(m); }}
+            zoomThreshold={dynamicZoomThreshold}
+            minDistance={dynamicMinDistance}
+            maxDistance={dynamicMaxDistance}
+          />
 
           <group position={[0, 0, 0]}>
             <Float speed={1.2} rotationIntensity={0.5} floatIntensity={0.8} floatingRange={[-0.3, 0.3]}>
-              <DeepPlanet onClick={() => { onStarSelect?.(mypageStar.id); onStarClick(); }} color={mypageStar.toneColor} size={viewMode === "macro" ? 0.5 : 0.8} glow={1.0} seed={999} />
+              <DeepPlanet onClick={() => { requestFocus(mypageStar.id); onStarClick(); }} color="#facc15" size={viewMode === "macro" ? 1.0 : 1.6} glow={1.0} seed={999} />
             </Float>
           </group>
 
-          <GalacticDust count={12500} maxRadius={maxRadius} />
+          <GalacticDust count={dynamicDustCount} maxRadius={maxRadius} />
 
           <SpreadScaleGroup>
             {constellationLines.map(({ weekKey, pts }, idx) => (
@@ -627,23 +731,28 @@ export function StarScene({
             ))}
           </SpreadScaleGroup>
 
-          <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={detailedItemIds} />
+          <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={new Set(timelineItems.map((i) => i.id))} />
 
           {detailedItems.map((item) => {
             const position = positionMap.get(item.id) || [0, 0, 0];
             return (
               <SpreadItem key={item.id} target={position as [number, number, number]}>
                 <DeepPlanet
-                  onClick={() => { 
-                    onStarSelect?.(item.id); 
-                    if (item.kind === "deep") { onDeepStarClick?.(item as unknown as DeepStar); } 
-                    else { onPlanetClick(item.planet); } 
+                  onClick={() => {
+                    requestFocus(item.id);
+                  }}
+                  onOpen={() => {
+                    if (item.kind === "deep") {
+                      onDeepStarClick?.(item as unknown as DeepStar);
+                    } else {
+                      onPlanetClick(item.planet);
+                    }
                   }}
                   onHover={(data) => onStarHover?.({ id: data.isHovered ? item.id : null, x: data.x, y: data.y })}
                   color={item.kind === "deep" ? (item.toneColor || starTone) : item.planet.shell}
                   variant={item.kind === "deep" ? "star" : "planet"}
-                  size={item.kind === "deep" ? 0.55 : 0.22}
-                  glow={item.kind === "deep" ? 0.8 : 0.35}
+                  size={item.kind === "deep" ? (viewMode === "macro" ? 0.95 : 0.55) : (viewMode === "macro" ? 0.42 : 0.22)}
+                  glow={item.kind === "deep" ? (viewMode === "macro" ? 1.1 : 0.8) : (viewMode === "macro" ? 0.55 : 0.35)}
                   seed={hashSeed(item.id)}
                 />
               </SpreadItem>
@@ -651,13 +760,18 @@ export function StarScene({
           })}
         </SpreadCtx.Provider>
 
-        <CameraFocus focusPosition={selectedFocus} focusKey={selectedStarId} controlsRef={controlsRef} />
+        <CameraFocus
+          focusPosition={selectedFocus}
+          focusKey={`${selectedStarId ?? "none"}:${focusRequestNonce}`}
+          controlsRef={controlsRef}
+          countRatio={countRatio}
+        />
 
         <OrbitControls
           ref={controlsRef}
           enablePan={false}
-          minDistance={MIN_DISTANCE}
-          maxDistance={MAX_DISTANCE}
+          minDistance={dynamicMinDistance}
+          maxDistance={dynamicMaxDistance}
           autoRotate
           autoRotateSpeed={0.05}
           zoomSpeed={1}
