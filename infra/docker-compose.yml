@@ -1,8 +1,6 @@
 services:
   # 단일 진입점: frontend(nginx)만 80 포트 노출
   frontend:
-    volumes:
-    - ../fe/dist:/usr/share/nginx/html
     build:
       context: ../fe
       dockerfile: Dockerfile
@@ -26,6 +24,8 @@ services:
     environment:
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
+    expose:
+      - "8081"
     depends_on:
       - redis
       - rabbitmq
