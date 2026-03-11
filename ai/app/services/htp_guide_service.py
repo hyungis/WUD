@@ -43,7 +43,6 @@ class HtpGuideService:
     def _banned_terms() -> Set[str]:
         # Terms likely to trigger policy refusal or are inappropriate for user-facing output.
         return {
-            "HTP", "투사검사", "검사", "심리", "진단",
             "정신분열", "정신분열증", "정신지체", "조증", "싸이코패스",
             "동성애", "남근", "자위", "가학", "성기",
             "환청",

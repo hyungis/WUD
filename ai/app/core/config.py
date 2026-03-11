@@ -17,8 +17,7 @@ class Settings(BaseSettings):
     gms_chat_completions_path: str = "/chat/completions"
     gms_model: str = "gpt-4o"
     
-    # YOLO Model Path
-    yolo_model_path: str = "yolov8n.pt" # default
+    yolo_model_path: str = "" # default
 
     # Model Config
     model_config = SettingsConfigDict(
