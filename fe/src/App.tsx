@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { useState, useEffect } from "react";
 import LoginPage from "./features/auth/LoginPage";
 import DailyDetailPage from "./features/daily/DailyDetailPage";
@@ -81,7 +81,6 @@ import api from "./api/axios";
 function App() {
   const { isAuthenticated, setTokens, clearAuth } = useAuthStore();
   const [isInitializing, setIsInitializing] = useState(true);
-  const location = useLocation();
 
   useEffect(() => {
     const initAuth = async () => {
@@ -96,7 +95,7 @@ function App() {
         const response = await api.post("/auth/refresh");
         // axios interceptor에서 response.data를 반환: { success: true, data: { accessToken: "..." } }
         const accessToken = response?.data?.accessToken;
-        
+
         if (accessToken) {
           setTokens(accessToken);
         } else {
@@ -225,7 +224,7 @@ function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {isAuthenticated && location.pathname === "/" && <FloatingDock />}
+      {isAuthenticated && <FloatingDock />}
     </>
   );
 }
