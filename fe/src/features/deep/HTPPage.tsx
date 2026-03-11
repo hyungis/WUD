@@ -211,7 +211,7 @@ function HTPPage() {
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
     return () => window.removeEventListener("resize", resizeCanvas);
-  }, [currentStep.key, stepDrawings]);
+  }, [currentStep.key, phase, stepDrawings]);
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
