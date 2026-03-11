@@ -4,6 +4,7 @@ import Button from "../../components/shared/Button";
 import { deepApi } from "../../api/deep";
 import { imageApi } from "../../api/image";
 import type { DeepDetailResponse } from "../../types/deep";
+import HTPResultView from "./components/HTPResultView";
 
 type HtpStep = "house" | "tree" | "person";
 type HtpPhase = "survey" | "draw" | "result";
@@ -175,8 +176,6 @@ function HTPPage() {
   const [stepDrawings, setStepDrawings] = useState<Partial<Record<HtpStep, string>>>({});
   const [who5Answers, setWho5Answers] = useState<number[]>([3, 3, 3, 3, 3]);
   const [latestResult, setLatestResult] = useState<DeepDetailResponse | null>(null);
-  const [questionAnswers, setQuestionAnswers] = useState<Record<number, string>>({});
-  const [saveAnswerStatus, setSaveAnswerStatus] = useState<string | null>(null);
 
   const currentStep = STEPS[stepIndex];
 
@@ -417,7 +416,6 @@ function HTPPage() {
     }
 
     setIsSaving(true);
-    setSaveAnswerStatus(null);
     const toneLabel = totalStrokes > 180 ? "활력" : totalStrokes > 80 ? "안정" : "여백";
     const toneColor = totalStrokes > 180 ? "#F59E0B" : totalStrokes > 80 ? "#38BDF8" : "#94A3B8";
     const createdAt = new Date();
@@ -493,37 +491,7 @@ function HTPPage() {
     }
   };
 
-  const handleSaveAnswers = async () => {
-    if (!latestResult) {
-      setSaveAnswerStatus("분석 결과가 아직 없습니다.");
-      return;
-    }
 
-    const answersPayload = latestResult.questions
-      .map((_, index) => ({
-        questionId: index + 1,
-        answerText: questionAnswers[index + 1]?.trim() || "",
-      }))
-      .filter((item) => item.answerText.length > 0);
-
-    if (answersPayload.length === 0) {
-      setSaveAnswerStatus("답변을 1개 이상 입력해주세요.");
-      return;
-    }
-
-    try {
-      const sessionId = Number(localStorage.getItem("latestDeepSessionId"));
-      if (!sessionId) {
-        setSaveAnswerStatus("세션 정보가 없어 답변을 저장할 수 없습니다.");
-        return;
-      }
-
-      await deepApi.saveAnswers(sessionId, { answers: answersPayload });
-      setSaveAnswerStatus("질문 답변이 저장되었습니다.");
-    } catch {
-      setSaveAnswerStatus("현재 서버에서 질문 답변 저장 API를 지원하지 않습니다.");
-    }
-  };
 
   const progressLabel = useMemo(() => `${stepIndex + 1} / ${STEPS.length}`, [stepIndex]);
   const progressPercent = phase === "result" ? 100 : ((stepIndex + 1) / STEPS.length) * 100;
@@ -721,84 +689,23 @@ function HTPPage() {
               </div>
             </div>
           ) : (
-            <div className="h-full min-h-0 space-y-8 overflow-y-auto text-center custom-scrollbar pr-1">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-300">
-                  HTP Summary
-                </p>
-                <h2 className="mt-4 text-3xl font-semibold text-slate-100">
-                  오늘의 내면 요약
-                </h2>
-                <p className="mt-3 text-sm text-slate-300">
-                  아래 결과는 참고용이며 진단이 아닙니다.
-                </p>
-              </div>
-
-              <div className="grid gap-4 text-left sm:grid-cols-3">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">정서 톤</p>
-                  <p className="mt-2 text-base text-slate-100">차분한 흐름</p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">에너지</p>
-                  <p className="mt-2 text-base text-slate-100">
-                    {totalStrokes > 180 ? "활력" : totalStrokes > 80 ? "안정" : "여백"}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">구성</p>
-                  <p className="mt-2 text-base text-slate-100">중심에 집중</p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm text-slate-300">
-                {latestResult?.aiResult.resultSummary || latestResult?.aiResult.result || "집과 나무의 선이 안정적으로 연결되어 있고, 사람 묘사에서 신중함이 느껴집니다."}
-              </div>
-
-              {latestResult?.questions?.length ? (
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
-                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">AI Follow-up Questions</p>
-                  <div className="mt-3 space-y-3">
-                    {latestResult.questions.map((question, index) => (
-                      <div key={`${question}-${index}`}>
-                        <p className="text-sm text-slate-200">Q{index + 1}. {question}</p>
-                        <textarea
-                          value={questionAnswers[index + 1] || ""}
-                          onChange={(event) => {
-                            const value = event.target.value;
-                            setQuestionAnswers((current) => ({
-                              ...current,
-                              [index + 1]: value,
-                            }));
-                          }}
-                          className="mt-2 w-full rounded-xl border border-white/15 bg-slate-900/70 px-3 py-2 text-sm text-slate-100 outline-none ring-0"
-                          rows={2}
-                          placeholder="답변을 입력하세요"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-3 flex items-center gap-3">
-                    <Button type="button" variant="secondary" onClick={handleSaveAnswers}>
-                      질문 답변 저장
-                    </Button>
-                    {saveAnswerStatus && <span className="text-xs text-slate-300">{saveAnswerStatus}</span>}
-                  </div>
-                </div>
-              ) : null}
-
-              <div className="flex items-center justify-center gap-3 pt-6">
-                <Button type="button" variant="secondary" onClick={() => setPhase("draw")}>
-                  그림 다시 보기
-                </Button>
-                <Button type="button" onClick={handleSave} className="liquid-btn">
-                  분석 완료 및 별 저장
-                </Button>
-              </div>
-              {saveError && (
-                <p className="text-sm text-amber-300">{saveError}</p>
-              )}
-            </div>
+            <HTPResultView 
+              result={latestResult || {
+                sessionId: 0,
+                deepType: "HTP",
+                status: "DONE",
+                submissions: [],
+                questions: [],
+                aiResult: { 
+                  result: "분석 데이터를 불러올 수 없습니다.",
+                  raw: {}
+                },
+                psychAssessments: []
+              }}
+              onRestart={() => setPhase("draw")}
+              onComplete={handleSave}
+              saveError={saveError}
+            />
           )}
         </section>
 
