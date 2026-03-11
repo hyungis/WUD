@@ -92,9 +92,9 @@ function App() {
 
       try {
         // HTTP-only 쿠키를 이용해 엑세스 토큰 재발급 시도
-        const response: any = await api.post("/auth/refresh");
-        // axios interceptor에서 response.data를 반환하므로 바로 객체일 수 있음
-        const { accessToken } = response?.data ?? response ?? {};
+        const response = await api.post("/auth/refresh");
+        // axios interceptor에서 response.data를 반환: { success: true, data: { accessToken: "..." } }
+        const accessToken = response?.data?.accessToken;
         
         if (accessToken) {
           setTokens(accessToken);
@@ -102,7 +102,7 @@ function App() {
           clearAuth();
         }
       } catch (err) {
-        console.debug("Silent refresh failed or no cookie:", err);
+        console.error("Token recovery failed:", err);
         clearAuth();
       } finally {
         setIsInitializing(false);
@@ -110,7 +110,7 @@ function App() {
     };
 
     initAuth();
-  }, [isAuthenticated, setTokens, clearAuth]);
+  }, []);
 
   // 인증 상태 확인 중에는 로딩 표시
   if (isInitializing) {
