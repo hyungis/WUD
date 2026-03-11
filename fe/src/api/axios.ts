@@ -2,7 +2,7 @@ import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestCo
 import type { ApiErrorResponse } from "../types/api";
 import { useAuthStore } from "../store/authStore";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL ?? import.meta.env.VITE_API_URL ?? "/api";
+const baseURL = import.meta.env.VITE_API_URL ?? import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8081";
 
 const api: AxiosInstance = axios.create({
     baseURL,
@@ -68,9 +68,7 @@ api.interceptors.response.use(
                 try {
                     // refresh 토큰 바디 없이 HTTP-Only 쿠키를 이용해 API 요청
                     const refreshRes = await refreshApi.post("/auth/refresh");
-                    // refreshApi는 인터셉터가 없으므로 raw response 반환
-                    // 표준 응답: { success: true, data: { accessToken: "..." } }
-                    const accessToken = refreshRes.data?.data?.accessToken;
+                    const { accessToken } = refreshRes.data?.data ?? refreshRes.data ?? {};
 
                     if (!accessToken) {
                         throw new Error("Failed to refresh access token");

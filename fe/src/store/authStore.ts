@@ -17,10 +17,34 @@ type AuthState = {
   setAuthTransitioning: (isTransitioning: boolean) => void;
 };
 
-const initialAccessToken = null;
+const MOCK_AUTH_STORAGE_KEY = "wud.mockAuth";
+
+function loadMockAuthSession(): { accessToken: string | null; user: User | null } {
+  if (typeof window === "undefined") {
+    return { accessToken: null, user: null };
+  }
+
+  const raw = window.localStorage.getItem(MOCK_AUTH_STORAGE_KEY);
+  if (!raw) {
+    return { accessToken: null, user: null };
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as { accessToken?: string; user?: User };
+    return {
+      accessToken: parsed.accessToken ?? null,
+      user: parsed.user ?? null,
+    };
+  } catch {
+    window.localStorage.removeItem(MOCK_AUTH_STORAGE_KEY);
+    return { accessToken: null, user: null };
+  }
+}
+
+const { accessToken: initialAccessToken, user: initialUser } = loadMockAuthSession();
 
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
+  user: initialUser,
   accessToken: initialAccessToken,
   isAuthenticated: !!initialAccessToken,
   authTransitioning: false,
@@ -32,6 +56,10 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
   clearAuth: () => {
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(MOCK_AUTH_STORAGE_KEY);
+    }
+
     set({
       user: null,
       accessToken: null,
