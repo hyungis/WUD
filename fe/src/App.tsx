@@ -76,8 +76,47 @@ function DashboardGate() {
   );
 }
 
+import api from "./api/axios";
+
 function App() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, setTokens, clearAuth } = useAuthStore();
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  useEffect(() => {
+    const initAuth = async () => {
+      // 이미 엑세스 토큰이 있다면 (메모리 상태 유지) 굳이 재발급 안 해도 됨.
+      if (isAuthenticated) {
+        setIsInitializing(false);
+        return;
+      }
+
+      try {
+        // HTTP-only 쿠키를 이용해 엑세스 토큰 재발급 시도
+        const response: any = await api.post("/auth/refresh");
+        // axios interceptor에서 response.data를 반환하므로 바로 객체일 수 있음
+        const { accessToken } = response?.data ?? response ?? {};
+        
+        if (accessToken) {
+          setTokens(accessToken);
+        } else {
+          clearAuth();
+        }
+      } catch (err) {
+        console.debug("Silent refresh failed or no cookie:", err);
+        clearAuth();
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    initAuth();
+  }, [isAuthenticated, setTokens, clearAuth]);
+
+  // 인증 상태 확인 중에는 로딩 표시
+  if (isInitializing) {
+    return <div className="min-h-screen bg-black" />;
+  }
+
   return (
     <>
       <Routes>

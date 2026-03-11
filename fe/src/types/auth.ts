@@ -17,7 +17,6 @@ export interface GoogleLoginRequest {
 
 export interface AuthTokens {
     accessToken: string;
-    refreshToken: string;
     expiresInSec: number;
 }
 
@@ -29,7 +28,6 @@ export interface AuthUser {
 
 export interface LoginResponse {
     accessToken: string;
-    refreshToken: string;
     expiresInSec: number;
 }
 
@@ -37,18 +35,12 @@ export interface SignupResponse {
     success: boolean;
 }
 
-export interface RefreshRequest {
-    refreshToken: string;
-}
-
 export interface RefreshResponse {
     accessToken: string;
-    refreshToken: string;
     expiresInSec: number;
 }
 
 export interface LogoutRequest {
-    refreshToken: string;
 }
 
 export interface LogoutResponse {

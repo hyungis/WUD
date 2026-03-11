@@ -27,12 +27,12 @@ export async function login(payload: LoginPayload, options: AuthOptions = {}) {
     throw new Error(response.message || "로그인에 실패했습니다.");
   }
 
-  // 백엔드 login 응답: accessToken, refreshToken, expiresInSec
-  const { accessToken, refreshToken } = response.data;
+  // 백엔드 login 응답: accessToken, expiresInSec
+  const { accessToken } = response.data;
   void options;
 
   if (accessToken) {
-    useAuthStore.getState().setTokens(accessToken, refreshToken);
+    useAuthStore.getState().setTokens(accessToken);
   }
 
   useAuthStore.getState().setUser({ email: payload.email });
