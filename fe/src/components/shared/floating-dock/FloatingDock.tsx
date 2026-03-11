@@ -1,60 +1,116 @@
+import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore";
 import { useUiStore } from "../../../store/uiStore";
+import { logout } from "../../../services/auth";
 
 export default function FloatingDock() {
     const location = useLocation();
     const navigate = useNavigate();
     const user = useAuthStore((state) => state.user);
     const isDockHidden = useUiStore((state) => state.isDockHidden);
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
 
     const displayName = user?.name || "임시 사용자";
 
+    const handleLogout = async () => {
+        if (isLoggingOut) {
+            return;
+        }
+
+        setIsLoggingOut(true);
+        try {
+            await logout();
+            setIsProfileModalOpen(false);
+            navigate("/");
+        } finally {
+            setIsLoggingOut(false);
+        }
+    };
+
     return (
-        <div
-            className={`fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-4 rounded-full border border-white/10 bg-slate-950/70 px-6 py-3 shadow-2xl backdrop-blur-md transition-all duration-700 ${isDockHidden
-                ? "translate-y-[150%] opacity-0 pointer-events-none"
-                : "translate-y-0 opacity-100 pointer-events-auto"
-                }`}
-        >
-            {/* 1. 기본 네비게이션 (홈) */}
-            <div className="flex items-center gap-6 pr-4 border-r border-white/10">
-                <Link
-                    to="/"
-                    className={`text-xs font-medium uppercase tracking-widest transition-colors ${location.pathname === "/" ? "text-white" : "text-slate-400 hover:text-white"}`}
-                >
-                    Would You Draw
-                </Link>
-            </div>
+        <>
+            <div
+                className={`fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-4 rounded-full border border-white/10 bg-slate-950/70 px-6 py-3 shadow-2xl backdrop-blur-md transition-all duration-700 ${isDockHidden
+                    ? "translate-y-[150%] opacity-0 pointer-events-none"
+                    : "translate-y-0 opacity-100 pointer-events-auto"
+                    }`}
+            >
+                {/* 1. 기본 네비게이션 (홈) */}
+                <div className="flex items-center gap-6 pr-4 border-r border-white/10">
+                    <Link
+                        to="/"
+                        className={`text-xs font-medium uppercase tracking-widest transition-colors ${location.pathname === "/" ? "text-white" : "text-slate-400 hover:text-white"}`}
+                    >
+                        Would You Draw
+                    </Link>
+                </div>
 
-            {/* 2. 주요 액션 (데일리, 심층) */}
-            <div className="flex items-center gap-3 pr-4 border-r border-white/10">
-                <button
-                    onClick={() => navigate("/daily/content")}
-                    className="liquid-btn liquid-btn--daily min-w-[90px] px-4 py-2 text-sm"
-                >
-                    데일리
-                </button>
-                <button
-                    onClick={() => navigate("/deep/content")}
-                    className="liquid-btn liquid-btn--deep min-w-[90px] px-4 py-2 text-sm"
-                >
-                    심층
-                </button>
-            </div>
+                {/* 2. 주요 액션 (데일리, 심층) */}
+                <div className="flex items-center gap-3 pr-4 border-r border-white/10">
+                    <button
+                        onClick={() => navigate("/daily/content")}
+                        className="liquid-btn liquid-btn--daily min-w-[90px] px-4 py-2 text-sm"
+                    >
+                        데일리
+                    </button>
+                    <button
+                        onClick={() => navigate("/deep/content")}
+                        className="liquid-btn liquid-btn--deep min-w-[90px] px-4 py-2 text-sm"
+                    >
+                        심층
+                    </button>
+                </div>
 
-            {/* 3. 사용자 프로필 */}
-            <div className="flex items-center pl-2">
-                <div className="flex items-center gap-3 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs text-slate-200 cursor-pointer hover:bg-white/10 transition">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/10 text-[11px] font-semibold">
-                        {displayName.slice(0, 1)}
-                    </span>
-                    <div className="leading-tight hidden sm:block">
-                        <p className="text-xs font-semibold text-slate-100">{displayName}</p>
-                        <p className="text-[10px] text-slate-400">프로필</p>
-                    </div>
+                {/* 3. 사용자 프로필 */}
+                <div className="flex items-center pl-2">
+                    <button
+                        type="button"
+                        onClick={() => setIsProfileModalOpen(true)}
+                        className="flex items-center gap-3 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs text-slate-200 cursor-pointer hover:bg-white/10 transition"
+                    >
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full border border-white/20 bg-white/10 text-[11px] font-semibold">
+                            {displayName.slice(0, 1)}
+                        </span>
+                        <div className="leading-tight hidden sm:block">
+                            <p className="text-xs font-semibold text-slate-100">{displayName}</p>
+                            <p className="text-[10px] text-slate-400">프로필</p>
+                        </div>
+                    </button>
                 </div>
             </div>
-        </div>
+
+            {isProfileModalOpen && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 px-4" onClick={() => setIsProfileModalOpen(false)}>
+                    <div
+                        className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-950/95 p-6 shadow-2xl"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <h2 className="text-lg font-semibold text-white">프로필</h2>
+                        <p className="mt-1 text-sm text-slate-300">{displayName}</p>
+                        <p className="mt-1 text-xs text-slate-400">{user?.email || "이메일 정보 없음"}</p>
+
+                        <div className="mt-6 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setIsProfileModalOpen(false)}
+                                className="rounded-lg border border-white/15 px-4 py-2 text-sm text-slate-200 hover:bg-white/10 transition"
+                            >
+                                닫기
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleLogout}
+                                disabled={isLoggingOut}
+                                className="rounded-lg border border-red-400/40 bg-red-500/20 px-4 py-2 text-sm text-red-200 hover:bg-red-500/30 transition disabled:opacity-60"
+                            >
+                                {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     );
 }

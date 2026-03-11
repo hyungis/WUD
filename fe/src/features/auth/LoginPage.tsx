@@ -6,6 +6,8 @@ import Input from "../../components/shared/Input";
 import LoginStarScene from "../../components/shared/LoginStarScene";
 import { useAuthStore } from "../../store/authStore";
 
+const MOCK_AUTH_STORAGE_KEY = "wud.mockAuth";
+
 export default function LoginPage() {
   const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState("");
@@ -68,10 +70,18 @@ export default function LoginPage() {
 
   const handleMockLogin = () => {
     const authStore = useAuthStore.getState();
+    const mockToken = "mock-access-token";
+    const mockUser = { email: "mock@local", name: "Mock User" };
+
+    window.localStorage.setItem(
+      MOCK_AUTH_STORAGE_KEY,
+      JSON.stringify({ accessToken: mockToken, user: mockUser })
+    );
+
     authStore.setAuthTransitioning(true);
     setPhase("success");
-    authStore.setTokens("mock-access-token");
-    authStore.setUser({ email: "mock@local", name: "Mock User" });
+    authStore.setTokens(mockToken);
+    authStore.setUser(mockUser);
     setTimeout(() => {
       authStore.setAuthTransitioning(false);
       navigate("/");
