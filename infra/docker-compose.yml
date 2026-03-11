@@ -1,6 +1,8 @@
 services:
   # 단일 진입점: frontend(nginx)만 80 포트 노출
   frontend:
+    volumes:
+    - ../fe/dist:/usr/share/nginx/html
     build:
       context: ../fe
       dockerfile: Dockerfile
