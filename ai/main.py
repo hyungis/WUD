@@ -12,14 +12,10 @@ from pathlib import Path
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("Starting up AI Server...")
-    # Preload default model for /daily and HTP models if available.
-    try:
-        YoloService.load_model(settings.yolo_model_path)
-    except Exception as e:
-        print(f"[Startup] default YOLO preload failed: {e}")
+    # Preload HTP models if available.
 
     try:
-        base_dir = Path(__file__).resolve().parent / "app"
+        base_dir = Path(__file__).resolve().parent
         yolo_models_dir = (base_dir / "yolo_models").resolve()
         for model_name in ("house.pt", "tree.pt", "person.pt"):
             model_path = str(yolo_models_dir / model_name)
