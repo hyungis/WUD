@@ -9,10 +9,11 @@ export default function FloatingDock() {
     const navigate = useNavigate();
     const user = useAuthStore((state) => state.user);
     const isDockHidden = useUiStore((state) => state.isDockHidden);
+    const isOverlayOpen = useUiStore((state) => state.isOverlayOpen);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-    const displayName = user?.name || "임시 사용자";
+    const displayName = user?.name || user?.email?.split("@")[0] || "사용자";
 
     const handleLogout = async () => {
         if (isLoggingOut) {
@@ -33,6 +34,7 @@ export default function FloatingDock() {
         <>
             <div
                 className={`fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-4 rounded-full border border-white/10 bg-slate-950/70 px-6 py-3 shadow-2xl backdrop-blur-md transition-all duration-700 ${isDockHidden
+                    || isOverlayOpen
                     ? "translate-y-[150%] opacity-0 pointer-events-none"
                     : "translate-y-0 opacity-100 pointer-events-auto"
                     }`}
@@ -75,7 +77,7 @@ export default function FloatingDock() {
                         </span>
                         <div className="leading-tight hidden sm:block">
                             <p className="text-xs font-semibold text-slate-100">{displayName}</p>
-                            <p className="text-[10px] text-slate-400">프로필</p>
+                            <p className="text-[10px] text-slate-400">마이페이지</p>
                         </div>
                     </button>
                 </div>
@@ -89,9 +91,19 @@ export default function FloatingDock() {
                     >
                         <h2 className="text-lg font-semibold text-white">프로필</h2>
                         <p className="mt-1 text-sm text-slate-300">{displayName}</p>
-                        <p className="mt-1 text-xs text-slate-400">{user?.email || "이메일 정보 없음"}</p>
+                        <p className="mt-1 text-xs text-slate-400">{user?.email || "이메일을 불러오는 중"}</p>
 
                         <div className="mt-6 flex justify-end gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsProfileModalOpen(false);
+                                    navigate("/mypage");
+                                }}
+                                className="rounded-lg border border-indigo-300/40 bg-indigo-500/20 px-4 py-2 text-sm text-indigo-100 hover:bg-indigo-500/30 transition"
+                            >
+                                마이페이지
+                            </button>
                             <button
                                 type="button"
                                 onClick={() => setIsProfileModalOpen(false)}

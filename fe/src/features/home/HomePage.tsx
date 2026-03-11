@@ -1,26 +1,67 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { starApi } from "../../api/star";
-import type { StarItem } from "../../types/star";
+import { dailyApi } from "../../api/daily";
+import { deepApi } from "../../api/deep";
 
 import type { DailyPlanet, DeepStar } from "./utils/homeHelpers";
-import { getWeekKey, formatDate, getDeepStarAnalysis, getDailyAnalysis } from "./utils/homeHelpers";
+import { getWeekKey, formatDate, formatDateTimeKST } from "./utils/homeHelpers";
 import { StarScene } from "./components/scene/StarScene";
+import { useUiStore } from "../../store/uiStore";
+
+type HomeStar = {
+  id: string;
+  targetId?: number;
+  constellationId?: number;
+  kind: "DAILY" | "DEEP";
+  createdAt: string;
+  weekStartDate?: string;
+  color: string;
+};
+
+const DAILY_COLORS = ["#7dd3fc", "#38bdf8", "#22d3ee", "#60a5fa", "#93c5fd"];
+const DEEP_COLORS = ["#fcd34d", "#f59e0b", "#fb923c", "#fbbf24", "#fde68a"];
+
+const colorFromId = (id: string, kind: "DAILY" | "DEEP") => {
+  const n = Number(id);
+  const index = Number.isNaN(n) ? 0 : Math.abs(n) % 5;
+  return kind === "DEEP" ? DEEP_COLORS[index] : DAILY_COLORS[index];
+};
+
+const S3_BASE_URL = (import.meta.env.VITE_S3_BASE_URL as string | undefined) ?? "https://wud-s3.s3.ap-northeast-2.amazonaws.com";
+
+const buildPublicImageUrl = (imageKey?: string) => {
+  if (!imageKey) return "";
+  const normalized = imageKey
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+  return `${S3_BASE_URL}/${normalized}`;
+};
+
+const normalizeDeepReportText = (text?: string) => {
+  if (!text) return "";
+  return text
+    .replace(/\r/g, "")
+    .replace(/\n\s*\d+\s*\n\s*(\d+\.)/g, "\n$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+};
 // ==========================================
 // 4. My Universe 모달
 // ==========================================
 
-function MyUniverseModal({ isOpen, onClose, mypageStar, dailyPlanets, deepStars }: {
+function MyUniverseModal({ isOpen, onClose, mypageStar, dailyPlanets, deepStars, onDeepStarClick }: {
   isOpen: boolean;
   onClose: () => void;
   mypageStar: { id: string; toneColor: string; label: string; createdAt: string };
   dailyPlanets: DailyPlanet[];
   deepStars: DeepStar[];
+  onDeepStarClick: (star: DeepStar) => void;
 }) {
   const [tab, setTab] = useState<"overview" | "daily" | "deep">("overview");
   const [selectedItem, setSelectedItem] = useState<
     | { type: "daily"; data: DailyPlanet }
-    | { type: "deep"; data: DeepStar & { tone?: string; strokes?: number; drawingImage?: string | null } }
     | null
   >(null);
 
@@ -153,7 +194,7 @@ function MyUniverseModal({ isOpen, onClose, mypageStar, dailyPlanets, deepStars 
                           key={i}
                           onClick={() => item.type === "daily"
                             ? setSelectedItem({ type: "daily", data: item.raw as DailyPlanet })
-                            : setSelectedItem({ type: "deep", data: item.raw as any })
+                            : onDeepStarClick(item.raw as any)
                           }
                           className="w-full flex items-center gap-3 rounded-xl hover:bg-white/5 px-2 py-1.5 transition-colors text-left"
                         >
@@ -196,14 +237,16 @@ function MyUniverseModal({ isOpen, onClose, mypageStar, dailyPlanets, deepStars 
                       onClick={() => setSelectedItem({ type: "daily", data: planet })}
                       className="w-full rounded-2xl border border-white/8 bg-white/5 hover:bg-white/10 p-4 flex items-start gap-4 transition-colors text-left"
                     >
-                      {/* 행성 색상 */}
-                      <div
-                        className="flex-shrink-0 mt-0.5 h-9 w-9 rounded-xl"
-                        style={{
-                          background: `radial-gradient(circle at 35% 35%, ${planet.shell}cc, ${planet.core || planet.shell}88)`,
-                          boxShadow: `0 0 12px ${planet.shell}44`,
-                        }}
-                      />
+                      {/* 행성 아이콘: 정팔면체 투영(회전 다이아몬드) */}
+                      <div className="flex-shrink-0 mt-0.5 h-9 w-9 flex items-center justify-center">
+                        <div
+                          className="h-7 w-7 rotate-45 rounded-sm"
+                          style={{
+                            background: `linear-gradient(135deg, ${planet.shell}ee, ${planet.core || planet.shell}88)`,
+                            boxShadow: `0 0 10px ${planet.shell}66`,
+                          }}
+                        />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <span className="text-xs font-medium text-slate-200 truncate">
@@ -237,7 +280,7 @@ function MyUniverseModal({ isOpen, onClose, mypageStar, dailyPlanets, deepStars 
                   .map((star, i) => (
                     <button
                       key={star.id || i}
-                      onClick={() => setSelectedItem({ type: "deep", data: star as any })}
+                      onClick={() => onDeepStarClick(star as any)}
                       className="w-full rounded-2xl border border-white/8 bg-white/5 hover:bg-white/10 p-4 flex items-start gap-4 transition-colors text-left"
                     >
                       {/* 별 아이콘 */}
@@ -311,15 +354,22 @@ function MyUniverseModal({ isOpen, onClose, mypageStar, dailyPlanets, deepStars 
                 const p = selectedItem.data;
                 return (
                   <>
-                    {/* 행성 시각화 */}
-                    <div className="flex justify-center py-4">
-                      <div
-                        className="h-24 w-24 rounded-full shadow-2xl"
-                        style={{
-                          background: `radial-gradient(circle at 35% 30%, ${p.shell}ff, ${p.core || p.shell}88, ${p.shell}33)`,
-                          boxShadow: `0 0 40px ${p.shell}66, 0 0 80px ${p.shell}33`,
-                        }}
-                      />
+                    {/* 행성 시각화: 정팔면체(octahedron) 투영 */}
+                    <div className="flex justify-center py-6">
+                      <div className="relative flex items-center justify-center">
+                        <div
+                          className="h-24 w-24 rotate-45 rounded-lg shadow-2xl"
+                          style={{
+                            background: `linear-gradient(135deg, ${p.shell}ff, ${p.core || p.shell}99, ${p.shell}cc)`,
+                            boxShadow: `0 0 40px ${p.shell}88, 0 0 80px ${p.shell}44`,
+                          }}
+                        />
+                        {/* 내부 하이라이트 */}
+                        <div
+                          className="absolute h-6 w-6 rotate-45 rounded-sm opacity-60"
+                          style={{ backgroundColor: '#ffffff', top: '22%', left: '26%' }}
+                        />
+                      </div>
                     </div>
 
                     {/* 색상 정보 */}
@@ -364,87 +414,7 @@ function MyUniverseModal({ isOpen, onClose, mypageStar, dailyPlanets, deepStars 
                     {/* 날짜 */}
                     <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
                       <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">기록 일시</p>
-                      <p className="text-sm text-slate-200">{new Date(p.createdAt).toLocaleString("ko-KR", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
-                    </div>
-                  </>
-                );
-              })()}
-
-              {/* ── 심층 리포트 ── */}
-              {selectedItem.type === "deep" && (() => {
-                const s = selectedItem.data as any;
-                return (
-                  <>
-                    {/* 별 시각화 */}
-                    <div className="flex justify-center py-4">
-                      <div
-                        className="h-20 w-20 rotate-45 rounded-2xl shadow-2xl"
-                        style={{
-                          backgroundColor: s.toneColor,
-                          boxShadow: `0 0 40px ${s.toneColor}88, 0 0 80px ${s.toneColor}44`,
-                        }}
-                      />
-                    </div>
-
-                    {/* 톤 정보 */}
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                        <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">감정 톤</p>
-                        <div className="flex items-center gap-2">
-                          <div className="h-6 w-6 rounded-lg flex-shrink-0" style={{ backgroundColor: s.toneColor }} />
-                          <span className="text-xs text-slate-200">{s.tone || "—"}</span>
-                        </div>
-                      </div>
-                      <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                        <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">에너지</p>
-                        <p className="text-sm font-semibold text-slate-100">
-                          {s.strokes != null ? (s.strokes > 180 ? "활력" : s.strokes > 80 ? "안정" : "여백") : "—"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* 주차 & 라벨 */}
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                        <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">주차</p>
-                        <p className="text-sm text-slate-200">{s.weekKey || "—"}</p>
-                      </div>
-                      <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                        <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">라벨</p>
-                        <p className="text-sm text-slate-200">{s.label || "—"}</p>
-                      </div>
-                    </div>
-
-                    {/* 획 수 */}
-                    {s.strokes != null && (
-                      <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                        <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">총 획 수</p>
-                        <p className="text-2xl font-bold text-slate-100">{s.strokes}<span className="text-sm font-normal text-slate-400 ml-1">획</span></p>
-                        <div className="mt-2 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${Math.min(100, (s.strokes / 200) * 100)}%`, backgroundColor: s.toneColor }}
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* HTP 드로잉 이미지 */}
-                    {s.drawingImage && (
-                      <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                        <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-3">HTP 드로잉</p>
-                        <img
-                          src={s.drawingImage}
-                          alt="HTP 드로잉"
-                          className="w-full rounded-xl object-contain max-h-48 bg-white/5"
-                        />
-                      </div>
-                    )}
-
-                    {/* 날짜 */}
-                    <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                      <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">기록 일시</p>
-                      <p className="text-sm text-slate-200">{new Date(s.createdAt).toLocaleString("ko-KR", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                      <p className="text-sm text-slate-200">{formatDateTimeKST(p.createdAt)}</p>
                     </div>
                   </>
                 );
@@ -467,33 +437,33 @@ function HomePage() {
   const [selectedDeepStar, setSelectedDeepStar] = useState<any>(null);
   const [isDailyReportOpen, setIsDailyReportOpen] = useState(false);
   const [selectedDailyPlanet, setSelectedDailyPlanet] = useState<DailyPlanet | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
   const [selectedStarId, setSelectedStarId] = useState<string | null>(null);
   const [hoveredPlanet, setHoveredPlanet] = useState<{ id: string; x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [isTimelineOpen, setIsTimelineOpen] = useState(true);
+  const setOverlayOpen = useUiStore((state) => state.setOverlayOpen);
 
   const isMacro = viewMode === "macro";
   const hoverClearTimerRef = useRef<number | null>(null);
   const isTooltipHoverRef = useRef(false);
 
+  useEffect(() => {
+    const overlayOpen = isMyUniverseOpen || !!selectedDeepStar || isDailyReportOpen;
+    setOverlayOpen(overlayOpen);
+    return () => setOverlayOpen(false);
+  }, [isMyUniverseOpen, selectedDeepStar, isDailyReportOpen, setOverlayOpen]);
 
-  const mypageStar = useMemo(() => {
-    const s = localStorage.getItem("mypageStar");
-    if (s) {
-      try {
-        const parsed = JSON.parse(s);
-        if (parsed && parsed.id) return parsed;
-      } catch { }
-    }
-    return {
-      id: "center-mypage-star",
-      createdAt: new Date().toISOString(),
-      toneColor: "#f8fafc",
-      label: "나의 중심",
-    };
-  }, []);
 
-  const [stars, setStars] = useState<StarItem[]>([]);
+  const mypageStar = useMemo(() => ({
+    id: "center-mypage-star",
+    createdAt: new Date().toISOString(),
+    toneColor: "#f8fafc",
+    label: "나의 중심",
+  }), []);
+
+  const [stars, setStars] = useState<HomeStar[]>([]);
   const [timelineItems, setTimelineItems] = useState<any[]>([]);
 
   // 컴포넌트 로드 시 지도(별) 조회
@@ -501,88 +471,168 @@ function HomePage() {
     const fetchStars = async () => {
       try {
         const res = await starApi.getStarMap();
-        // res는 ApiResponse<StarMapResponse> 이므로 res.success와 res.data를 바로 참조
-        if (res.success && res.data?.stars && res.data.stars.length > 0) {
-          const fetchedStars = res.data.stars;
-          setStars(fetchedStars);
-
-          const grouped = fetchedStars.map(s => ({
-            id: s.id.toString(),
-            kind: (s.kind || "daily").toLowerCase(),
-            color: s.starColor,
-            label: s.kind === "DAILY" ? "데일리 행성" : "심층 별",
-            weekKey: s.weekStartDate || getWeekKey(new Date()),
-            createdAt: new Date().toISOString(), // 정렬용
-            x: s.x,
-            y: s.y,
-            original: s
-          }));
-          setTimelineItems(grouped);
-        } else {
-          throw new Error("No data from API or success is false");
+        if (!res.success) {
+          throw new Error("star map API returned success=false");
         }
+
+        const payload = res.data as any;
+        const rawStars = Array.isArray(payload?.stars)
+          ? payload.stars
+          : Array.isArray(payload)
+            ? payload
+            : Array.isArray((payload as any)?.data?.stars)
+              ? (payload as any).data.stars
+              : [];
+
+        const fetchedStars: HomeStar[] = rawStars.map((s: any) => {
+          const id = String(s.starId ?? s.id ?? s.targetId ?? "");
+          const kindRaw = String(s.kind ?? s.starKind ?? s.type ?? "DAILY").toUpperCase();
+          const kind = (kindRaw === "DEEP" || kindRaw === "HTP" || kindRaw.includes("DEEP") ? "DEEP" : "DAILY") as "DAILY" | "DEEP";
+          const createdAtRaw = s.createdAt ?? s.created_at ?? s.timestamp ?? s.weekStartDate;
+          const createdAt = createdAtRaw ? String(createdAtRaw) : new Date().toISOString();
+          const weekStartDate = s.weekStartDate ?? s.week_start_date;
+          const targetId = typeof s.targetId === "number" ? s.targetId : Number(s.targetId);
+          const constellationId = typeof s.constellationId === "number" ? s.constellationId : Number(s.constellationId);
+          return {
+            id,
+            targetId: Number.isNaN(targetId) ? undefined : targetId,
+            constellationId: Number.isNaN(constellationId) ? undefined : constellationId,
+            kind,
+            createdAt,
+            weekStartDate,
+            color: s.starColor || colorFromId(id, kind),
+          } as HomeStar;
+        }).filter((s: HomeStar) => s.id);
+
+        setStars(fetchedStars);
+
+        const grouped = fetchedStars.map((s) => ({
+          id: s.id,
+          kind: (s.kind || "daily").toLowerCase(),
+          color: s.color,
+          label: s.kind === "DAILY" ? "데일리 행성" : "심층 별",
+          weekKey: s.weekStartDate ? getWeekKey(new Date(s.weekStartDate)) : getWeekKey(new Date(s.createdAt)),
+          createdAt: s.createdAt,
+          original: s,
+        }));
+        setTimelineItems(grouped);
       } catch (e) {
-        console.error("fetch star map fail, using fallback mock data:", e);
-
-        // 백엔드 미동작 시 임시 Mock 표시를 위한 Fallback 로직
-        const sDaily = localStorage.getItem("dailyPlanets");
-        const sDeep = localStorage.getItem("deepStars");
-
-        const dPlanets: any[] = sDaily ? JSON.parse(sDaily) : [];
-        const dStars: any[] = sDeep ? JSON.parse(sDeep) : [];
-
-        const processFallback = (dp: any[], ds: any[]) => {
-          const mappedDaily = dp.map(p => ({
-            id: p.id,
-            kind: "DAILY",
-            starColor: p.shell,
-            x: 0, y: 0, size: 0.8, shapeType: "CIRCLE",
-            createdAt: p.createdAt,
-            weekStartDate: getWeekKey(new Date(p.createdAt)),
-            original: p
-          }));
-          const mappedDeep = ds.map(p => ({
-            id: p.id,
-            kind: "DEEP",
-            starColor: p.toneColor,
-            x: 0, y: 0, size: 1.5, shapeType: "OCTAHEDRON",
-            createdAt: p.createdAt,
-            weekStartDate: getWeekKey(new Date(p.createdAt)),
-            original: p
-          }));
-
-          const fetchedStars = [...mappedDaily, ...mappedDeep];
-          setStars(fetchedStars as any);
-
-          const grouped = fetchedStars.map(s => ({
-            id: s.id.toString(),
-            kind: s.kind.toLowerCase(),
-            color: s.starColor,
-            label: s.kind === "daily" ? s.original.memo?.slice(0, 8) || "데일리 행성" : s.original.label || "심층 별",
-            weekKey: s.weekStartDate || getWeekKey(new Date(s.createdAt)),
-            createdAt: s.createdAt,
-            x: s.x,
-            y: s.y,
-            original: s.original
-          }));
-          setTimelineItems(grouped);
-        };
-
-        if (dPlanets.length === 0 || dStars.length === 0) {
-          import("../../utils/mockData").then(({ generateMockPlanets }) => {
-            const mocks = generateMockPlanets();
-            processFallback(mocks.dailyPlanets, mocks.deepStars);
-          });
-        } else {
-          processFallback(dPlanets, dStars);
-        }
+        console.error("fetch star map fail:", e);
+        setStars([]);
+        setTimelineItems([]);
       }
     };
     fetchStars();
   }, []);
 
-  const dailyPlanets = useMemo(() => stars.filter(s => s.kind === "DAILY") as any[], [stars]);
-  const deepStars = useMemo(() => stars.filter(s => s.kind === "DEEP") as any[], [stars]);
+  const dailyPlanets = useMemo(
+    () => stars
+      .filter(s => s.kind === "DAILY")
+      .map((s) => ({
+        id: s.id,
+        targetId: s.targetId,
+        shell: s.color,
+        core: s.color,
+        memo: "",
+        createdAt: s.createdAt,
+      })) as (DailyPlanet & { targetId?: number; aiSummary?: string })[],
+    [stars],
+  );
+
+  const deepStars = useMemo(
+    () => stars
+      .filter(s => s.kind === "DEEP")
+      .map((s) => ({
+        id: s.id,
+        targetId: s.targetId,
+        toneColor: s.color,
+        createdAt: s.createdAt,
+        weekKey: s.weekStartDate ? getWeekKey(new Date(s.weekStartDate)) : getWeekKey(new Date(s.createdAt)),
+        label: "심층 별",
+      })) as (DeepStar & { targetId?: number; aiSummary?: string; questions?: string[] })[],
+    [stars],
+  );
+
+  const openDeepReport = async (star: DeepStar & { targetId?: number; aiSummary?: string; questions?: string[] }) => {
+    setReportError(null);
+    setSelectedDeepStar(star);
+
+    const sessionId = Number(star.targetId ?? star.id);
+    if (Number.isNaN(sessionId) || sessionId <= 0) {
+      setReportError("심층 리포트 ID가 유효하지 않습니다.");
+      return;
+    }
+
+    setReportLoading(true);
+    try {
+      const res = await deepApi.getDeepResult(sessionId);
+      console.log("[DeepReport] API response:", JSON.stringify(res, null, 2));
+      if (!res.success || !res.data) throw new Error("deep result API returned success=false");
+
+      const data = res.data;
+      const aiSummary = normalizeDeepReportText(data.aiResult?.result || data.aiResult?.resultSummary || "");
+      const questions = Array.isArray(data.questions) && data.questions.length > 0
+        ? data.questions
+        : Array.isArray(data.aiResult?.questions)
+          ? data.aiResult.questions
+          : [];
+      const submissions = Array.isArray(data.submissions) ? data.submissions : [];
+      const psychAssessments = Array.isArray(data.psychAssessments) ? data.psychAssessments : [];
+      const deepType = data.deepType || "HTP";
+      const status = data.status || "DONE";
+      const createdAt = data.sessionId ? star.createdAt : star.createdAt;
+      console.log("[DeepReport] parsed:", { aiSummary: aiSummary.slice(0, 50), questions, submissions, psychAssessments, deepType, status });
+      setSelectedDeepStar((prev: any) => ({ ...prev, aiSummary, questions, submissions, psychAssessments, deepType, status, createdAt }));
+    } catch (e) {
+      console.error("fetch deep result fail:", e);
+      setReportError("심층 리포트를 불러오지 못했습니다.");
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const openDailyReport = async (planet: DailyPlanet & { targetId?: number; aiSummary?: string }) => {
+    setReportError(null);
+    setSelectedDailyPlanet(planet);
+    setIsDailyReportOpen(true);
+
+    const dailyId = Number(planet.targetId ?? planet.id);
+    if (Number.isNaN(dailyId) || dailyId <= 0) {
+      setReportError("데일리 리포트 ID가 유효하지 않습니다.");
+      return;
+    }
+
+    setReportLoading(true);
+    try {
+      const res = await dailyApi.getDailyDetail(dailyId);
+      if (!res.success || !res.data) throw new Error("daily detail API returned success=false");
+
+      const detail = res.data;
+      setSelectedDailyPlanet((prev: any) => ({
+        ...prev,
+        memo: detail.content || prev?.memo || "",
+        shell: detail.emotionColor || prev?.shell,
+        core: detail.emotionColor || prev?.core,
+        aiSummary: detail.aiResult?.result || "",
+      }));
+    } catch (e) {
+      console.error("fetch daily detail fail:", e);
+      setReportError("데일리 리포트를 불러오지 못했습니다.");
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const handleTimelineItemClick = async (item: any) => {
+    setSelectedStarId(item.id);
+    if (item.kind === "deep") {
+      const deepStar = deepStars.find((s: any) => s.id === item.id);
+      if (deepStar) await openDeepReport(deepStar as any);
+      return;
+    }
+    const dailyPlanet = dailyPlanets.find((p: any) => p.id === item.id);
+    if (dailyPlanet) await openDailyReport(dailyPlanet as any);
+  };
 
   useEffect(() => {
     if (!selectedStarId && mypageStar) {
@@ -620,8 +670,8 @@ function HomePage() {
         onViewModeChange={setViewMode} onStarSelect={setSelectedStarId}
         hoveredStarId={hoveredPlanet?.id || null}
         onStarClick={() => setIsMyUniverseOpen(true)}
-        onDeepStarClick={(star) => setSelectedDeepStar(star)}
-        onPlanetClick={(p) => { setSelectedDailyPlanet(p); setIsDailyReportOpen(true); }}
+        onDeepStarClick={(star) => void openDeepReport(star as any)}
+        onPlanetClick={(p) => void openDailyReport(p as any)}
         onStarHover={(d) => {
           if (d.id) {
             if (hoverClearTimerRef.current) window.clearTimeout(hoverClearTimerRef.current);
@@ -677,7 +727,7 @@ function HomePage() {
               <span className="flex items-center gap-2"><span className="h-2 w-2 rounded-full" style={{ backgroundColor: mypageStar.toneColor }} />{mypageStar.label} (중심)</span>
             </button>
             {timelineItems.map((item) => (
-              <button key={item.id} onClick={() => setSelectedStarId(item.id)} className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors hover:bg-white/10 ${selectedStarId === item.id ? "bg-white/15 ring-1 ring-white/20" : ""}`}>
+              <button key={item.id} onClick={() => void handleTimelineItemClick(item)} className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors hover:bg-white/10 ${selectedStarId === item.id ? "bg-white/15 ring-1 ring-white/20" : ""}`}>
                 <span className="flex items-center gap-2"><span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ backgroundColor: item.color }} />{item.label}</span>
                 <span className="text-[10px] text-slate-400 flex-shrink-0">{formatDate(item.createdAt)}</span>
               </button>
@@ -709,6 +759,7 @@ function HomePage() {
         mypageStar={mypageStar}
         dailyPlanets={dailyPlanets}
         deepStars={deepStars}
+        onDeepStarClick={(star) => { setIsMyUniverseOpen(false); void openDeepReport(star as any); }}
       />
 
       {/* 3D씬에서 비중심 심층별 클릭 시 직접 리포트 모달 */}
@@ -725,10 +776,7 @@ function HomePage() {
                 style={{ backgroundColor: selectedDeepStar.toneColor }}
               />
               <div className="flex items-center gap-3 relative z-10">
-                <div
-                  className="flex-shrink-0 h-10 w-10 flex items-center justify-center ml-2 mr-2"
-                >
-                  {/* 심층별 헤더 아이콘: 뾰족한 정팔면체 (다이아몬드) */}
+                <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center ml-2 mr-2">
                   <div
                     className="h-8 w-8 rotate-45 rounded-sm shadow-lg"
                     style={{
@@ -739,7 +787,7 @@ function HomePage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] uppercase tracking-[0.35em] text-slate-400">Deep Star Report</p>
-                  <h3 className="text-base font-bold text-slate-100 truncate mt-0.5">{selectedDeepStar.label || "심층 별"}</h3>
+                  <h3 className="text-base font-bold text-slate-100 truncate mt-0.5">{selectedDeepStar.deepType || "HTP"} 심층 분석</h3>
                 </div>
                 <button
                   onClick={() => setSelectedDeepStar(null)}
@@ -750,89 +798,132 @@ function HomePage() {
               </div>
             </div>
             {/* 본문 */}
-            <div className="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar space-y-5">
-              {/* 별 시각화 */}
-              <div className="flex justify-center py-6">
-                {/* 심층별 본문 시각화: 큰 정팔면체 */}
-                <div
-                  className="h-20 w-20 rotate-45 rounded-sm shadow-2xl"
-                  style={{
-                    background: `linear-gradient(135deg, ${selectedDeepStar.toneColor}ff, ${selectedDeepStar.toneColor}88)`,
-                    boxShadow: `0 0 40px ${selectedDeepStar.toneColor}88, 0 0 80px ${selectedDeepStar.toneColor}44`
-                  }}
-                />
-              </div>
-              {/* ── 분석 ── */}
-              {(() => {
-                const analysis = getDeepStarAnalysis(selectedDeepStar.strokes, selectedDeepStar.tone, selectedDeepStar.toneColor);
-                return (
-                  <>
-                    <div className="rounded-2xl border border-white/8 bg-gradient-to-br from-white/5 to-white/[0.02] p-5">
-                      <p className="mb-2 text-[10px] uppercase tracking-[0.35em] text-slate-400">✦ AI 분석 리포트</p>
-                      <p className="text-sm text-slate-200 leading-relaxed">{analysis.summary}</p>
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                        <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">드로잉 에너지</p>
-                        <p className="text-sm font-semibold text-slate-100 mb-1">{analysis.energy.label}</p>
-                        <p className="text-xs text-slate-300 leading-relaxed">{analysis.energy.desc.split('.')[0]}.</p>
-                      </div>
-                      <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                        <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">내면의 색채</p>
-                        <p className="text-sm font-semibold text-slate-100 mb-1">{analysis.tone.label}</p>
-                        <p className="text-xs text-slate-300 leading-relaxed">{analysis.tone.desc.split('.')[0]}.</p>
-                      </div>
-                    </div>
-                  </>
-                );
-              })()}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">감정 톤</p>
-                  <div className="flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-lg flex-shrink-0" style={{ backgroundColor: selectedDeepStar.toneColor }} />
-                    <span className="text-xs text-slate-200">{selectedDeepStar.tone || "—"}</span>
+            <div className="flex-1 overflow-y-auto px-6 pb-8 custom-scrollbar space-y-6">
+              {reportLoading ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="relative h-14 w-14">
+                    <div className="absolute inset-0 rounded-full border-2 border-indigo-400/30" />
+                    <div className="absolute inset-0 animate-spin rounded-full border-2 border-transparent border-t-indigo-400" />
                   </div>
+                  <p className="mt-4 text-sm text-slate-400">리포트 불러오는 중...</p>
                 </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">에너지</p>
-                  <p className="text-sm font-semibold text-slate-100">
-                    {selectedDeepStar.strokes != null ? (selectedDeepStar.strokes > 180 ? "활력" : selectedDeepStar.strokes > 80 ? "안정" : "여백") : "—"}
-                  </p>
+              ) : reportError ? (
+                <div className="rounded-2xl border border-rose-300/30 bg-rose-300/10 p-6 text-center">
+                  <p className="text-sm text-rose-200">{reportError}</p>
                 </div>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">주차</p>
-                  <p className="text-sm text-slate-200">{selectedDeepStar.weekKey || "—"}</p>
-                </div>
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">라벨</p>
-                  <p className="text-sm text-slate-200">{selectedDeepStar.label || "—"}</p>
-                </div>
-              </div>
-              {selectedDeepStar.strokes != null && (
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">총 획 수</p>
-                  <p className="text-2xl font-bold text-slate-100">{selectedDeepStar.strokes}<span className="text-sm font-normal text-slate-400 ml-1">획</span></p>
-                  <div className="mt-2 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, (selectedDeepStar.strokes / 200) * 100)}%`, backgroundColor: selectedDeepStar.toneColor }} />
+              ) : (
+                <>
+                  {/* 기록 일시 + 별 시각화 요약 상단 */}
+                  <div className="flex items-center gap-4 rounded-2xl border border-white/8 bg-white/[0.03] p-4">
+                    <div
+                      className="h-14 w-14 shrink-0 rotate-45 rounded-sm"
+                      style={{
+                        background: `linear-gradient(135deg, ${selectedDeepStar.toneColor}ff, ${selectedDeepStar.toneColor}88)`,
+                        boxShadow: `0 0 30px ${selectedDeepStar.toneColor}66`
+                      }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-lg font-bold text-white">{selectedDeepStar.deepType || "HTP"} 심층 분석</p>
+                      <p className="mt-0.5 text-sm text-slate-400">
+                        {(() => {
+                          const d = new Date(selectedDeepStar.createdAt);
+                          if (isNaN(d.getTime())) return "날짜 정보 없음";
+                          return formatDateTimeKST(selectedDeepStar.createdAt);
+                        })()}
+                      </p>
+                    </div>
+                    {/* WHO-5 뱃지 (있으면) */}
+                    {Array.isArray(selectedDeepStar.psychAssessments) && selectedDeepStar.psychAssessments.length > 0 && (
+                      <div className="shrink-0 text-center">
+                        <p className="text-[10px] uppercase tracking-wider text-slate-500">WHO-5</p>
+                        <p className="text-2xl font-bold text-indigo-300">{selectedDeepStar.psychAssessments[0].scoreTotal}<span className="text-sm text-slate-500">/25</span></p>
+                      </div>
+                    )}
                   </div>
-                </div>
+
+                  {/* HTP 제출 이미지 (크게) */}
+                  {Array.isArray(selectedDeepStar.submissions) && selectedDeepStar.submissions.length > 0 && (
+                    <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-4">제출된 그림</p>
+                      <div className="grid grid-cols-3 gap-3">
+                        {selectedDeepStar.submissions.map((sub: any, i: number) => (
+                          <div key={i} className="group relative overflow-hidden rounded-xl border border-white/10 bg-slate-900/60">
+                            <div className="absolute top-2 left-2 z-10 rounded-md bg-black/60 px-2 py-0.5 backdrop-blur-sm">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-200">{sub.type}</span>
+                            </div>
+                            {sub.imageKey ? (
+                              <img
+                                src={buildPublicImageUrl(sub.imageKey)}
+                                alt={sub.type}
+                                className="aspect-square w-full object-contain bg-white/5 p-2"
+                                onError={(e) => {
+                                  const t = e.target as HTMLImageElement;
+                                  t.style.display = 'none';
+                                  const ph = document.createElement('div');
+                                  ph.className = 'aspect-square w-full flex flex-col items-center justify-center gap-2 bg-slate-800/50 p-4';
+                                  ph.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:28px;height:28px;color:#475569"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><span style="font-size:10px;text-transform:uppercase;color:#64748b;letter-spacing:0.1em">${sub.type}</span><span style="font-size:10px;color:#94a3b8">이미지 접근 권한 없음</span>`;
+                                  t.parentElement?.appendChild(ph);
+                                }}
+                              />
+                            ) : (
+                              <div className="aspect-square w-full flex flex-col items-center justify-center gap-2 bg-slate-800/50 p-4">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-7 w-7 text-slate-600"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                                <span className="text-[10px] uppercase text-slate-500 tracking-wider">{sub.type}</span>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* AI 분석 리포트 */}
+                  <div className="rounded-2xl border border-indigo-400/15 bg-gradient-to-br from-indigo-500/[0.08] to-transparent p-5">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-indigo-300">AI 분석 리포트</p>
+                    <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+                      {selectedDeepStar.aiSummary || "심층 분석 결과가 아직 준비되지 않았습니다."}
+                    </p>
+                  </div>
+
+                  {/* 추천 질문 */}
+                  {Array.isArray(selectedDeepStar.questions) && selectedDeepStar.questions.length > 0 && (
+                    <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-3">추천 질문</p>
+                      <ul className="space-y-2">
+                        {selectedDeepStar.questions.slice(0, 5).map((q: string, idx: number) => (
+                          <li key={`${idx}-${q}`} className="flex items-start gap-2 text-sm text-slate-300 leading-relaxed">
+                            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-slate-400">{idx + 1}</span>
+                            <span>{q}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* WHO-5 심리검사 상세 */}
+                  {Array.isArray(selectedDeepStar.psychAssessments) && selectedDeepStar.psychAssessments.length > 0 && (
+                    <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-3">심리검사 결과</p>
+                      {selectedDeepStar.psychAssessments.map((pa: any, idx: number) => {
+                        const pct = Math.min(100, (pa.scoreTotal / 25) * 100);
+                        const level = pct >= 72 ? "양호" : pct >= 52 ? "보통" : "주의";
+                        const barColor = pct >= 72 ? "bg-emerald-400" : pct >= 52 ? "bg-amber-400" : "bg-rose-400";
+                        return (
+                          <div key={idx} className="mb-2 last:mb-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs text-slate-300">{pa.testCode || "WHO-5"}</span>
+                              <span className="text-xs text-slate-400">{level} · {pa.scoreTotal}점</span>
+                            </div>
+                            <div className="h-2 w-full rounded-full bg-white/10 overflow-hidden">
+                              <div className={`h-full rounded-full ${barColor} transition-all`} style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
               )}
-              {selectedDeepStar.drawingImage && (
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                  <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-3">HTP 드로잉</p>
-                  <img src={selectedDeepStar.drawingImage} alt="HTP 드로잉" className="w-full rounded-xl object-contain max-h-48 bg-white/5" />
-                </div>
-              )}
-              <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">기록 일시</p>
-                <p className="text-sm text-slate-200">{new Date(selectedDeepStar.createdAt).toLocaleString("ko-KR", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
-              </div>
-              <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
-                <p className="text-xs text-amber-100">현재 문구는 임시 안내입니다. AI 분석 완료 후 자동 생성된 리포트 문장으로 대체됩니다.</p>
-              </div>
             </div>
           </div>
         </div>
@@ -908,28 +999,20 @@ function HomePage() {
               </div>
               {/* ── 분석 ── */}
               {(() => {
-                const analysis = getDailyAnalysis(selectedDailyPlanet);
+                const dailySummary = (selectedDailyPlanet as any).aiSummary || "데일리 AI 분석 결과가 아직 준비되지 않았습니다.";
                 return (
                   <>
                     {/* 요약 */}
                     <div className="rounded-2xl border border-white/8 bg-gradient-to-br from-white/5 to-white/[0.02] p-5">
                       <p className="mb-2 text-[10px] uppercase tracking-[0.35em] text-slate-400">✦ AI 분석 리포트</p>
-                      <p className="text-sm text-slate-200 leading-relaxed">{analysis.summary}</p>
+                      <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">{dailySummary}</p>
                     </div>
                     {/* 색상 무드 */}
                     <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
                       <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">색채 에너지</p>
-                      <p className="text-sm font-semibold text-slate-100 mb-1">{analysis.mood.label}</p>
-                      <p className="text-xs text-slate-300 leading-relaxed">{analysis.mood.desc}</p>
+                      <p className="text-sm font-semibold text-slate-100 mb-1">{selectedDailyPlanet.shell}</p>
+                      <p className="text-xs text-slate-300 leading-relaxed">실제 감정 색상 데이터를 기반으로 표시됩니다.</p>
                     </div>
-                    {/* 오브젝트 분석 */}
-                    {analysis.object && (
-                      <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                        <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">오브젝트 해석</p>
-                        <p className="text-sm font-semibold text-slate-100 mb-1">{analysis.object.label}</p>
-                        <p className="text-xs text-slate-300 leading-relaxed">{analysis.object.desc}</p>
-                      </div>
-                    )}
                   </>
                 );
               })()}
@@ -974,11 +1057,10 @@ function HomePage() {
               {/* 날짜 */}
               <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
                 <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">기록 일시</p>
-                <p className="text-sm text-slate-200">{new Date(selectedDailyPlanet.createdAt).toLocaleString("ko-KR", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</p>
+                <p className="text-sm text-slate-200">{formatDateTimeKST(selectedDailyPlanet.createdAt)}</p>
               </div>
-              <div className="rounded-2xl border border-amber-300/30 bg-amber-300/10 p-4">
-                <p className="text-xs text-amber-100">현재 문구는 임시 안내입니다. AI 분석 완료 후 자동 생성된 리포트 문장으로 대체됩니다.</p>
-              </div>
+              {reportLoading && <div className="rounded-2xl border border-white/8 bg-white/5 p-4 text-xs text-slate-300">리포트 불러오는 중...</div>}
+              {reportError && <div className="rounded-2xl border border-rose-300/30 bg-rose-300/10 p-4 text-xs text-rose-100">{reportError}</div>}
             </div>
           </div>
         </div>

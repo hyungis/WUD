@@ -6,6 +6,7 @@ type UiState = {
   isLoading: boolean;
   error: string | null;
   isDockHidden: boolean;
+  isOverlayOpen: boolean;
   
   // 추가된 필드들
   globalPhase: "landing" | "login" | "dashboard" | "success";
@@ -20,6 +21,7 @@ type UiState = {
   setError: (error: string | null) => void;
   clearError: () => void;
   setDockHidden: (isHidden: boolean) => void;
+  setOverlayOpen: (isOpen: boolean) => void;
   
   // 추가된 Setter들
   setGlobalPhase: (phase: "landing" | "login" | "dashboard" | "success") => void;
@@ -35,6 +37,7 @@ export const useUiStore = create<UiState>((set) => ({
   isLoading: false,
   error: null,
   isDockHidden: false,
+  isOverlayOpen: false,
   
   globalPhase: "landing",
   stars: [],
@@ -48,6 +51,7 @@ export const useUiStore = create<UiState>((set) => ({
   setError: (error) => set({ error }),
   clearError: () => set({ error: null }),
   setDockHidden: (isDockHidden) => set({ isDockHidden }),
+  setOverlayOpen: (isOverlayOpen) => set({ isOverlayOpen }),
   
   setGlobalPhase: (globalPhase) => set({ globalPhase }),
   setStars: (stars) => set({ stars }),

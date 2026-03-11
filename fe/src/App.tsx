@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import LoginPage from "./features/auth/LoginPage";
 import DailyDetailPage from "./features/daily/DailyDetailPage";
@@ -12,6 +12,7 @@ import HomePage from "./features/home/HomePage";
 import WelcomePage from "./features/home/WelcomePage";
 import DeepContentPage from "./features/deep/DeepContentPage";
 import HTPPage from "./features/deep/HTPPage";
+import MyPage from "./features/user/MyPage";
 import PrivateRoute from "./routes/PrivateRoute";
 import PublicRoute from "./routes/PublicRoute";
 import { useAuthStore } from "./store/authStore";
@@ -79,6 +80,7 @@ function DashboardGate() {
 import api from "./api/axios";
 
 function App() {
+  const location = useLocation();
   const { isAuthenticated, setTokens, clearAuth } = useAuthStore();
   const [isInitializing, setIsInitializing] = useState(true);
 
@@ -217,6 +219,14 @@ function App() {
           }
         />
         <Route
+          path="/mypage"
+          element={
+            <PrivateRoute>
+              <MyPage />
+            </PrivateRoute>
+          }
+        />
+        <Route
           path="/login"
           element={
             <Navigate to="/" replace />
@@ -224,7 +234,7 @@ function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      {isAuthenticated && <FloatingDock />}
+      {isAuthenticated && location.pathname === "/" && <FloatingDock />}
     </>
   );
 }
