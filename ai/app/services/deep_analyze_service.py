@@ -91,7 +91,21 @@ def analyze_deep_session_request(request: AiAnalyzeReq) -> AiAnalyzeResp:
         raw: dict = {}
 
         if isinstance(llm_json, dict):
-            result_summary = str(llm_json.get("resultSummary", "") or "").strip()
+            intro = str(llm_json.get("intro", "") or "").strip()
+            core_insights = llm_json.get("coreInsights", [])
+            
+            # Formulate the response in the exact user-requested structure
+            summary_parts = []
+            if intro:
+                summary_parts.append(intro)
+                
+            if core_insights and isinstance(core_insights, list):
+                summary_parts.append("\n\nCore Insights")
+                for i, insight in enumerate(core_insights, 1):
+                    summary_parts.append(f"{i}\n{insight}")
+                    
+            result_summary = "\n".join(summary_parts).strip()
+            
             questions = [str(q) for q in (llm_json.get("questions") or []) if q]
             raw_obj = llm_json.get("raw")
             raw = raw_obj.copy() if isinstance(raw_obj, dict) else {}
@@ -101,6 +115,12 @@ def analyze_deep_session_request(request: AiAnalyzeReq) -> AiAnalyzeResp:
             strengths = llm_json.get("strengths")
             if isinstance(strengths, list) and strengths:
                 raw["strengths"] = [str(s) for s in strengths if s]
+                
+            # intro와 coreInsights를 프론트에서 별도로 사용할 수도 있으므로 raw에도 담아둡니다
+            if intro:
+                raw["intro"] = intro
+            if core_insights:
+                raw["coreInsights"] = core_insights
 
         # Fallback mapping when model returned a different JSON schema
         if not result_summary:
