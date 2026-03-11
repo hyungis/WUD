@@ -101,8 +101,8 @@ def analyze_deep_session_request(request: AiAnalyzeReq) -> AiAnalyzeResp:
                 
             if core_insights and isinstance(core_insights, list):
                 summary_parts.append("\n\nCore Insights")
-                for i, insight in enumerate(core_insights, 1):
-                    summary_parts.append(f"{i}\n{insight}")
+                for insight in core_insights:
+                    summary_parts.append(str(insight))
                     
             result_summary = "\n".join(summary_parts).strip()
             
