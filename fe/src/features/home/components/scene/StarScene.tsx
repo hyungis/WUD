@@ -183,7 +183,7 @@ function SpreadDriver() {
 function SpreadItem({ target, children }: { target: [number, number, number]; children: React.ReactNode }) {
   const ref = useContext(SpreadCtx);
   const groupRef = useRef<Group>(null);
-  useFrame((_, delta) => {
+  useFrame((_, _delta) => {
     if (!groupRef.current) return;
     const p = ref.current;
     groupRef.current.position.set(target[0] * p, target[1] * p, target[2] * p);
@@ -195,7 +195,7 @@ function SpreadItem({ target, children }: { target: [number, number, number]; ch
 function SpreadScaleGroup({ children }: { children: React.ReactNode }) {
   const ref = useContext(SpreadCtx);
   const groupRef = useRef<Group>(null);
-  useFrame((_, delta) => {
+  useFrame((_, _delta) => {
     if (!groupRef.current) return;
     const p = Math.max(ref.current, 0.001);
     groupRef.current.scale.set(p, p, p);
@@ -686,7 +686,7 @@ export function StarScene({
       .map(d => d.item);
   }, [timelineItems, positionMap, selectedFocus]);
 
-  const detailedItemIds = useMemo(() => new Set(detailedItems.map(i => i.id)), [detailedItems]);
+  // const detailedItemIds = useMemo(() => new Set(detailedItems.map(i => i.id)), [detailedItems]);
 
   return (
     <div className="absolute inset-0 bg-[#000000]">

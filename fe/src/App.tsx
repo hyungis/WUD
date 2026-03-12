@@ -12,7 +12,7 @@ import HomePage from "./features/home/HomePage";
 import WelcomePage from "./features/home/WelcomePage";
 import DeepContentPage from "./features/deep/DeepContentPage";
 import HTPPage from "./features/deep/HTPPage";
-import MyPage from "./features/user/MyPage";
+// import MyPage from "./features/user/MyPage";
 import PrivateRoute from "./routes/PrivateRoute";
 import PublicRoute from "./routes/PublicRoute";
 import { useAuthStore } from "./store/authStore";
@@ -218,14 +218,14 @@ function App() {
             </PrivateRoute>
           }
         />
-        <Route
+        {/* <Route
           path="/mypage"
           element={
             <PrivateRoute>
               <MyPage />
             </PrivateRoute>
           }
-        />
+        /> */}
         <Route
           path="/login"
           element={
