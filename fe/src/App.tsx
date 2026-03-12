@@ -77,7 +77,7 @@ function DashboardGate() {
   );
 }
 
-import api from "./api/axios";
+import refreshApi from "./api/refreshApi";
 
 function App() {
   const location = useLocation();
@@ -94,9 +94,9 @@ function App() {
 
       try {
         // HTTP-only 쿠키를 이용해 엑세스 토큰 재발급 시도
-        const response: any = await api.post("/auth/refresh");
-        // axios interceptor에서 response.data를 반환하므로 바로 객체일 수 있음
-        const { accessToken } = response?.data ?? response ?? {};
+        const response: any = await refreshApi.post("/auth/refresh");
+        const payload = response?.data;
+        const accessToken = payload?.data?.accessToken ?? payload?.accessToken;
         
         if (accessToken) {
           setTokens(accessToken);
