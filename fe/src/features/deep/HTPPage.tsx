@@ -377,7 +377,7 @@ function HTPPage() {
       setStepIndex((current) => current + 1);
       return;
     }
-    setPhase("result");
+    handleSave();
   };
 
   const handleSave = async () => {
@@ -474,6 +474,9 @@ function HTPPage() {
             const resultSummary = resultRes.data.aiResult.resultSummary || resultRes.data.aiResult.result || "";
             localStorage.setItem("latestDeepResultSummary", resultSummary);
             localStorage.setItem("latestDeepResult", JSON.stringify(resultRes.data));
+            setIsSaving(false);
+            setPhase("result");
+            return;
           }
         } else if (pollingResult === "FAILED") {
           setSaveError("AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
@@ -484,11 +487,11 @@ function HTPPage() {
     } catch (error) {
       console.error("deep submit failed", error);
       setSaveError("심층 API 저장에 실패해 로컬 저장 결과로 이동합니다.");
-    } finally {
-      window.setTimeout(() => {
-        navigate("/", { replace: true });
-      }, 1400);
     }
+    setIsSaving(false);
+    window.setTimeout(() => {
+      navigate("/", { replace: true });
+    }, 1400);
   };
 
 
@@ -703,7 +706,7 @@ function HTPPage() {
                 psychAssessments: []
               }}
               onRestart={() => setPhase("draw")}
-              onComplete={handleSave}
+              onComplete={() => navigate("/", { replace: true })}
               saveError={saveError}
             />
           )}
