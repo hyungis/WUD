@@ -21,6 +21,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import com.woojudraw.domain.user.entity.User;
+import com.woojudraw.global.time.AppTime;
 
 @Getter
 @Builder
@@ -63,7 +64,7 @@ public class Image {
 
 	@PrePersist
 	public void prePersist() {
-		this.createdAt = OffsetDateTime.now();
+		this.createdAt = AppTime.nowKst();
 	}
 
 	public void markReady() {

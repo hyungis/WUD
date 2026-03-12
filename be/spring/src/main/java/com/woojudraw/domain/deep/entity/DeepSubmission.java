@@ -15,6 +15,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.woojudraw.global.time.AppTime;
+
 @Entity
 @Table(name = "deep_submissions")
 @Getter
@@ -51,7 +53,7 @@ public class DeepSubmission {
 			.deepSessionId(deepSessionId)
 			.imageId(imageId)
 			.type(type)
-			.createdAt(OffsetDateTime.now())
+			.createdAt(AppTime.nowKst())
 			.build();
 	}
 }

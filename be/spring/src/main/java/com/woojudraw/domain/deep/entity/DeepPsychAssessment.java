@@ -23,6 +23,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.woojudraw.global.time.AppTime;
+
 @Entity
 @Table(name = "deep_psych_assessments")
 @Getter
@@ -98,7 +100,7 @@ public class DeepPsychAssessment {
 		ObjectMapper objectMapper
 	) {
 		int total = answers.stream().mapToInt(Integer::intValue).sum();
-		OffsetDateTime now = OffsetDateTime.now();
+		OffsetDateTime now = AppTime.nowKst();
 
 		Map<String, Object> rawMap = new HashMap<>();
 		rawMap.put("answers", answers);

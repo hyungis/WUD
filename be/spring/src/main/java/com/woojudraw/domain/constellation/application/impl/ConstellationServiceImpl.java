@@ -2,7 +2,6 @@ package com.woojudraw.domain.constellation.application.impl;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,6 +21,7 @@ import com.woojudraw.domain.deep.entity.DeepSession;
 import com.woojudraw.domain.deep.entity.DeepStatus;
 import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
+import com.woojudraw.global.time.AppTime;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -61,13 +61,11 @@ public class ConstellationServiceImpl implements ConstellationService {
 			return;
 		}
 
-		LocalDateTime now = LocalDateTime.now();
-
 		Star deepStar = Star.createDeepStar(
 			deepSession.getUserId(),
 			constellation,
 			deepSession.getId(),
-			now
+			AppTime.nowUtc()
 		);
 
 		starRepository.save(deepStar);
@@ -149,7 +147,7 @@ public class ConstellationServiceImpl implements ConstellationService {
 			.constellationId(star.getConstellation().getId())
 			.weekStartDate(star.getConstellation().getWeekStartDate())
 			.weekEndDate(star.getConstellation().getWeekEndDate())
-			.createdAt(star.getCreatedAt())
+			.createdAt(AppTime.kstFromUtc(star.getCreatedAt()))
 			.build();
 	}
 

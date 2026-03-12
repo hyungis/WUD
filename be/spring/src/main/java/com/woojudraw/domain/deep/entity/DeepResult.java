@@ -13,6 +13,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.woojudraw.global.time.AppTime;
+
 @Entity
 @Getter
 @Table(name = "deep_results")
@@ -53,7 +55,7 @@ public class DeepResult{
 			.deepSessionId(deepSessionId)
 			.result(result)
 			.raw(raw)
-			.createdAt(LocalDateTime.now())
+			.createdAt(AppTime.nowUtc())
 			.build();
 	}
 
