@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.woojudraw.global.time.AppTime;
+
 import java.time.OffsetDateTime;
 
 @Entity
@@ -61,7 +63,7 @@ public class DeepSession {
 	}
 
 	public static DeepSession create(Long userId) {
-		OffsetDateTime now = OffsetDateTime.now();
+		OffsetDateTime now = AppTime.nowKst();
 		return DeepSession.builder()
 			.userId(userId)
 			.status(DeepStatus.DRAFT)
@@ -72,21 +74,23 @@ public class DeepSession {
 
 	public void updateDeepType(DeepType deepType) {
 		this.deepType = deepType;
-		this.updatedAt = OffsetDateTime.now();
+		this.updatedAt = AppTime.nowKst();
 	}
 
 	public void changeStatus(DeepStatus status) {
 		this.status = status;
-		this.updatedAt = OffsetDateTime.now();
+		this.updatedAt = AppTime.nowKst();
 	}
 
 	public void markSubmitted() {
-		this.submittedAt = OffsetDateTime.now();
-		this.updatedAt = OffsetDateTime.now();
+		OffsetDateTime now = AppTime.nowKst();
+		this.submittedAt = now;
+		this.updatedAt = now;
 	}
 
 	public void markCompleted() {
-		this.completedAt = OffsetDateTime.now();
-		this.updatedAt = OffsetDateTime.now();
+		OffsetDateTime now = AppTime.nowKst();
+		this.completedAt = now;
+		this.updatedAt = now;
 	}
 }

@@ -6,6 +6,7 @@ RUN ./gradlew clean build -x test --no-daemon
 
 FROM eclipse-temurin:17-jre-alpine
 WORKDIR /app
+ENV TZ=Asia/Seoul
 COPY --from=build /app/build/libs/*-SNAPSHOT.jar app.jar
 EXPOSE 8081
-ENTRYPOINT ["java","-jar","app.jar"]
+ENTRYPOINT ["java","-Duser.timezone=Asia/Seoul","-jar","app.jar"]

@@ -22,6 +22,7 @@ import com.woojudraw.domain.user.entity.User;
 import com.woojudraw.domain.user.repository.UserRepository;
 import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
+import com.woojudraw.global.time.AppTime;
 
 import lombok.RequiredArgsConstructor;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -192,7 +193,7 @@ public class ImageServiceImpl implements ImageService {
 
 	private String generateImageKey(Long memberId, String mimeType) {
 		String extension = extractExtensionFromMimeType(mimeType);
-		String currentDate = LocalDate.now().format(DATE_FORMATTER);
+		String currentDate = AppTime.todayKst().format(DATE_FORMATTER);
 		String normalizedPhotoPath = photoPath.endsWith("/") ? photoPath.substring(0, photoPath.length() - 1) : photoPath;
 		return normalizedPhotoPath + "/users/" + memberId + "/" + currentDate + "/" + UUID.randomUUID() + extension;
 	}

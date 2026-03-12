@@ -1,7 +1,7 @@
 package com.woojudraw.domain.constellation.api.dto.resp;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import lombok.Builder;
@@ -22,6 +22,6 @@ public class GetStarMapResp {
 		private Long constellationId;
 		private LocalDate weekStartDate;
 		private LocalDate weekEndDate;
-		private LocalDateTime createdAt;
+		private OffsetDateTime createdAt;
 	}
 }

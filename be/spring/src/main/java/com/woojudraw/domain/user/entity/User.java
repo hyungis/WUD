@@ -15,6 +15,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import com.woojudraw.global.time.AppTime;
+
 @Getter
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -43,10 +45,10 @@ public class User {
 
 	@PrePersist
 	public void prePersist() {
-		this.createdAt = LocalDateTime.now();
+		this.createdAt = AppTime.nowUtc();
 	}
 
 	public void updateLastLogin() {
-		this.lastLoginAt = LocalDateTime.now();
+		this.lastLoginAt = AppTime.nowUtc();
 	}
 }
