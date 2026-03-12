@@ -196,3 +196,21 @@ export function getDeepStarAnalysis(strokes: number | null | undefined, tone: st
   const summary = "AI 분석이 완료되면 이 영역에 HTP 기반 개인 맞춤 리포트가 표시됩니다.";
   return { energy, tone: toneResult, summary };
 }
+// ── 기타 유틸리티 ──
+const DAILY_COLORS = ["#7dd3fc", "#38bdf8", "#22d3ee", "#60a5fa", "#93c5fd"];
+const DEEP_COLORS = ["#fcd34d", "#f59e0b", "#fb923c", "#fbbf24", "#fde68a"];
+
+export const colorFromId = (id: string, kind: "DAILY" | "DEEP") => {
+  const n = Number(id);
+  const index = Number.isNaN(n) ? 0 : Math.abs(n) % 5;
+  return kind === "DEEP" ? DEEP_COLORS[index] : DAILY_COLORS[index];
+};
+
+export const normalizeDeepReportText = (text?: string) => {
+  if (!text) return "";
+  return text
+    .replace(/\r/g, "")
+    .replace(/\n\s*\d+\s*\n\s*(\d+\.)/g, "\n$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+};
