@@ -478,15 +478,16 @@ function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio }: any) 
 function AnimatedConstellationLine({ weekKey, pts, isHovered }: { weekKey: string; pts: Vector3[]; isHovered: boolean }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const lineRef = useRef<any>(null);
-  void weekKey;
+
+  // 고유 시드 생성
+  const seed = useMemo(() => hashSeed(weekKey), [weekKey]);
 
   const { subdividedPts, vertexColors } = useMemo(() => {
     const sPts: Vector3[] = [];
     const vCols: [number, number, number][] = [];
 
-    // 블룸 효과를 극대화하기 위해 다소 1.0을 초과하는 색상값으로 꼭짓점을 설정 (빛나는 현상 유도)
+    // 블룸 효과를 위한 색상
     const bright: [number, number, number] = [3.0, 3.5, 6.0];
-    // 선분의 가운데로 갈수록 어두워지게 하여 블룸이 꼭짓점에만 집중되게 설정
     const faint: [number, number, number] = [0.05, 0.05, 0.1];
 
     for (let i = 0; i < pts.length - 1; i++) {
@@ -511,15 +512,33 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered }: { weekKey: strin
   useFrame((state, delta) => {
     if (!lineRef.current?.material) return;
 
+    const safeDelta = Math.min(delta, 0.1);
+
     if (isHovered) {
-      lineRef.current.material.opacity += (0.8 - lineRef.current.material.opacity) * (delta * 10);
+      // 마우스 오버 시 밝고 두껍게 고정
+      lineRef.current.material.opacity += (0.8 - lineRef.current.material.opacity) * (safeDelta * 10);
       lineRef.current.material.linewidth = 1.0;
     } else {
-      const baselineOpacity = 0.22;
-      lineRef.current.material.opacity += (baselineOpacity - lineRef.current.material.opacity) * (delta * 8);
+      const time = state.clock.elapsedTime;
+
+      const speed = 0.5 + (seed % 5) * 0.05;
+      const phase = seed % 100;
+      const wave = Math.sin(time * speed + phase) * 0.5 + 0.5;
+
+      // 🚨 [수정됨] 
+      // 1. wave가 0.75를 넘을 때만 서서히 나타남 (숨어있는 시간이 더 긺)
+      // 2. 기본 투명도를 0.05 -> 0.0 으로 변경하여 완벽하게 숨김
+      const targetOpacity = wave > 0.75 ? ((wave - 0.75) / 0.25) * 0.3 : 0.0;
+
+      lineRef.current.material.opacity += (targetOpacity - lineRef.current.material.opacity) * (safeDelta * 8);
+
+      // 렌더링 최적화: 눈에 안 보일 정도로 투명해지면 아예 0으로 고정
+      if (lineRef.current.material.opacity < 0.001) {
+        lineRef.current.material.opacity = 0;
+      }
+
       lineRef.current.material.linewidth = 0.5;
     }
-    void state;
   });
 
   return (
@@ -624,7 +643,8 @@ export function StarScene({
       const seed = hashSeed(item.id);
       const localTheta = seededRandom(seed) * 2 * Math.PI;
       const localPhi = Math.acos(2 * seededRandom(seed + 1) - 1);
-      const localR = 2.0 + seededRandom(seed + 2) * 5.0;
+      // 데일리별이 너무 뭉치지 않도록 반지름(r) 분포 범위를 5.0 ~ 15.0으로 확대
+      const localR = 5.0 + seededRandom(seed + 2) * 10.0;
 
       const dx = localR * Math.sin(localPhi) * Math.cos(localTheta);
       const dy = localR * Math.cos(localPhi);
