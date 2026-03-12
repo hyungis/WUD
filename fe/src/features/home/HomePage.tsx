@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { starApi } from "../../api/star";
 import { dailyApi } from "../../api/daily";
 import { deepApi } from "../../api/deep";
@@ -432,7 +431,6 @@ function MyUniverseModal({ isOpen, onClose, mypageStar, dailyPlanets, deepStars,
 // ==========================================
 
 function HomePage() {
-  const navigate = useNavigate();
   const [isMyUniverseOpen, setIsMyUniverseOpen] = useState(false);
   const [selectedDeepStar, setSelectedDeepStar] = useState<any>(null);
   const [isDailyReportOpen, setIsDailyReportOpen] = useState(false);
@@ -651,11 +649,7 @@ function HomePage() {
       <div id="cinematic-lid-top" className="hidden" />
       <div id="cinematic-lid-bottom" className="hidden" />
 
-      <div className={`pointer-events-none fixed left-0 right-0 top-24 z-20 flex justify-center transition-opacity duration-700 ${isMacro ? "opacity-100" : "opacity-0"}`}>
-        <div className="rounded-full border border-white/10 bg-black/40 px-6 py-2 text-xs tracking-widest text-slate-300 backdrop-blur-md shadow-lg">
-          마우스 휠을 당겨 상세 기록을 확인하세요
-        </div>
-      </div>
+
 
       <div className="pointer-events-none fixed right-6 top-1/2 z-40 h-48 w-1.5 -translate-y-1/2 rounded-full bg-slate-800/40 shadow-inner backdrop-blur-md">
         <div
@@ -736,22 +730,7 @@ function HomePage() {
         </div>
       </div>
 
-      <div className={`fixed bottom-7 left-1/2 z-30 transition-all duration-700 ${isMacro ? "translate-y-[120%] -translate-x-1/2 opacity-0" : "translate-y-0 -translate-x-1/2 opacity-100 pointer-events-auto"}`}>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate("/daily/content")}
-            className="liquid-btn liquid-btn--daily min-w-[108px] px-4 py-2 text-sm"
-          >
-            데일리
-          </button>
-          <button
-            onClick={() => navigate("/deep/content")}
-            className="liquid-btn liquid-btn--deep min-w-[108px] px-4 py-2 text-sm"
-          >
-            심층
-          </button>
-        </div>
-      </div>
+
 
       <MyUniverseModal
         isOpen={isMyUniverseOpen}

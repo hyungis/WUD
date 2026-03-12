@@ -218,7 +218,7 @@ function MacroGalaxy({ timelineItems, positionMap, starTone, hiddenIds }: any) {
       // 초기 위치 0,0,0 (spread가 아직 0이므로)
       tempObject.position.set(0, 0, 0);
       const isHidden = hiddenIds.has(item.id);
-      const scale = isHidden ? 0 : (item.kind === "deep" ? 0.4 : 0.25);
+      const scale = isHidden ? 0 : (item.kind === "deep" ? 0.5 : 0.25);
       tempObject.scale.set(scale, scale, scale);
       tempObject.updateMatrix();
       meshRef.current!.setMatrixAt(i, tempObject.matrix);
@@ -246,7 +246,7 @@ function MacroGalaxy({ timelineItems, positionMap, starTone, hiddenIds }: any) {
       const pos = positionMap.get(item.id) || [0, 0, 0];
       tempObject.position.set(pos[0] * p, pos[1] * p, pos[2] * p);
       const isHidden = hiddenIds.has(item.id);
-      const scale = isHidden ? 0 : (item.kind === "deep" ? 0.4 : 0.25);
+      const scale = isHidden ? 0 : (item.kind === "deep" ? 0.5 : 0.25);
       tempObject.scale.set(scale, scale, scale);
       tempObject.updateMatrix();
       meshRef.current!.setMatrixAt(i, tempObject.matrix);
@@ -446,7 +446,7 @@ function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio }: any) 
         viewDir.set(0.45, 0.28, 1).normalize();
       }
 
-      const desiredDistance = nextTarget.lengthSq() < 0.01 ? 18 * countRatio : Math.max(2.8, 3.2 * countRatio);
+      const desiredDistance = nextTarget.lengthSq() < 0.01 ? 40 * countRatio : Math.max(25, 30 * countRatio);
       const desiredCam = nextTarget.clone().add(viewDir.multiplyScalar(desiredDistance));
 
       fromCamRef.current.copy(camera.position);
@@ -569,10 +569,10 @@ export function StarScene({
 
   const timelineItems = useMemo(() => {
     const deepItems = deepStars.map((star) => ({
-      id: star.id, createdAt: star.createdAt, kind: "deep" as const, toneColor: star.toneColor, weekKey: star.weekKey || getWeekKey(new Date(star.createdAt))
+      id: star.id, targetId: (star as any).targetId, createdAt: star.createdAt, kind: "deep" as const, toneColor: star.toneColor, weekKey: star.weekKey || getWeekKey(new Date(star.createdAt))
     }));
     const dailyItems = dailyPlanets.map((planet) => ({
-      id: planet.id, createdAt: planet.createdAt, kind: "daily" as const, planet, weekKey: getWeekKey(new Date(planet.createdAt))
+      id: planet.id, targetId: (planet as any).targetId, createdAt: planet.createdAt, kind: "daily" as const, planet, weekKey: getWeekKey(new Date(planet.createdAt))
     }));
     return [...deepItems, ...dailyItems].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [dailyPlanets, deepStars]);
@@ -714,7 +714,7 @@ export function StarScene({
 
           <group position={[0, 0, 0]}>
             <Float speed={1.2} rotationIntensity={0.5} floatIntensity={0.8} floatingRange={[-0.3, 0.3]}>
-              <DeepPlanet onClick={() => { requestFocus(mypageStar.id); onStarClick(); }} color="#facc15" size={viewMode === "macro" ? 1.0 : 1.6} glow={1.0} seed={999} />
+              <DeepPlanet onClick={() => { requestFocus(mypageStar.id); onStarClick(); }} color="#facc15" size={2.4} glow={2.6} seed={999} />
             </Float>
           </group>
 
@@ -740,6 +740,11 @@ export function StarScene({
                 <DeepPlanet
                   onClick={() => {
                     requestFocus(item.id);
+                    if (item.kind === "deep") {
+                      onDeepStarClick?.(item as unknown as DeepStar);
+                    } else {
+                      onPlanetClick(item.planet);
+                    }
                   }}
                   onOpen={() => {
                     if (item.kind === "deep") {
@@ -751,8 +756,8 @@ export function StarScene({
                   onHover={(data) => onStarHover?.({ id: data.isHovered ? item.id : null, x: data.x, y: data.y })}
                   color={item.kind === "deep" ? (item.toneColor || starTone) : item.planet.shell}
                   variant={item.kind === "deep" ? "star" : "planet"}
-                  size={item.kind === "deep" ? (viewMode === "macro" ? 0.95 : 0.55) : (viewMode === "macro" ? 0.42 : 0.22)}
-                  glow={item.kind === "deep" ? (viewMode === "macro" ? 1.1 : 0.8) : (viewMode === "macro" ? 0.55 : 0.35)}
+                  size={item.kind === "deep" ? (viewMode === "macro" ? 1.2 : 0.7) : (viewMode === "macro" ? 0.6 : 0.35)}
+                  glow={item.kind === "deep" ? (viewMode === "macro" ? 1.4 : 0.9) : (viewMode === "macro" ? 0.7 : 0.45)}
                   seed={hashSeed(item.id)}
                 />
               </SpreadItem>
