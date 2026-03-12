@@ -27,16 +27,7 @@ const colorFromId = (id: string, kind: "DAILY" | "DEEP") => {
   return kind === "DEEP" ? DEEP_COLORS[index] : DAILY_COLORS[index];
 };
 
-const S3_BASE_URL = (import.meta.env.VITE_S3_BASE_URL as string | undefined) ?? "https://wud-s3.s3.ap-northeast-2.amazonaws.com";
 
-const buildPublicImageUrl = (imageKey?: string) => {
-  if (!imageKey) return "";
-  const normalized = imageKey
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
-  return `${S3_BASE_URL}/${normalized}`;
-};
 
 const normalizeDeepReportText = (text?: string) => {
   if (!text) return "";
@@ -824,17 +815,17 @@ function HomePage() {
                   {Array.isArray(selectedDeepStar.submissions) && selectedDeepStar.submissions.length > 0 && (
                     <div className="rounded-2xl border border-white/8 bg-white/[0.03] p-5">
                       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400 mb-4">제출된 그림</p>
-                      <div className="grid grid-cols-3 gap-3">
+                      <div className="grid grid-cols-3 gap-4">
                         {selectedDeepStar.submissions.map((sub: any, i: number) => (
                           <div key={i} className="group relative overflow-hidden rounded-xl border border-white/10 bg-slate-900/60">
                             <div className="absolute top-2 left-2 z-10 rounded-md bg-black/60 px-2 py-0.5 backdrop-blur-sm">
                               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-200">{sub.type}</span>
                             </div>
-                            {sub.imageKey ? (
+                            {sub.imageUrl ? (
                               <img
-                                src={buildPublicImageUrl(sub.imageKey)}
+                                src={sub.imageUrl}
                                 alt={sub.type}
-                                className="aspect-square w-full object-contain bg-white/5 p-2"
+                                className="aspect-square w-full object-contain bg-white/5 p-3"
                                 onError={(e) => {
                                   const t = e.target as HTMLImageElement;
                                   t.style.display = 'none';
@@ -846,7 +837,7 @@ function HomePage() {
                               />
                             ) : (
                               <div className="aspect-square w-full flex flex-col items-center justify-center gap-2 bg-slate-800/50 p-4">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-7 w-7 text-slate-600"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="h-7 w-7 text-slate-600"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>
                                 <span className="text-[10px] uppercase text-slate-500 tracking-wider">{sub.type}</span>
                               </div>
                             )}
