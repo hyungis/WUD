@@ -9,23 +9,13 @@ interface HTPResultViewProps {
   isAnalyzing?: boolean;
 }
 
-const HTPResultView: React.FC<HTPResultViewProps> = ({ 
-  result, 
-  onRestart, 
-  onComplete, 
+const HTPResultView: React.FC<HTPResultViewProps> = ({
+  result,
+  onRestart,
+  onComplete,
   saveError,
   isAnalyzing = false,
 }) => {
-  const S3_BASE_URL = (import.meta.env.VITE_S3_BASE_URL as string | undefined) ?? "https://wud-s3.s3.ap-northeast-2.amazonaws.com";
-
-  const buildPublicImageUrl = (imageKey?: string) => {
-    if (!imageKey) return "";
-    const normalized = imageKey
-      .split("/")
-      .map((segment) => encodeURIComponent(segment))
-      .join("/");
-    return `${S3_BASE_URL}/${normalized}`;
-  };
 
   const normalizeDeepReportText = (text?: string) => {
     if (!text) return "";
@@ -86,88 +76,88 @@ const HTPResultView: React.FC<HTPResultViewProps> = ({
           </section>
         ) : (
           <>
-        {/* Summary Card */}
-        <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent p-8 shadow-2xl backdrop-blur-md">
-           <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-500/10 blur-[80px]" />
-           <div className="relative z-10">
-             <p className="text-lg leading-relaxed text-slate-200 text-center font-medium italic">
-               "{summary || "분석 결과를 생성하는 중입니다..."}"
-             </p>
-           </div>
-        </section>
-
-        {/* Insights Grid */}
-        <section>
-          <div className="mb-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/10" />
-            <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">Core Insights</h3>
-            <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/10" />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {insights.length > 0 ? (
-              insights.map((insight, idx) => (
-                <div 
-                  key={idx} 
-                  className="group relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.03] p-5 transition-all duration-300 hover:border-indigo-500/30 hover:bg-white/[0.05]"
-                >
-                  <div className="flex gap-4">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-xs font-bold text-indigo-300 ring-1 ring-indigo-500/40 transition-transform group-hover:scale-110">
-                      {idx + 1}
-                    </span>
-                    <p className="text-sm leading-relaxed text-slate-300 group-hover:text-slate-100 italic transition-colors">
-                      {insight.replace(/^\d+\.\s*/, "")}
-                    </p>
-                  </div>
-                  <div className="absolute inset-0 -z-10 bg-gradient-to-br from-indigo-500/0 via-transparent to-indigo-500/0 opacity-0 transition-opacity duration-500 group-hover:opacity-10" />
-                </div>
-              ))
-            ) : (
-              <div className="col-span-full py-10 text-center text-slate-500 italic">
-                상세 인사이트를 불러올 수 없습니다.
+            {/* Summary Card */}
+            <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-transparent p-8 shadow-2xl backdrop-blur-md">
+              <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-indigo-500/10 blur-[80px]" />
+              <div className="relative z-10">
+                <p className="text-lg leading-relaxed text-slate-200 text-center font-medium italic">
+                  "{summary || "분석 결과를 생성하는 중입니다..."}"
+                </p>
               </div>
-            )}
-          </div>
-        </section>
+            </section>
 
-        {/* Mini Images View */}
-        {result.submissions && result.submissions.length > 0 && (
-          <section>
-            <div className="mb-6 flex items-center gap-3">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/10" />
-              <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">Your Drawings</h3>
-              <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/10" />
-            </div>
-            <div className="flex justify-center gap-4 overflow-x-auto pb-4">
-               {result.submissions.map((sub, i) => (
-                <div key={i} className="group relative aspect-square w-24 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-white/5 p-1 transition-transform hover:scale-105 hover:z-10">
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-[10px] font-bold text-white uppercase">{sub.type}</span>
-                    </div>
-                    {sub.imageKey ? (
-                      <img 
-                        src={buildPublicImageUrl(sub.imageKey)} 
-                        alt={sub.type}
-                        className="h-full w-full object-contain rounded-lg bg-slate-800/50"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          const placeholder = document.createElement('div');
-                          placeholder.className = 'h-full w-full flex flex-col items-center justify-center gap-1 bg-slate-800/50 rounded-lg';
-                          placeholder.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-6 w-6 text-slate-600"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><span style="font-size:9px;text-transform:uppercase;color:#64748b">${sub.type}</span><span style="font-size:9px;color:#94a3b8">이미지 접근 권한 없음</span>`;
-                          target.parentElement?.appendChild(placeholder);
-                        }}
-                      />
-                    ) : (
-                      <div className="h-full w-full bg-slate-800/50 flex items-center justify-center text-[10px] text-slate-500">
-                        {sub.type}
+            {/* Insights Grid */}
+            <section>
+              <div className="mb-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/10" />
+                <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">Core Insights</h3>
+                <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/10" />
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {insights.length > 0 ? (
+                  insights.map((insight, idx) => (
+                    <div
+                      key={idx}
+                      className="group relative overflow-hidden rounded-2xl border border-white/5 bg-white/[0.03] p-5 transition-all duration-300 hover:border-indigo-500/30 hover:bg-white/[0.05]"
+                    >
+                      <div className="flex gap-4">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-500/20 text-xs font-bold text-indigo-300 ring-1 ring-indigo-500/40 transition-transform group-hover:scale-110">
+                          {idx + 1}
+                        </span>
+                        <p className="text-sm leading-relaxed text-slate-300 group-hover:text-slate-100 italic transition-colors">
+                          {insight.replace(/^\d+\.\s*/, "")}
+                        </p>
                       </div>
-                    )}
-                 </div>
-               ))}
-            </div>
-          </section>
-        )}
+                      <div className="absolute inset-0 -z-10 bg-gradient-to-br from-indigo-500/0 via-transparent to-indigo-500/0 opacity-0 transition-opacity duration-500 group-hover:opacity-10" />
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-span-full py-10 text-center text-slate-500 italic">
+                    상세 인사이트를 불러올 수 없습니다.
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Mini Images View */}
+            {result.submissions && result.submissions.length > 0 && (
+              <section>
+                <div className="mb-6 flex items-center gap-3">
+                  <div className="h-px flex-1 bg-gradient-to-r from-transparent to-white/10" />
+                  <h3 className="text-xs font-bold uppercase tracking-[0.3em] text-slate-500">Your Drawings</h3>
+                  <div className="h-px flex-1 bg-gradient-to-l from-transparent to-white/10" />
+                </div>
+                <div className="grid grid-cols-3 gap-4 pb-4">
+                  {result.submissions.map((sub, i) => (
+                    <div key={i} className="group relative aspect-square w-full overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-2 transition-transform hover:scale-[1.03] hover:z-10">
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl z-10">
+                        <span className="text-xs font-bold text-white uppercase tracking-wider">{sub.type}</span>
+                      </div>
+                      {sub.imageUrl ? (
+                        <img
+                          src={sub.imageUrl}
+                          alt={sub.type}
+                          className="h-full w-full object-contain rounded-xl bg-slate-800/50"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const placeholder = document.createElement('div');
+                            placeholder.className = 'h-full w-full flex flex-col items-center justify-center gap-1 bg-slate-800/50 rounded-xl';
+                            placeholder.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-8 w-8 text-slate-600"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg><span style="font-size:11px;text-transform:uppercase;color:#64748b">${sub.type}</span><span style="font-size:10px;color:#94a3b8">이미지 접근 권한 없음</span>`;
+                            target.parentElement?.appendChild(placeholder);
+                          }}
+                        />
+                      ) : (
+                        <div className="h-full w-full bg-slate-800/50 flex flex-col items-center justify-center gap-1 rounded-xl text-xs text-slate-500">
+                          {sub.type}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </>
         )}
       </div>
@@ -178,16 +168,16 @@ const HTPResultView: React.FC<HTPResultViewProps> = ({
           <p className="mb-4 text-center text-xs font-medium text-amber-400 animate-pulse">{saveError}</p>
         )}
         <div className="flex items-center justify-center gap-4">
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={onRestart}
             disabled={isAnalyzing}
             className="flex items-center justify-center rounded-xl border border-white/10 bg-white/5 px-6 py-3 text-sm font-semibold text-slate-300 transition-all hover:bg-white/10 hover:text-white disabled:opacity-40"
           >
             그림 다시 보기
           </button>
-          <button 
-            type="button" 
+          <button
+            type="button"
             onClick={onComplete}
             disabled={isAnalyzing}
             className="relative flex items-center justify-center overflow-hidden rounded-xl bg-indigo-600 px-10 py-3 text-sm font-semibold text-white shadow-[0_0_20px_rgba(79,70,229,0.4)] transition-all hover:bg-indigo-500 hover:shadow-[0_0_30px_rgba(79,70,229,0.6)] active:scale-95 disabled:opacity-40"

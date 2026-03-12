@@ -40,6 +40,7 @@ import com.woojudraw.domain.deep.repository.DeepPsychAssessmentRepository;
 import com.woojudraw.domain.deep.repository.DeepResultRepository;
 import com.woojudraw.domain.deep.repository.DeepSessionRepository;
 import com.woojudraw.domain.deep.repository.DeepSubmissionRepository;
+import com.woojudraw.domain.image.application.ImageService;
 import com.woojudraw.domain.image.entity.Image;
 import com.woojudraw.domain.image.entity.ImageStatus;
 import com.woojudraw.domain.image.repository.ImageRepository;
@@ -58,6 +59,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 	private final DeepPsychAssessmentRepository deepPsychAssessmentRepository;
 	private final DeepSubmissionRepository deepSubmissionRepository;
 	private final ImageRepository imageRepository;
+	private final ImageService imageService;
 	private final ObjectMapper objectMapper;
 	private final DeepAiService deepAiService;
 	private final DeepResultRepository deepResultRepository;
@@ -212,6 +214,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 					.type(submission.getType())
 					.imageId(image.getId())
 					.imageKey(image.getImageKey())
+					.imageUrl(imageService.generatePresignedGetUrl(image.getImageKey()))
 					.build();
 			})
 			.toList();

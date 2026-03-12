@@ -12,4 +12,5 @@ public class DeepSubmissionItemResp {
 	private SubmissionType type;
 	private Long imageId;
 	private String imageKey;
+	private String imageUrl;
 }

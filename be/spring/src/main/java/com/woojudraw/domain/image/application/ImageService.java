@@ -10,4 +10,6 @@ public interface ImageService {
 	ImagePresignedUrlResp issuePresignedUrl(Long memberId, ImagePresignedUrlReq req);
 
 	ImageCreateResp createImage(Long memberId, ImageCreateReq req);
+
+	String generatePresignedGetUrl(String imageKey);
 }

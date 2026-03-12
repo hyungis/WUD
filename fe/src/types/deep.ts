@@ -51,7 +51,7 @@ export interface DeepDetailResponse {
     sessionId: number;
     deepType: "HTP" | "PERSON_IN_RAIN" | "STAR_WAVE";
     status: "DRAFT" | "ANALYZING" | "DONE" | "FAILED";
-    submissions: { type: string; imageId: number; imageKey: string }[];
+    submissions: { type: string; imageId: number; imageKey: string; imageUrl?: string }[];
     questions: string[];
     aiResult: {
         result?: string;
