@@ -56,14 +56,16 @@ function createStellatedPolyhedronGeometry(baseRadius = 1, spikeLength = 0.62) {
 const STAR_STELLATED_GEOMETRY = createStellatedPolyhedronGeometry(1, 0.62);
 
 function DeepPlanet({
-  onClick, onOpen, onHover, color, size = 1, glow = 1.1, seed = 0, variant = "star",
+  onClick, onOpen, onHover, color, size = 1, glow = 1.1, seed = 0, variant = "star", isSelected = false,
 }: {
   onClick: () => void;
   onOpen?: () => void;
   onHover?: (data: { isHovered: boolean; x?: number; y?: number }) => void;
   color: string; size?: number; glow?: number; seed?: number; variant?: "star" | "planet";
+  isSelected?: boolean;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const isActive = isHovered || isSelected;
 
   const handlers = {
     onClick,
@@ -81,14 +83,14 @@ function DeepPlanet({
             {/* 메인 정팔면체 */}
             <mesh
               {...handlers}
-              scale={isHovered ? [size * 1.25, size * 1.25, size * 1.25] : [size, size, size]}
-              rotation={[0.16, 0.28, isHovered ? 0.2 : 0.06]}
+              scale={isActive ? [size * 1.25, size * 1.25, size * 1.25] : [size, size, size]}
+              rotation={[0.16, 0.28, isActive ? 0.2 : 0.06]}
             >
               <octahedronGeometry args={[1, 0]} />
               <meshPhysicalMaterial
                 color={color}
                 emissive={color}
-                emissiveIntensity={isHovered ? 4.0 : 1.8}
+                emissiveIntensity={isActive ? 4.0 : 1.8}
                 transparent
                 opacity={0.92}
                 roughness={0.15}
@@ -99,11 +101,11 @@ function DeepPlanet({
             </mesh>
             {/* 외곽 글로우 */}
             <mesh
-              scale={isHovered ? [glow * 1.18, glow * 1.18, glow * 1.18] : [glow * 1.02, glow * 1.02, glow * 1.02]}
+              scale={isActive ? [glow * 1.18, glow * 1.18, glow * 1.18] : [glow * 1.02, glow * 1.02, glow * 1.02]}
               rotation={[0.16, 0.28, 0.06]}
             >
               <octahedronGeometry args={[1, 0]} />
-              <meshBasicMaterial color={color} transparent opacity={isHovered ? 0.18 : 0.08} blending={2} depthWrite={false} />
+              <meshBasicMaterial color={color} transparent opacity={isActive ? 0.18 : 0.08} blending={2} depthWrite={false} />
             </mesh>
           </>
         ) : (
@@ -113,13 +115,13 @@ function DeepPlanet({
             <mesh
               {...handlers}
               geometry={STAR_STELLATED_GEOMETRY}
-              rotation={[0.2, 0.4, isHovered ? 0.24 : 0.08]}
-              scale={isHovered ? [size * 1.2, size * 1.2, size * 1.2] : [size, size, size]}
+              rotation={[0.2, 0.4, isActive ? 0.24 : 0.08]}
+              scale={isActive ? [size * 1.2, size * 1.2, size * 1.2] : [size, size, size]}
             >
               <meshPhysicalMaterial
                 color={color}
                 emissive={color}
-                emissiveIntensity={isHovered ? 4.6 : 2.8}
+                emissiveIntensity={isActive ? 3.0 : 1.4}
                 transparent
                 opacity={0.95}
                 transmission={0.08}
@@ -135,12 +137,12 @@ function DeepPlanet({
             <mesh
               geometry={STAR_STELLATED_GEOMETRY}
               rotation={[0.2, 0.4, 0.08]}
-              scale={isHovered ? [glow * 1.22, glow * 1.22, glow * 1.22] : [glow * 1.05, glow * 1.05, glow * 1.05]}
+              scale={isActive ? [glow * 1.22, glow * 1.22, glow * 1.22] : [glow * 1.05, glow * 1.05, glow * 1.05]}
             >
-              <meshBasicMaterial color={color} transparent opacity={isHovered ? 0.26 : 0.14} blending={2} depthWrite={false} />
+              <meshBasicMaterial color={color} transparent opacity={isActive ? 0.18 : 0.08} blending={2} depthWrite={false} />
             </mesh>
             {/* 중심 광원 */}
-            <mesh scale={[size * 0.26, size * 0.26, size * 0.26]} position={[size * 0.2, size * 0.2, size * 0.18]}>
+            <mesh scale={[size * 0.18, size * 0.18, size * 0.18]} position={[size * 0.2, size * 0.2, size * 0.18]}>
               <sphereGeometry args={[1, 20, 20]} />
               <meshBasicMaterial color="#ffffff" toneMapped={false} />
             </mesh>
@@ -574,7 +576,7 @@ function GalaxyStars() {
 // ==========================================
 
 export function StarScene({
-  dailyPlanets, deepStars, mypageStar, onStarClick, onDeepStarClick, onPlanetClick, onStarSelect, selectedStarId, hoveredStarId, onStarHover, onViewModeChange,
+  dailyPlanets, deepStars, mypageStar, onStarClick, onDeepStarClick, onPlanetClick, onStarSelect, selectedStarId, hoveredStarId, selectedWeekKey, onStarHover, onViewModeChange,
 }: StarSceneProps) {
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [focusRequestNonce, setFocusRequestNonce] = useState(0);
@@ -709,6 +711,9 @@ export function StarScene({
     return hoveredItem ? hoveredItem.weekKey : null;
   }, [hoveredStarId, timelineItems, mypageStar.id]);
 
+  // 클릭된 별 또는 호버된 별의 weekKey 중 하나라도 일치하면 별자리 강조
+  const highlightedWeekKey = hoveredWeekKey || selectedWeekKey || null;
+
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
   const detailedItems = useMemo(() => {
@@ -751,7 +756,7 @@ export function StarScene({
 
           <group position={[0, 0, 0]}>
             <Float speed={1.2} rotationIntensity={0.5} floatIntensity={0.8} floatingRange={[-0.3, 0.3]}>
-              <DeepPlanet onClick={() => { requestFocus(mypageStar.id); onStarClick(); }} color="#facc15" size={2.4} glow={2.6} seed={999} />
+              <DeepPlanet onClick={() => { requestFocus(mypageStar.id); onStarClick(); }} color="#facc15" size={2.4} glow={2.6} seed={999} isSelected={selectedStarId === mypageStar.id} />
             </Float>
           </group>
 
@@ -763,7 +768,7 @@ export function StarScene({
                 key={`constellation-${idx}`}
                 weekKey={weekKey}
                 pts={pts}
-                isHovered={hoveredWeekKey === weekKey}
+                isHovered={highlightedWeekKey === weekKey}
               />
             ))}
           </SpreadScaleGroup>
@@ -796,6 +801,7 @@ export function StarScene({
                   size={item.kind === "deep" ? (viewMode === "macro" ? 1.2 : 0.7) : (viewMode === "macro" ? 0.6 : 0.35)}
                   glow={item.kind === "deep" ? (viewMode === "macro" ? 1.4 : 0.9) : (viewMode === "macro" ? 0.7 : 0.45)}
                   seed={hashSeed(item.id)}
+                  isSelected={selectedStarId === item.id}
                 />
               </SpreadItem>
             );

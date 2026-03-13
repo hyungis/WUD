@@ -10,8 +10,7 @@ import { useUiStore } from "../../store/uiStore";
 
 import { MyUniverseModal } from "./components/modals/MyUniverseModal";
 import { TimelineHUD } from "./components/ui/TimelineHUD";
-import { DeepReportModal } from "./components/modals/DeepReportModal";
-import { DailyReportModal } from "./components/modals/DailyReportModal";
+import { StarSidePanel } from "./components/ui/StarSidePanel";
 
 type HomeStar = {
   id: string;
@@ -30,11 +29,12 @@ type HomeStar = {
 function HomePage() {
   const [isMyUniverseOpen, setIsMyUniverseOpen] = useState(false);
   const [selectedDeepStar, setSelectedDeepStar] = useState<any>(null);
-  const [isDailyReportOpen, setIsDailyReportOpen] = useState(false);
   const [selectedDailyPlanet, setSelectedDailyPlanet] = useState<DailyPlanet | null>(null);
+  const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [selectedStarId, setSelectedStarId] = useState<string | null>(null);
+  const [selectedWeekKey, setSelectedWeekKey] = useState<string | null>(null);
   const [hoveredPlanet, setHoveredPlanet] = useState<{ id: string; x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [isTimelineOpen, setIsTimelineOpen] = useState(true);
@@ -45,10 +45,10 @@ function HomePage() {
   const isTooltipHoverRef = useRef(false);
 
   useEffect(() => {
-    const overlayOpen = isMyUniverseOpen || !!selectedDeepStar || isDailyReportOpen;
+    const overlayOpen = isMyUniverseOpen;
     setOverlayOpen(overlayOpen);
     return () => setOverlayOpen(false);
-  }, [isMyUniverseOpen, selectedDeepStar, isDailyReportOpen, setOverlayOpen]);
+  }, [isMyUniverseOpen, setOverlayOpen]);
 
   const mypageStar = useMemo(() => ({
     id: "center-mypage-star",
@@ -148,6 +148,8 @@ function HomePage() {
   const openDeepReport = async (star: DeepStar & { targetId?: number; aiSummary?: string; questions?: string[] }) => {
     setReportError(null);
     setSelectedDeepStar(star);
+    setSelectedDailyPlanet(null);
+    setIsSidePanelOpen(true);
 
     const sessionId = Number(star.targetId ?? star.id);
     if (Number.isNaN(sessionId) || sessionId <= 0) {
@@ -179,7 +181,8 @@ function HomePage() {
   const openDailyReport = async (planet: DailyPlanet & { targetId?: number; aiSummary?: string }) => {
     setReportError(null);
     setSelectedDailyPlanet(planet);
-    setIsDailyReportOpen(true);
+    setSelectedDeepStar(null);
+    setIsSidePanelOpen(true);
 
     const dailyId = Number(planet.targetId ?? planet.id);
     if (Number.isNaN(dailyId) || dailyId <= 0) {
@@ -225,6 +228,16 @@ function HomePage() {
     }
   }, [selectedStarId, mypageStar]);
 
+  // selectedStarId가 변경될 때 해당 아이템의 weekKey를 찾아 selectedWeekKey 업데이트
+  useEffect(() => {
+    if (!selectedStarId || selectedStarId === mypageStar.id) {
+      setSelectedWeekKey(null);
+      return;
+    }
+    const found = timelineItems.find((i) => i.id === selectedStarId);
+    setSelectedWeekKey(found?.weekKey ?? null);
+  }, [selectedStarId, timelineItems, mypageStar.id]);
+
   const hoveredPlanetMeta = useMemo(() => (hoveredPlanet ? timelineItems.find(i => i.id === hoveredPlanet.id) : null), [hoveredPlanet, timelineItems]);
 
   return (
@@ -233,6 +246,7 @@ function HomePage() {
         dailyPlanets={dailyPlanets} deepStars={deepStars} mypageStar={mypageStar}
         onViewModeChange={setViewMode} onStarSelect={setSelectedStarId}
         hoveredStarId={hoveredPlanet?.id || null}
+        selectedWeekKey={selectedWeekKey}
         onStarClick={() => setIsMyUniverseOpen(true)}
         onDeepStarClick={(star) => void openDeepReport(star as any)}
         onPlanetClick={(p) => void openDailyReport(p as any)}
@@ -271,14 +285,27 @@ function HomePage() {
         dailyPlanets={dailyPlanets}
         mypageStar={mypageStar}
         selectedStarId={selectedStarId}
+        selectedWeekKey={selectedWeekKey}
         onItemClick={(id) => {
           if (id === mypageStar.id) {
             setSelectedStarId(id);
             return;
           }
+          // HUD 별 클릭 → 카메라 포커스 + 상세 리포트 사이드 패널 열기
+          setSelectedStarId(id);
           const item = timelineItems.find((i) => i.id === id);
           if (item) void handleTimelineItemClick(item);
         }}
+      />
+
+      {/* HUD 우측 사이드 패널 (상세 리포트) */}
+      <StarSidePanel
+        isOpen={isSidePanelOpen}
+        onClose={() => setIsSidePanelOpen(false)}
+        reportLoading={reportLoading}
+        reportError={reportError}
+        selectedDeepStar={selectedDeepStar}
+        selectedDailyPlanet={selectedDailyPlanet}
       />
 
       <MyUniverseModal
@@ -288,21 +315,6 @@ function HomePage() {
         dailyPlanets={dailyPlanets}
         deepStars={deepStars}
         onDeepStarClick={(star) => { setIsMyUniverseOpen(false); void openDeepReport(star as any); }}
-      />
-
-      <DeepReportModal
-        selectedDeepStar={selectedDeepStar}
-        setSelectedDeepStar={setSelectedDeepStar}
-        reportLoading={reportLoading}
-        reportError={reportError}
-      />
-
-      <DailyReportModal
-        isOpen={isDailyReportOpen}
-        onClose={() => { setIsDailyReportOpen(false); setSelectedDailyPlanet(null); }}
-        planet={selectedDailyPlanet}
-        reportLoading={reportLoading}
-        reportError={reportError}
       />
     </div>
   );

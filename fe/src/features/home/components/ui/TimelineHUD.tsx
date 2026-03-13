@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { DailyPlanet } from "../../utils/homeHelpers";
 import { formatDate } from "../../utils/homeHelpers";
 
@@ -11,6 +11,7 @@ interface TimelineHUDProps {
   dailyPlanets: DailyPlanet[];
   mypageStar: { id: string; toneColor: string; label: string };
   selectedStarId: string | null;
+  selectedWeekKey?: string | null;
   onItemClick: (id: string) => void;
 }
 
@@ -22,10 +23,18 @@ export function TimelineHUD({
   dailyPlanets,
   mypageStar,
   selectedStarId,
+  selectedWeekKey,
   onItemClick,
 }: TimelineHUDProps) {
   // 🚨 [수정됨] 기본적으로 '열린(expanded)' 그룹을 추적합니다. 초기값 {} 이므로 모두 닫힘.
   const [expandedWeeks, setExpandedWeeks] = useState<Record<string, boolean>>({});
+
+  // 클릭된 별의 weekKey가 변경되면 해당 그룹을 자동으로 펼침
+  useEffect(() => {
+    if (selectedWeekKey) {
+      setExpandedWeeks(prev => ({ ...prev, [selectedWeekKey]: true }));
+    }
+  }, [selectedWeekKey]);
 
   const groupedTimeline = useMemo(() => {
     const groups = new Map<string, { weekKey: string; deep: any; dailies: any[]; maxDate: number }>();
@@ -58,8 +67,8 @@ export function TimelineHUD({
 
   return (
     <div
-      className={`fixed left-6 top-24 z-30 flex flex-col rounded-2xl border border-white/10 bg-slate-950/50 shadow-2xl backdrop-blur-md transition-all duration-700 overflow-hidden w-72 
-        ${isMacro ? "-translate-x-[120%] opacity-0 pointer-events-none" : "translate-x-0 opacity-100 pointer-events-auto"} 
+      className={`fixed right-6 top-24 z-30 flex flex-col rounded-2xl border border-white/10 bg-slate-950/50 shadow-2xl backdrop-blur-md transition-all duration-700 overflow-hidden w-72 
+        ${isMacro ? "translate-x-[120%] opacity-0 pointer-events-none" : "translate-x-0 opacity-100 pointer-events-auto"} 
         ${isTimelineOpen ? "max-h-[calc(100vh-14rem)]" : "max-h-[64px]"}`}
     >
       <div
@@ -109,7 +118,9 @@ export function TimelineHUD({
                         onItemClick(group.deep.id);
                       }
                     }}
-                    className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors hover:bg-white/10 ${selectedStarId === group.deep.id ? "bg-white/15 ring-1 ring-white/20" : ""}`}
+                    className={`flex w-full cursor-pointer items-center justify-between rounded-lg px-2 py-2 text-xs transition-colors hover:bg-white/10
+                      ${selectedStarId === group.deep.id ? "bg-white/15 ring-1 ring-white/20" : ""}
+                      ${selectedWeekKey === group.weekKey && selectedStarId !== group.deep.id ? "ring-1 ring-indigo-400/40 bg-indigo-950/30" : ""}`}
                   >
                     <span className="flex items-center gap-2">
                       <span className="h-2 w-2 flex-shrink-0 rounded-sm rotate-45" style={{ backgroundColor: group.deep.color }} />
