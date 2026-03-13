@@ -31,6 +31,7 @@ export type StarSceneProps = {
   onStarSelect?: (starId: string) => void;
   selectedStarId?: string | null;
   hoveredStarId?: string | null;
+  selectedWeekKey?: string | null;
   onStarHover?: (data: { id: string | null; x?: number; y?: number }) => void;
   onViewModeChange?: (mode: "macro" | "micro") => void;
 };
