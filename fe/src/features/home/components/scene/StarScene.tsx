@@ -615,7 +615,6 @@ export function StarScene({
   const timelinePositions = useMemo(() => {
     const uniqueWeeks = Array.from(new Set(timelineItems.map(item => item.weekKey))).filter(Boolean) as string[];
     const weekCenters = new Map<string, Vector3>();
-    const THICKNESS = 20.0;
 
     uniqueWeeks.forEach((weekKey) => {
       const seed = hashSeed(weekKey);
@@ -623,9 +622,17 @@ export function StarScene({
       const rBias = Math.pow(seededRandom(seed + 1), 1.5);
       const radius = minRadius + rBias * (maxRadius - minRadius);
 
-      const thicknessRatio = Math.exp(-Math.pow((radius - minRadius) / (maxRadius * 0.6), 2));
+      // 🚨 [수정됨] 심층별 Y축: 급격한 지수 함수 대신 부드러운 분수 함수(로렌츠 곡선) 사용
+      const rRatio = radius / maxRadius;
+
+      // rRatio가 커질수록 값이 부드럽게 0으로 수렴합니다. (0.3은 팽창부의 너비 조절값)
+      const smoothFactor = 1 / (1 + Math.pow(rRatio / 0.3, 2.5));
+
+      // 중심부 두께(maxRadius * 0.25)와 외곽 기본 두께(maxRadius * 0.05)가 스무스하게 합쳐짐
+      const currentThickness = (maxRadius * 0.05) + (maxRadius * 0.25 * smoothFactor);
+
       const yNoise = (seededGaussian(seed + 2) - 0.5) * 2.0;
-      const y = yNoise * THICKNESS * thicknessRatio;
+      const y = yNoise * currentThickness;
 
       const x = radius * Math.cos(theta);
       const z = radius * Math.sin(theta);
@@ -640,15 +647,25 @@ export function StarScene({
         return { id: item.id, position: [centerPos.x, centerPos.y, centerPos.z] as [number, number, number] };
       }
 
+      // 데일리 행성 배치
       const seed = hashSeed(item.id);
       const localTheta = seededRandom(seed) * 2 * Math.PI;
       const localPhi = Math.acos(2 * seededRandom(seed + 1) - 1);
-      // 데일리별이 너무 뭉치지 않도록 반지름(r) 분포 범위를 5.0 ~ 15.0으로 확대
-      const localR = 5.0 + seededRandom(seed + 2) * 10.0;
+      const localR = 8.0 + seededRandom(seed + 2) * 12.0;
 
       const dx = localR * Math.sin(localPhi) * Math.cos(localTheta);
-      const dy = localR * Math.cos(localPhi);
       const dz = localR * Math.sin(localPhi) * Math.sin(localTheta);
+
+      // 🚨 [수정됨] 데일리 행성 Y축 퍼짐: 심층별과 동일한 곡률을 따라가도록 일치시킴
+      const centerDistance = Math.sqrt(centerPos.x * centerPos.x + centerPos.z * centerPos.z);
+      const distanceRatio = centerDistance / maxRadius;
+
+      const smoothSquash = 1 / (1 + Math.pow(distanceRatio / 0.35, 2.5));
+
+      // 중심(1.2배)에서 외곽(0.15배)으로 빨간 선처럼 부드럽게 줄어듦
+      const yMultiplier = 0.15 + (smoothSquash * 1.05);
+
+      const dy = localR * Math.cos(localPhi) * yMultiplier;
 
       return { id: item.id, position: [centerPos.x + dx, centerPos.y + dy, centerPos.z + dz] as [number, number, number] };
     });
