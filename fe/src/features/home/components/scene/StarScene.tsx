@@ -56,13 +56,14 @@ function createStellatedPolyhedronGeometry(baseRadius = 1, spikeLength = 0.62) {
 const STAR_STELLATED_GEOMETRY = createStellatedPolyhedronGeometry(1, 0.62);
 
 function DeepPlanet({
-  onClick, onOpen, onHover, color, size = 1, glow = 1.1, seed = 0, variant = "star", isSelected = false,
+  onClick, onOpen, onHover, color, size = 1, glow = 1.1, seed = 0, variant = "star", isSelected = false, freezeMotion = false,
 }: {
   onClick: () => void;
   onOpen?: () => void;
   onHover?: (data: { isHovered: boolean; x?: number; y?: number }) => void;
   color: string; size?: number; glow?: number; seed?: number; variant?: "star" | "planet";
   isSelected?: boolean;
+  freezeMotion?: boolean;
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const isActive = isHovered || isSelected;
@@ -74,9 +75,8 @@ function DeepPlanet({
     onPointerOut: () => { setIsHovered(false); onHover?.({ isHovered: false }); },
   };
 
-  return (
-    <Float speed={1 + seededRandom(seed) * 1.5} rotationIntensity={variant === "star" ? 0.5 : 0.2} floatIntensity={0.5}>
-      <group>
+  const planetBody = (
+    <group>
         {variant === "planet" ? (
           /* ── 데일리 행성: 정팔면체 ── */
           <>
@@ -148,7 +148,16 @@ function DeepPlanet({
             </mesh>
           </>
         )}
-      </group>
+    </group>
+  );
+
+  if (freezeMotion) {
+    return planetBody;
+  }
+
+  return (
+    <Float speed={1 + seededRandom(seed) * 1.5} rotationIntensity={variant === "star" ? 0.5 : 0.2} floatIntensity={0.5}>
+      {planetBody}
     </Float>
   );
 }
@@ -156,11 +165,12 @@ function DeepPlanet({
 /* 진입 시 별들이 중심에서 퍼져나가는 애니메이션 – 위치만 보간 (크기 유지) */
 const SpreadCtx = createContext<MutableRefObject<number>>({ current: 1 });
 
-function SpreadDriver() {
+function SpreadDriver({ freezeMotion = false }: { freezeMotion?: boolean }) {
   const ref = useContext(SpreadCtx);
   const elapsed = useRef(0);
   const done = useRef(false);
   useFrame((_, delta) => {
+    if (freezeMotion) return;
     if (done.current) return;
     elapsed.current += delta;
     const durationSec = 6.0;
@@ -206,7 +216,7 @@ function SpreadScaleGroup({ children }: { children: React.ReactNode }) {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function MacroGalaxy({ timelineItems, positionMap, starTone, hiddenIds }: any) {
+function MacroGalaxy({ timelineItems, positionMap, starTone, hiddenIds, freezeMotion = false }: any) {
   const meshRef = useRef<InstancedMesh>(null);
   const tempObject = useMemo(() => new Object3D(), []);
   const spreadRef = useContext(SpreadCtx);
@@ -236,6 +246,7 @@ function MacroGalaxy({ timelineItems, positionMap, starTone, hiddenIds }: any) {
 
   // 위치는 매 프레임 spread에 따라 보간
   useFrame((state) => {
+    if (freezeMotion) return;
     if (!meshRef.current || !initialized.current) return;
     const p = spreadRef.current;
     // spread가 변하지 않고 이미 완료된 상태면 매트릭스 안 건드림
@@ -265,7 +276,7 @@ function MacroGalaxy({ timelineItems, positionMap, starTone, hiddenIds }: any) {
   );
 }
 
-function GalacticDust({ count = 12500, maxRadius }: { count?: number, maxRadius: number }) {
+function GalacticDust({ count = 12500, maxRadius, freezeMotion = false }: { count?: number, maxRadius: number; freezeMotion?: boolean }) {
   const pointsRef = useRef<Points>(null);
 
   const particleTexture = useMemo(() => {
@@ -329,6 +340,7 @@ function GalacticDust({ count = 12500, maxRadius }: { count?: number, maxRadius:
   const spreadDone = useRef(false);
 
   useFrame((state) => {
+    if (freezeMotion) return;
     if (!pointsRef.current) return;
     const p = spreadRef.current;
     // spread 진행 중일 때만 위치 보간
@@ -369,7 +381,7 @@ function GalacticDust({ count = 12500, maxRadius }: { count?: number, maxRadius:
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function ViewModeTracker({ controlsRef, onModeChange, zoomThreshold, minDistance, maxDistance }: any) {
+function ViewModeTracker({ controlsRef, onModeChange, zoomThreshold, minDistance, maxDistance, forceHideDock }: any) {
   const { camera } = useThree();
   const lastMode = useRef<"macro" | "micro">("micro");
   const setDockHidden = useUiStore((state: any) => state.setDockHidden);
@@ -395,6 +407,10 @@ function ViewModeTracker({ controlsRef, onModeChange, zoomThreshold, minDistance
     const bottomLidEl = document.getElementById("cinematic-lid-bottom");
 
     if (irisEl && topLidEl && bottomLidEl) {
+      if (forceHideDock) {
+        setDockHidden(true);
+        return;
+      }
       // 3. Dock 숨김 처리 (zoom이 350 이상일 때)
       if (dist > 350) {
         setDockHidden(true);
@@ -407,7 +423,7 @@ function ViewModeTracker({ controlsRef, onModeChange, zoomThreshold, minDistance
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio }: any) {
+function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportPanelOpen }: any) {
   const { camera } = useThree();
   const isTransitioningRef = useRef(false);
   const progressRef = useRef(0);
@@ -421,35 +437,58 @@ function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio }: any) 
   useFrame((_, delta) => {
     if (!focusPosition || !controlsRef.current) return;
 
-    const nextTarget = focusPosition.lengthSq() < 0.01
-      ? new Vector3(0, 0, 0)
-      : focusPosition.clone();
     const keyChanged = focusKey !== lastKeyRef.current;
-    const targetChanged = toTargetRef.current.distanceToSquared(nextTarget) > 0.0001;
 
-    if (keyChanged || (!isTransitioningRef.current && targetChanged)) {
+    if (keyChanged) {
       const wasNull = lastKeyRef.current === null;
       lastKeyRef.current = focusKey ?? null;
+
+      const baseTarget = focusPosition.lengthSq() < 0.01
+        ? new Vector3(0, 0, 0)
+        : focusPosition.clone();
 
       // 최초 마운트 시 자동 포커스는 건너뜀 (초기 카메라 위치 유지)
       if (wasNull && isFirstMount.current) {
         isFirstMount.current = false;
-        toTargetRef.current.copy(nextTarget);
+        toTargetRef.current.copy(baseTarget);
         return;
       }
 
       const currentTarget = controlsRef.current.target.clone();
-      let viewDir = camera.position.clone().sub(nextTarget).normalize();
+      let viewDir = camera.position.clone().sub(currentTarget).normalize();
 
-      if (viewDir.lengthSq() < 0.01) {
-        viewDir = camera.position.clone().sub(currentTarget).normalize();
-      }
       if (viewDir.lengthSq() < 0.01) {
         viewDir.set(0.45, 0.28, 1).normalize();
       }
 
-      const desiredDistance = nextTarget.lengthSq() < 0.01 ? 40 * countRatio : Math.max(25, 30 * countRatio);
-      const desiredCam = nextTarget.clone().add(viewDir.multiplyScalar(desiredDistance));
+      let nextTarget = baseTarget.clone();
+      if (reportPanelOpen && baseTarget.lengthSq() > 0.01) {
+        const desiredDistanceForOffset = Math.max(25, 30 * countRatio);
+        const right = new Vector3().crossVectors(new Vector3(0, 1, 0), viewDir).normalize();
+
+        // 화면을 반으로 나눴을 때, 별이 좌측 반의 중심(x=25%)에 오도록 lookAt 타깃을 계산한다.
+        // 목표 NDC x = -0.5 (전체 화면 기준 왼쪽 반 중앙)
+        const targetNdcX = -0.5;
+        const fov = (camera as any).fov ?? 45;
+        const aspect = (camera as any).aspect ?? (window.innerWidth / Math.max(window.innerHeight, 1));
+        const vFovRad = (fov * Math.PI) / 180;
+        const hFovRad = 2 * Math.atan(Math.tan(vFovRad / 2) * aspect);
+        const horizontalOffset = Math.abs(targetNdcX) * Math.tan(hFovRad / 2) * desiredDistanceForOffset;
+
+        // 높이는 별의 원래 높이를 유지하여 좌측 반의 중앙선 근처에 안정적으로 배치한다.
+        nextTarget = new Vector3(baseTarget.x, baseTarget.y, baseTarget.z)
+          .add(right.multiplyScalar(horizontalOffset));
+      }
+
+      const baseDistance = baseTarget.lengthSq() < 0.01 ? 40 * countRatio : Math.max(25, 30 * countRatio);
+      // 리포트가 열리면 선택 별을 살짝 더 가까이 보여주고, 닫히면 원래 거리로 되돌린다.
+      const desiredDistance = reportPanelOpen && baseTarget.lengthSq() > 0.01
+        ? baseDistance * 0.78
+        : baseDistance;
+      const desiredCam = nextTarget
+        .clone()
+        .add(viewDir.multiplyScalar(desiredDistance))
+        .add(new Vector3(0, desiredDistance * (reportPanelOpen ? 0.04 : 0), 0));
 
       fromCamRef.current.copy(camera.position);
       toCamRef.current.copy(desiredCam);
@@ -477,7 +516,7 @@ function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio }: any) 
   return null;
 }
 
-function AnimatedConstellationLine({ weekKey, pts, isHovered }: { weekKey: string; pts: Vector3[]; isHovered: boolean }) {
+function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = false }: { weekKey: string; pts: Vector3[]; isHovered: boolean; freezeMotion?: boolean }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const lineRef = useRef<any>(null);
 
@@ -513,6 +552,7 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered }: { weekKey: strin
 
   useFrame((state, delta) => {
     if (!lineRef.current?.material) return;
+    if (freezeMotion) return;
 
     const safeDelta = Math.min(delta, 0.1);
 
@@ -556,9 +596,10 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered }: { weekKey: strin
   );
 }
 
-function GalaxyStars() {
+function GalaxyStars({ freezeMotion = false }: { freezeMotion?: boolean }) {
   const starsRef = useRef<Group>(null);
   useFrame((state) => {
+    if (freezeMotion) return;
     if (starsRef.current) {
       starsRef.current.rotation.y = state.clock.elapsedTime * 0.0005;
       starsRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.1) * 2.0;
@@ -577,11 +618,13 @@ function GalaxyStars() {
 
 export function StarScene({
   dailyPlanets, deepStars, mypageStar, onStarClick, onDeepStarClick, onPlanetClick, onStarSelect, selectedStarId, hoveredStarId, selectedWeekKey, onStarHover, onViewModeChange,
+  isReportOpen,
 }: StarSceneProps) {
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [focusRequestNonce, setFocusRequestNonce] = useState(0);
   const spreadRef = useRef(0);
   const starTone = useMemo(() => localStorage.getItem("htpToneColor") || "#f8fafc", []);
+  const freezeSceneMotion = Boolean(isReportOpen);
 
   const requestFocus = (id: string) => {
     onStarSelect?.(id);
@@ -728,6 +771,13 @@ export function StarScene({
       .map(d => d.item);
   }, [timelineItems, positionMap, selectedFocus]);
 
+  const focusedItems = useMemo(() => {
+    if (!isReportOpen || !selectedStarId || selectedStarId === mypageStar.id) {
+      return detailedItems;
+    }
+    return detailedItems.filter((item) => item.id === selectedStarId);
+  }, [detailedItems, isReportOpen, selectedStarId, mypageStar.id]);
+
   // const detailedItemIds = useMemo(() => new Set(detailedItems.map(i => i.id)), [detailedItems]);
 
   return (
@@ -742,9 +792,9 @@ export function StarScene({
         </EffectComposer>
 
         <SpreadCtx.Provider value={spreadRef}>
-          <SpreadDriver />
+          <SpreadDriver freezeMotion={freezeSceneMotion} />
 
-          <GalaxyStars />
+          <GalaxyStars freezeMotion={freezeSceneMotion} />
 
           <ViewModeTracker
             controlsRef={controlsRef}
@@ -752,30 +802,50 @@ export function StarScene({
             zoomThreshold={dynamicZoomThreshold}
             minDistance={dynamicMinDistance}
             maxDistance={dynamicMaxDistance}
+            forceHideDock={isReportOpen}
           />
 
           <group position={[0, 0, 0]}>
-            <Float speed={1.2} rotationIntensity={0.5} floatIntensity={0.8} floatingRange={[-0.3, 0.3]}>
-              <DeepPlanet onClick={() => { requestFocus(mypageStar.id); onStarClick(); }} color="#facc15" size={2.4} glow={2.6} seed={999} isSelected={selectedStarId === mypageStar.id} />
-            </Float>
+            {freezeSceneMotion ? (
+              <DeepPlanet
+                onClick={() => { requestFocus(mypageStar.id); onStarClick(); }}
+                color="#facc15"
+                size={2.4}
+                glow={2.6}
+                seed={999}
+                isSelected={selectedStarId === mypageStar.id}
+                freezeMotion
+              />
+            ) : (
+              <Float speed={1.2} rotationIntensity={0.5} floatIntensity={0.8} floatingRange={[-0.3, 0.3]}>
+                <DeepPlanet onClick={() => { requestFocus(mypageStar.id); onStarClick(); }} color="#facc15" size={2.4} glow={2.6} seed={999} isSelected={selectedStarId === mypageStar.id} />
+              </Float>
+            )}
           </group>
 
-          <GalacticDust count={dynamicDustCount} maxRadius={maxRadius} />
+          {!isReportOpen && (
+            <GalacticDust count={dynamicDustCount} maxRadius={maxRadius} freezeMotion={freezeSceneMotion} />
+          )}
 
-          <SpreadScaleGroup>
-            {constellationLines.map(({ weekKey, pts }, idx) => (
-              <AnimatedConstellationLine
-                key={`constellation-${idx}`}
-                weekKey={weekKey}
-                pts={pts}
-                isHovered={highlightedWeekKey === weekKey}
-              />
-            ))}
-          </SpreadScaleGroup>
+          {!isReportOpen && (
+            <SpreadScaleGroup>
+              {constellationLines.map(({ weekKey, pts }, idx) => (
+                <AnimatedConstellationLine
+                  key={`constellation-${idx}`}
+                  weekKey={weekKey}
+                  pts={pts}
+                  isHovered={highlightedWeekKey === weekKey}
+                  freezeMotion={freezeSceneMotion}
+                />
+              ))}
+            </SpreadScaleGroup>
+          )}
 
-          <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={new Set(timelineItems.map((i) => i.id))} />
+          {!isReportOpen && (
+            <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={new Set(timelineItems.map((i) => i.id))} freezeMotion={freezeSceneMotion} />
+          )}
 
-          {detailedItems.map((item) => {
+          {focusedItems.map((item) => {
             const position = positionMap.get(item.id) || [0, 0, 0];
             return (
               <SpreadItem key={item.id} target={position as [number, number, number]}>
@@ -798,10 +868,15 @@ export function StarScene({
                   onHover={(data) => onStarHover?.({ id: data.isHovered ? item.id : null, x: data.x, y: data.y })}
                   color={item.kind === "deep" ? (item.toneColor || starTone) : item.planet.shell}
                   variant={item.kind === "deep" ? "star" : "planet"}
-                  size={item.kind === "deep" ? (viewMode === "macro" ? 1.2 : 0.7) : (viewMode === "macro" ? 0.6 : 0.35)}
-                  glow={item.kind === "deep" ? (viewMode === "macro" ? 1.4 : 0.9) : (viewMode === "macro" ? 0.7 : 0.45)}
+                  size={item.kind === "deep"
+                    ? (isReportOpen ? 1.05 : (viewMode === "macro" ? 1.2 : 0.7))
+                    : (isReportOpen ? 0.52 : (viewMode === "macro" ? 0.6 : 0.35))}
+                  glow={item.kind === "deep"
+                    ? (isReportOpen ? 1.55 : (viewMode === "macro" ? 1.4 : 0.9))
+                    : (isReportOpen ? 0.78 : (viewMode === "macro" ? 0.7 : 0.45))}
                   seed={hashSeed(item.id)}
                   isSelected={selectedStarId === item.id}
+                  freezeMotion={freezeSceneMotion}
                 />
               </SpreadItem>
             );
@@ -810,17 +885,20 @@ export function StarScene({
 
         <CameraFocus
           focusPosition={selectedFocus}
-          focusKey={`${selectedStarId ?? "none"}:${focusRequestNonce}`}
+          focusKey={`${selectedStarId ?? "none"}:${focusRequestNonce}:${isReportOpen ? "report-open" : "report-closed"}`}
           controlsRef={controlsRef}
           countRatio={countRatio}
+          reportPanelOpen={isReportOpen}
         />
 
         <OrbitControls
           ref={controlsRef}
+          enabled={!isReportOpen}
           enablePan={false}
+          enableRotate={!isReportOpen}
           minDistance={dynamicMinDistance}
           maxDistance={dynamicMaxDistance}
-          autoRotate
+          autoRotate={!isReportOpen}
           autoRotateSpeed={0.05}
           zoomSpeed={1}
         />
