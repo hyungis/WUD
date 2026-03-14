@@ -34,6 +34,7 @@ export type StarSceneProps = {
   selectedWeekKey?: string | null;
   onStarHover?: (data: { id: string | null; x?: number; y?: number }) => void;
   onViewModeChange?: (mode: "macro" | "micro") => void;
+  isReportOpen?: boolean;
 };
 
 export const hashSeed = (value: string) => {
