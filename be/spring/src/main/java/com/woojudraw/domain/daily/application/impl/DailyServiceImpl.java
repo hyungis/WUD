@@ -23,6 +23,7 @@ import com.woojudraw.domain.daily.application.DailyService;
 import com.woojudraw.domain.daily.entity.Daily;
 import com.woojudraw.domain.daily.entity.DailyAnalysisStatus;
 import com.woojudraw.domain.daily.entity.DailyResult;
+import com.woojudraw.domain.daily.entity.DailyType;
 import com.woojudraw.domain.daily.entity.Emotion;
 import com.woojudraw.domain.daily.repository.DailyRepository;
 import com.woojudraw.domain.daily.repository.DailyResultRepository;
@@ -51,6 +52,7 @@ public class DailyServiceImpl implements DailyService {
 	@Override
 	public CreateDailyResp createDaily(Long userId, CreateDailyReq request) {
 		validateEntryDate(request.getEntryDate());
+		DailyType dailyType = parseDailyType(request.getDailyType());
 
 		if (dailyRepository.existsByUsersIdAndEntryDateAndDeletedAtIsNull(userId, request.getEntryDate())) {
 			throw new BusinessException(ResponseCode.DAILY_ALREADY_EXISTS);
@@ -61,7 +63,7 @@ public class DailyServiceImpl implements DailyService {
 		Daily saved = dailyRepository.save(
 			Daily.create(
 				userId,
-				request.getDailyType(),
+				dailyType,
 				request.getEntryDate(),
 				request.getContent(),
 				request.getEmotion().getValue(),
@@ -75,6 +77,7 @@ public class DailyServiceImpl implements DailyService {
 			dailyAiService.requestDailyAnalysis(
 				DailyAiAnalyzeReq.builder()
 					.dailyId(saved.getId())
+					.dailyType(saved.getDailyType())
 					.s3ObjectKey(drawingImage.getImageKey())
 					.build()
 			);
@@ -207,6 +210,14 @@ public class DailyServiceImpl implements DailyService {
 	private void validateEntryDate(LocalDate entryDate) {
 		if (entryDate.isAfter(AppTime.todayKst())) {
 			throw new BusinessException(ResponseCode.DAILY_DATE_INVALID, entryDate);
+		}
+	}
+
+	private DailyType parseDailyType(String rawDailyType) {
+		try {
+			return DailyType.from(rawDailyType);
+		} catch (IllegalArgumentException e) {
+			throw new BusinessException(ResponseCode.DAILY_TYPE_INVALID, rawDailyType);
 		}
 	}
 

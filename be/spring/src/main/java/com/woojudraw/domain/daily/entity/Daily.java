@@ -31,8 +31,9 @@ public class Daily {
 	@Column(name = "users_id", nullable = false)
 	private Long usersId;
 
+	@Enumerated(EnumType.STRING)
 	@Column(name = "daily_type", nullable = false, length = 30)
-	private String dailyType;
+	private DailyType dailyType;
 
 	@Column(name = "entry_date", nullable = false)
 	private LocalDate entryDate;
@@ -65,7 +66,7 @@ public class Daily {
 	@Builder
 	private Daily(
 		Long usersId,
-		String dailyType,
+		DailyType dailyType,
 		LocalDate entryDate,
 		String content,
 		Integer emotionValue,
@@ -91,7 +92,7 @@ public class Daily {
 
 	public static Daily create(
 		Long usersId,
-		String dailyType,
+		DailyType dailyType,
 		LocalDate entryDate,
 		String content,
 		Integer emotionValue,

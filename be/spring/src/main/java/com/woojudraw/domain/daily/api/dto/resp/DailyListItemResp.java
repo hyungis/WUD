@@ -3,6 +3,7 @@ package com.woojudraw.domain.daily.api.dto.resp;
 import java.time.LocalDate;
 
 import com.woojudraw.domain.daily.entity.DailyAnalysisStatus;
+import com.woojudraw.domain.daily.entity.DailyType;
 
 import lombok.Builder;
 import lombok.Getter;
@@ -12,7 +13,7 @@ import lombok.Getter;
 public class DailyListItemResp {
 
 	private Long dailyId;
-	private String dailyType;
+	private DailyType dailyType;
 	private LocalDate entryDate;
 	private String emotion;
 	private Integer emotionValue;
