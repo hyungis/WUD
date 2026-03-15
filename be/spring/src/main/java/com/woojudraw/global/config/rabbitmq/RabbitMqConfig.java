@@ -31,6 +31,16 @@ public class RabbitMqConfig {
 	}
 
 	@Bean
+	public Queue dailyAiRequestQueue() {
+		return QueueBuilder.durable(RabbitMqConstants.DAILY_AI_REQUEST_QUEUE).build();
+	}
+
+	@Bean
+	public Queue dailyAiResultQueue() {
+		return QueueBuilder.durable(RabbitMqConstants.DAILY_AI_RESULT_QUEUE).build();
+	}
+
+	@Bean
 	public DirectExchange testExchange() {
 		return ExchangeBuilder
 			.directExchange(RabbitMqConstants.TEST_EXCHANGE)
@@ -42,6 +52,14 @@ public class RabbitMqConfig {
 	public DirectExchange deepAiExchange() {
 		return ExchangeBuilder
 			.directExchange(RabbitMqConstants.DEEP_AI_EXCHANGE)
+			.durable(true)
+			.build();
+	}
+
+	@Bean
+	public DirectExchange dailyAiExchange() {
+		return ExchangeBuilder
+			.directExchange(RabbitMqConstants.DAILY_AI_EXCHANGE)
 			.durable(true)
 			.build();
 	}
@@ -77,6 +95,28 @@ public class RabbitMqConfig {
 			.bind(deepAiResultQueue)
 			.to(deepAiExchange)
 			.with(RabbitMqConstants.DEEP_AI_RESULT_ROUTING_KEY);
+	}
+
+	@Bean
+	public Binding dailyAiRequestBinding(
+		@Qualifier("dailyAiRequestQueue") Queue dailyAiRequestQueue,
+		@Qualifier("dailyAiExchange") DirectExchange dailyAiExchange
+	) {
+		return BindingBuilder
+			.bind(dailyAiRequestQueue)
+			.to(dailyAiExchange)
+			.with(RabbitMqConstants.DAILY_AI_REQUEST_ROUTING_KEY);
+	}
+
+	@Bean
+	public Binding dailyAiResultBinding(
+		@Qualifier("dailyAiResultQueue") Queue dailyAiResultQueue,
+		@Qualifier("dailyAiExchange") DirectExchange dailyAiExchange
+	) {
+		return BindingBuilder
+			.bind(dailyAiResultQueue)
+			.to(dailyAiExchange)
+			.with(RabbitMqConstants.DAILY_AI_RESULT_ROUTING_KEY);
 	}
 
 	@Bean
