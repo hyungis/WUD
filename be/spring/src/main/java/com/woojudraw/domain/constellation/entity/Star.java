@@ -55,4 +55,21 @@ public class Star {
 			.updatedAt(now)
 			.build();
 	}
+
+	public static Star createDailyStar(
+		Long userId,
+		Constellation constellation,
+		Long dailyEntryId,
+		LocalDateTime now
+	) {
+		return Star.builder()
+			.userId(userId)
+			.constellation(constellation)
+			.dailyEntryId(dailyEntryId)
+			.deepSessionId(null)
+			.kind(StarKind.DAILY)
+			.createdAt(now)
+			.updatedAt(now)
+			.build();
+	}
 }

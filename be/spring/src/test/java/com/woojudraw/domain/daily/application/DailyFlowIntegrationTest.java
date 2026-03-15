@@ -26,6 +26,10 @@ import com.woojudraw.domain.daily.api.dto.resp.DailyDetailResp;
 import com.woojudraw.domain.daily.api.dto.resp.DailyListItemResp;
 import com.woojudraw.domain.daily.application.impl.DailyAiResultConsumer;
 import com.woojudraw.domain.daily.entity.DailyAnalysisStatus;
+import com.woojudraw.domain.daily.entity.DailyType;
+import com.woojudraw.domain.constellation.entity.Star;
+import com.woojudraw.domain.constellation.entity.StarKind;
+import com.woojudraw.domain.constellation.repository.StarRepository;
 import com.woojudraw.domain.image.entity.Image;
 import com.woojudraw.domain.image.entity.ImageStatus;
 import com.woojudraw.domain.image.repository.ImageRepository;
@@ -51,6 +55,9 @@ class DailyFlowIntegrationTest {
 	@Autowired
 	private ObjectMapper objectMapper;
 
+	@Autowired
+	private StarRepository starRepository;
+
 	@MockBean
 	private DailyAiService dailyAiService;
 
@@ -68,7 +75,7 @@ class DailyFlowIntegrationTest {
 
 		CreateDailyReq createReq = asDto(
 			Map.of(
-				"dailyType", "FREE",
+				"dailyType", "MANDALA",
 				"entryDate", LocalDate.now(),
 				"content", "today drawing",
 				"emotion", "JOY",
@@ -85,9 +92,11 @@ class DailyFlowIntegrationTest {
 		ArgumentCaptor<DailyAiAnalyzeReq> requestCaptor = ArgumentCaptor.forClass(DailyAiAnalyzeReq.class);
 		verify(dailyAiService, times(1)).requestDailyAnalysis(requestCaptor.capture());
 		assertThat(requestCaptor.getValue().getDailyId()).isEqualTo(dailyId);
+		assertThat(requestCaptor.getValue().getDailyType()).isEqualTo(DailyType.MANDALA);
 		assertThat(requestCaptor.getValue().getS3ObjectKey()).startsWith("photos/users/" + userId + "/");
 
 		DailyDetailResp analyzingResp = dailyService.getDaily(userId, dailyId);
+		assertThat(analyzingResp.getDailyType()).isEqualTo(DailyType.MANDALA);
 		assertThat(analyzingResp.getAnalysisStatus()).isEqualTo(DailyAnalysisStatus.ANALYZING);
 		assertThat(analyzingResp.getAnalysisResult()).isNull();
 		assertThat(analyzingResp.getDrawingImageUrl()).contains("X-Amz-");
@@ -115,8 +124,15 @@ class DailyFlowIntegrationTest {
 		List<DailyListItemResp> listResp = dailyService.getDailies(userId, null, null);
 		assertThat(listResp).hasSize(1);
 		assertThat(listResp.get(0).getDailyId()).isEqualTo(dailyId);
+		assertThat(listResp.get(0).getDailyType()).isEqualTo(DailyType.MANDALA);
 		assertThat(listResp.get(0).getAnalysisStatus()).isEqualTo(DailyAnalysisStatus.DONE);
 		assertThat(listResp.get(0).getResultSummary()).isEqualTo("daily summary");
+
+		List<Star> stars = starRepository.findAllByUserIdWithConstellation(userId);
+		assertThat(stars).hasSize(1);
+		assertThat(stars.get(0).getKind()).isEqualTo(StarKind.DAILY);
+		assertThat(stars.get(0).getDailyEntryId()).isEqualTo(dailyId);
+		assertThat(stars.get(0).getConstellation().getWeekStartDate()).isEqualTo(LocalDate.now().with(java.time.DayOfWeek.MONDAY));
 	}
 
 	private Long createReadyImage(User user, String mimeType, Long byteSize, Integer width, Integer height) {

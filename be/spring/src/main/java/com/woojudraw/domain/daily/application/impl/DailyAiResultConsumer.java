@@ -7,6 +7,7 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.woojudraw.domain.constellation.application.ConstellationService;
 import com.woojudraw.domain.daily.api.dto.resp.DailyAiAnalyzeResp;
 import com.woojudraw.domain.daily.entity.Daily;
 import com.woojudraw.domain.daily.entity.DailyAnalysisStatus;
@@ -27,6 +28,7 @@ public class DailyAiResultConsumer {
 	private final DailyRepository dailyRepository;
 	private final DailyResultRepository dailyResultRepository;
 	private final ObjectMapper objectMapper;
+	private final ConstellationService constellationService;
 
 	@RabbitListener(queues = "${ai.rabbitmq.daily.result-queue:wud.daily.ai.result.queue}")
 	@Transactional
@@ -101,6 +103,7 @@ public class DailyAiResultConsumer {
 			dailyResultRepository.save(dailyResult);
 
 			daily.markAnalysisDone();
+			constellationService.createDailyStarIfNeeded(daily);
 			log.info("Daily AI result applied. dailyId={}, traceId={}", dailyId, traceId);
 		} catch (Exception e) {
 			daily.markAnalysisFailed();
