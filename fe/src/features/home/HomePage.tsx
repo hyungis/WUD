@@ -45,7 +45,6 @@ function HomePage() {
   const [isTimelineOpen, setIsTimelineOpen] = useState(true);
   const setDockHidden = useUiStore((state) => state.setDockHidden);
   const setOverlayOpen = useUiStore((state) => state.setOverlayOpen);
-  const setDockHidden = useUiStore((state) => state.setDockHidden);
   const isDailyContentModalOpen = useUiStore((state) => state.isDailyContentModalOpen);
   const setDailyContentModalOpen = useUiStore((state) => state.setDailyContentModalOpen);
   const isDailyDetailModalOpen = useUiStore((state) => state.isDailyDetailModalOpen);

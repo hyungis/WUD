@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.woojudraw.domain.deep.api.dto.req.CreateDeepSessionReq;
+import com.woojudraw.domain.deep.api.dto.req.SubmitDeepSubmissionsReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitHtpReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitSpaneReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitWho5Req;
@@ -18,7 +19,7 @@ import com.woojudraw.domain.deep.api.dto.resp.CreateDeepSessionResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepResultResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSessionListItemResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSessionStatusResp;
-import com.woojudraw.domain.deep.api.dto.resp.SubmitHtpResp;
+import com.woojudraw.domain.deep.api.dto.resp.SubmitDeepSubmissionResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitSpaneResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitWho5Resp;
 import com.woojudraw.domain.deep.application.DeepSessionService;
@@ -76,12 +77,23 @@ public class DeepSessionController {
 
 	@PostMapping("/{sessionId}/submissions/htp")
 	@Operation(security = @SecurityRequirement(name = "bearerAuth"))
-	public ApiResponse<SubmitHtpResp> submitHtp(
+	public ApiResponse<SubmitDeepSubmissionResp> submitHtp(
 			Authentication authentication,
 			@PathVariable Long sessionId,
 			@Valid @RequestBody SubmitHtpReq request) {
 		Long userId = resolveMemberId(authentication);
-		SubmitHtpResp response = deepSessionService.submitHtp(userId, sessionId, request);
+		SubmitDeepSubmissionResp response = deepSessionService.submitHtp(userId, sessionId, request);
+		return ApiResponse.ok(response);
+	}
+
+	@PostMapping("/{sessionId}/submissions")
+	@Operation(summary = "심층 검사 개별 이미지 제출", security = @SecurityRequirement(name = "bearerAuth"))
+	public ApiResponse<SubmitDeepSubmissionResp> submitDeepSubmissions(
+		Authentication authentication,
+		@PathVariable Long sessionId,
+		@Valid @RequestBody SubmitDeepSubmissionsReq request) {
+		Long userId = resolveMemberId(authentication);
+		SubmitDeepSubmissionResp response = deepSessionService.submitDeepSubmissions(userId, sessionId, request);
 		return ApiResponse.ok(response);
 	}
 

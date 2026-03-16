@@ -7,7 +7,7 @@ import lombok.Getter;
 
 @Getter
 @Builder
-public class SubmitHtpResp {
+public class SubmitDeepSubmissionResp {
 
 	private Long sessionId;
 	private DeepStatus status;

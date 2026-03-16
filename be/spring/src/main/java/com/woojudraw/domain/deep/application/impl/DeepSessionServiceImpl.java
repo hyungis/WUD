@@ -2,8 +2,8 @@ package com.woojudraw.domain.deep.application.impl;
 
 import static java.util.stream.Collectors.*;
 
-import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +16,7 @@ import com.woojudraw.domain.deep.api.dto.req.AiAnalyzeReq;
 import com.woojudraw.domain.deep.api.dto.req.CreateDeepSessionReq;
 import com.woojudraw.domain.deep.api.dto.req.HtpImagesAnalyzeReq;
 import com.woojudraw.domain.deep.api.dto.req.SpaneAnalyzeReq;
+import com.woojudraw.domain.deep.api.dto.req.SubmitDeepSubmissionsReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitHtpReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitSpaneReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitWho5Req;
@@ -27,7 +28,7 @@ import com.woojudraw.domain.deep.api.dto.resp.DeepResultResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSessionListItemResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSessionStatusResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSubmissionItemResp;
-import com.woojudraw.domain.deep.api.dto.resp.SubmitHtpResp;
+import com.woojudraw.domain.deep.api.dto.resp.SubmitDeepSubmissionResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitSpaneResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitWho5Resp;
 import com.woojudraw.domain.deep.application.DeepAiService;
@@ -138,7 +139,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 	}
 
 	@Override
-	public SubmitHtpResp submitHtp(Long userId, Long sessionId, SubmitHtpReq request) {
+	public SubmitDeepSubmissionResp submitHtp(Long userId, Long sessionId, SubmitHtpReq request) {
 		DeepSession deepSession = deepSessionRepository.findById(sessionId)
 				.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
 
@@ -177,6 +178,11 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		deepSession.markSubmitted();
 		deepSession.changeStatus(DeepStatus.ANALYZING);
 
+		Map<String, String> imageMap = new HashMap<>(); // import java.util.Map, java.util.HashMap;
+		imageMap.put("houseImageKey", houseImage.getImageKey());
+		imageMap.put("treeImageKey", treeImage.getImageKey());
+		imageMap.put("personImageKey", personImage.getImageKey());
+
 		try {
 			AiAnalyzeReq aiRequest = AiAnalyzeReq.builder()
 					.sessionId(sessionId)
@@ -193,12 +199,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 							.scoreBalance(spaneAssessment.getScoreBalance())
 							.raw(convertSpaneRaw(spaneAssessment)) // 아래 유틸 메서드 필요
 							.build())
-					.images(
-							HtpImagesAnalyzeReq.builder()
-									.houseImageKey(houseImage.getImageKey())
-									.treeImageKey(treeImage.getImageKey())
-									.personImageKey(personImage.getImageKey())
-									.build())
+					.images(imageMap)
 					.build();
 
 			// 비동기 전송만 수행하고 즉시 반환한다.
@@ -213,10 +214,74 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 			throw new BusinessException(ResponseCode.AI_ANALYSIS_FAILED);
 		}
 
-		return SubmitHtpResp.builder()
+		return SubmitDeepSubmissionResp.builder()
 				.sessionId(deepSession.getId())
 				.status(deepSession.getStatus())
 				.build();
+	}
+
+	@Override
+	public SubmitDeepSubmissionResp submitDeepSubmissions(Long userId, Long sessionId,
+		SubmitDeepSubmissionsReq request) {
+		DeepSession deepSession = deepSessionRepository.findById(sessionId)
+			.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
+
+		if (!deepSession.getUserId().equals(userId)) {
+			throw new BusinessException(ResponseCode.DEEP_SESSION_ACCESS_DENIED);
+		}
+		validateSubmittableSession(deepSession);
+
+		Image image = getOwnedImageOrThrow(request.getImageId(), userId);
+		validateImagesAreReady(image);
+
+		DeepPsychAssessment who5Assessment = deepPsychAssessmentRepository
+			.findByDeepSessionIdAndTestCode(sessionId, PsychTestCode.WHO5)
+			.orElseThrow(() -> new BusinessException(ResponseCode.WHO5_NOT_FOUND));
+		DeepPsychAssessment spaneAssessment = deepPsychAssessmentRepository
+			.findByDeepSessionIdAndTestCode(sessionId, PsychTestCode.SPANE)
+			.orElseThrow(() -> new BusinessException(ResponseCode.SPANE_NOT_FOUND));
+
+		deepSubmissionRepository.save(
+			DeepSubmission.create(sessionId, request.getImageId(), request.getType()));
+		deepSession.markSubmitted();
+		deepSession.changeStatus(DeepStatus.ANALYZING);
+
+		Map<String, String> imageMap = new HashMap<>();
+		String key = (request.getType() == SubmissionType.RAIN_PERSON)
+			? "rainPersonImageKey" : "starWaveImageKey";
+		imageMap.put(key, image.getImageKey());
+
+		try {
+			AiAnalyzeReq aiRequest = AiAnalyzeReq.builder()
+				.sessionId(sessionId)
+				.deepType(deepSession.getDeepType().name())
+				.who5(
+					Who5AnalyzeReq.builder()
+						.scoreTotal(who5Assessment.getScoreTotal())
+						.raw(convertWho5Raw(who5Assessment))
+						.build())
+				.spane(
+					SpaneAnalyzeReq.builder()
+						.scorePositive(spaneAssessment.getScorePositive())
+						.scoreNegative(spaneAssessment.getScoreNegative())
+						.scoreBalance(spaneAssessment.getScoreBalance())
+						.raw(convertSpaneRaw(spaneAssessment))
+						.build())
+				.images(imageMap) // 위에서 구성한 범용 Map 주입
+				.build();
+			deepAiService.requestHtpAnalysis(aiRequest);
+		} catch (BusinessException e) {
+			deepSession.changeStatus(DeepStatus.FAILED);
+			throw e;
+		} catch (Exception e) {
+			deepSession.changeStatus(DeepStatus.FAILED);
+			throw new BusinessException(ResponseCode.AI_ANALYSIS_FAILED);
+		}
+
+		return SubmitDeepSubmissionResp.builder()
+			.sessionId(sessionId)
+			.status(deepSession.getStatus())
+			.build();
 	}
 
 	@Override
@@ -475,6 +540,21 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		if(invalid){
 			throw new BusinessException(ResponseCode.SPANE_INVALID_ANSWER);
 		}
+	}
+
+	private String convertTypeToKey(SubmissionType type) {
+		String name = type.name().toLowerCase();
+		StringBuilder sb = new StringBuilder();
+		boolean nextUpper = false;
+		for (char c : name.toCharArray()) {
+			if (c == '_') {
+				nextUpper = true;
+			} else {
+				sb.append(nextUpper ? Character.toUpperCase(c) : c);
+				nextUpper = false;
+			}
+		}
+		return sb.toString() + "ImageKey";
 	}
 
 }

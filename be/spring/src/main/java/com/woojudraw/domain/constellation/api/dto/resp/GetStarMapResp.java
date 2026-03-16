@@ -15,7 +15,7 @@ public class GetStarMapResp {
 
 	@Getter
 	@Builder
-	public static class StarItem{
+	public static class StarItem {
 		private Long starId;
 		private String kind;
 		private String color;
