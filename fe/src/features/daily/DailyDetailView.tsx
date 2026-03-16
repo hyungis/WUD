@@ -310,9 +310,16 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-100/75">
               Daily Detail
             </p>
-            <h1 className="mt-2 text-2xl font-semibold text-slate-50 [font-family:'Manrope',sans-serif] sm:text-3xl">
-              만다라 디테일
-            </h1>
+            <div className="flex items-center gap-2">
+              <h1 className="mt-2 text-2xl font-semibold text-slate-50 [font-family:'Manrope',sans-serif] sm:text-3xl">
+                만다라 디테일
+              </h1>
+              <div 
+                className="mt-2 h-3 w-3 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.3)]"
+                style={{ backgroundColor: shellColor }}
+                title="오늘의 감정 색상"
+              />
+            </div>
             <p className="mt-1 text-sm text-slate-300/90">오늘의 감정을 채워보세요.</p>
           </div>
           <div className="flex items-center gap-3">

@@ -1,6 +1,18 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../../../components/shared/Button";
 import { useUiStore } from "../../../store/uiStore";
+
+const EMOTIONS = [
+  { label: "기쁨", color: "#FFD54F", value: 5 },
+  { label: "평온", color: "#4FC3F7", value: 4 },
+  { label: "설렘", color: "#FF6FAE", value: 5 },
+  { label: "만족", color: "#66BB6A", value: 4 },
+  { label: "슬픔", color: "#5C6BC0", value: 2 },
+  { label: "불안", color: "#9575CD", value: 2 },
+  { label: "분노", color: "#EF5350", value: 1 },
+  { label: "지침", color: "#90A4AE", value: 2 },
+];
 
 const DAILY_FEATURES = [
   {
@@ -30,11 +42,20 @@ type DailyContentSelectorProps = {
 
 function DailyContentInner({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
+  const [step, setStep] = useState(0); // 0: 감정 선택, 1: 컨텐츠 선택
+  const [selectedEmotion, setSelectedEmotion] = useState<{ label: string; color: string; value: number } | null>(null);
+
   const isDailyContentModalOpen = useUiStore((state) => state.isDailyContentModalOpen);
   const setDailyContentModalOpen = useUiStore((state) => state.setDailyContentModalOpen);
   const setDailyDetailModalOpen = useUiStore((state) => state.setDailyDetailModalOpen);
 
   const handleOpenDailyDetail = () => {
+    if (selectedEmotion) {
+      localStorage.setItem("dailyMoodColor", selectedEmotion.color);
+      localStorage.setItem("dailyMoodValue", String(selectedEmotion.value));
+      localStorage.setItem("dailyMoodLabel", selectedEmotion.label);
+    }
+
     if (isDailyContentModalOpen) {
       setDailyContentModalOpen(false);
       setDailyDetailModalOpen(true);
@@ -42,6 +63,11 @@ function DailyContentInner({ onClose }: { onClose: () => void }) {
     }
 
     navigate("/daily/detail");
+  };
+
+  const handleSelectEmotion = (emotion: typeof EMOTIONS[0]) => {
+    setSelectedEmotion(emotion);
+    setStep(1);
   };
 
   return (
@@ -63,49 +89,99 @@ function DailyContentInner({ onClose }: { onClose: () => void }) {
               X
             </button>
           </div>
-          <div className="mt-2 flex flex-col items-center gap-3">
-            <h1 className="text-3xl font-semibold text-slate-50 [font-family:'Manrope',sans-serif] sm:text-4xl">
-              오늘의 콘텐츠를 선택해요
-            </h1>
-          </div>
-          <p className="max-w-2xl text-sm text-slate-300/90">
-            1차 MVP는 만다라 그리기만 제공됩니다.
-          </p>
-        </div>
 
-        <section className="relative z-10 mt-8 mb-2 grid w-full gap-6 sm:grid-cols-3">
-          {DAILY_FEATURES.map((task) => (
-            <button
-              key={task.id}
-              disabled={!task.enabled}
-              onClick={() => {
-                if (!task.enabled) return;
-                if (task.id === "mandala") {
-                  handleOpenDailyDetail();
-                  return;
-                }
+          {step === 0 ? (
+            <>
+              <div className="mt-2 flex flex-col items-center gap-3">
+                <h1 className="text-3xl font-semibold text-slate-50 [font-family:'Manrope',sans-serif] sm:text-4xl">
+                  오늘의 감정은 어떤가요?
+                </h1>
+                <p className="max-w-2xl text-sm text-slate-300/90">
+                  지금 느끼는 감정을 가장 잘 나타내는 색을 선택해주세요.
+                </p>
+              </div>
 
-                navigate(`/daily/${task.id}`);
-              }}
-              className={`group flex min-h-[146px] flex-col items-start rounded-2xl border px-6 py-7 text-left transition-all duration-200 focus:outline-none ${task.enabled
-                ? "border-cyan-100/15 bg-slate-900/55 shadow-[0_18px_40px_rgba(2,6,23,0.3)] backdrop-blur-md hover:-translate-y-0.5 hover:border-cyan-300/45"
-                : "cursor-not-allowed border-white/10 bg-white/5 text-slate-500 opacity-60"
-                }`}
-            >
-              <span className="mb-2 text-base font-bold text-slate-100 transition-colors duration-100 group-hover:text-cyan-100">{task.title}</span>
-              <span className="text-xs text-slate-300 transition-colors duration-100 group-hover:text-cyan-50">{task.description}</span>
-            </button>
-          ))}
-        </section>
+              <div className="mt-8 grid w-full grid-cols-2 gap-4 sm:grid-cols-4">
+                {EMOTIONS.map((emotion) => (
+                  <button
+                    key={emotion.label}
+                    onClick={() => handleSelectEmotion(emotion)}
+                    className="group relative flex flex-col items-center gap-3 rounded-2xl border border-white/5 bg-slate-900/40 p-5 transition-all hover:bg-slate-900/60 hover:shadow-[0_0_20px_rgba(255,255,255,0.05)]"
+                  >
+                    <div
+                      className="h-12 w-12 rounded-full shadow-[0_0_15px_rgba(0,0,0,0.3)] transition-transform group-hover:scale-110"
+                      style={{ backgroundColor: emotion.color }}
+                    />
+                    <span className="text-sm font-medium text-slate-200">{emotion.label}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mt-2 flex flex-col items-center gap-6">
+                <div className="relative flex items-center justify-center">
+                  {/* 빈 별 시각화 */}
+                  <svg width="80" height="80" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+                      stroke={selectedEmotion?.color}
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
+                    />
+                  </svg>
+                  <div 
+                    className="absolute inset-0 rounded-full blur-2xl opacity-20"
+                    style={{ backgroundColor: selectedEmotion?.color }}
+                  />
+                </div>
+                
+                <h1 className="text-3xl font-semibold text-slate-50 [font-family:'Manrope',sans-serif] sm:text-4xl">
+                  무엇으로 채워볼까요?
+                </h1>
+                <p className="max-w-2xl text-sm text-slate-300/90">
+                  선택한 감정을 담아 별을 채울 활동을 선택하세요.
+                </p>
+              </div>
 
-        <div className="relative z-10 mt-4 flex items-center justify-center gap-3">
-          <Button
-            type="button"
-            onClick={handleOpenDailyDetail}
-            className="liquid-btn liquid-btn--daily min-w-[180px] px-8 py-3 text-lg"
-          >
-            시작하기
-          </Button>
+              <section className="relative z-10 mt-8 mb-2 grid w-full gap-6 sm:grid-cols-3">
+                {DAILY_FEATURES.map((task) => (
+                  <button
+                    key={task.id}
+                    disabled={!task.enabled}
+                    onClick={() => {
+                      if (!task.enabled) return;
+                      if (task.id === "mandala") {
+                        handleOpenDailyDetail();
+                        return;
+                      }
+                      navigate(`/daily/${task.id}`);
+                    }}
+                    className={`group flex min-h-[146px] flex-col items-start rounded-2xl border px-6 py-7 text-left transition-all duration-200 focus:outline-none ${task.enabled
+                      ? "border-cyan-100/15 bg-slate-900/55 shadow-[0_18px_40px_rgba(2,6,23,0.3)] backdrop-blur-md hover:-translate-y-0.5 hover:border-cyan-300/45"
+                      : "cursor-not-allowed border-white/10 bg-white/5 text-slate-500 opacity-60"
+                      }`}
+                  >
+                    <span className="mb-2 text-base font-bold text-slate-100 transition-colors duration-100 group-hover:text-cyan-100">{task.title}</span>
+                    <span className="text-xs text-slate-300 transition-colors duration-100 group-hover:text-cyan-50">{task.description}</span>
+                  </button>
+                ))}
+              </section>
+
+              <div className="mt-8 flex gap-3">
+                <Button variant="secondary" onClick={() => setStep(0)}>감정 다시 선택</Button>
+                <Button
+                  type="button"
+                  onClick={handleOpenDailyDetail}
+                  className="liquid-btn liquid-btn--daily min-w-[150px] px-8 py-3"
+                >
+                  시작하기
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
