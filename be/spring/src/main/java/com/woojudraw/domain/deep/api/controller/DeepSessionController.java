@@ -12,12 +12,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.woojudraw.domain.deep.api.dto.req.CreateDeepSessionReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitHtpReq;
+import com.woojudraw.domain.deep.api.dto.req.SubmitSpaneReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitWho5Req;
 import com.woojudraw.domain.deep.api.dto.resp.CreateDeepSessionResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepResultResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSessionListItemResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSessionStatusResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitHtpResp;
+import com.woojudraw.domain.deep.api.dto.resp.SubmitSpaneResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitWho5Resp;
 import com.woojudraw.domain.deep.application.DeepSessionService;
 import com.woojudraw.global.exception.BusinessException;
@@ -57,6 +59,18 @@ public class DeepSessionController {
 			@Valid @RequestBody SubmitWho5Req request) {
 		Long userId = resolveMemberId(authentication);
 		SubmitWho5Resp response = deepSessionService.submitWho5(userId, sessionId, request);
+		return ApiResponse.ok(response);
+	}
+
+	@PostMapping("/{sessionId}/psych-assessments/spane")
+	@Operation(security = @SecurityRequirement(name = "bearerAuth"))
+	public ApiResponse<SubmitSpaneResp> submitSpane(
+		Authentication authentication,
+		@PathVariable Long sessionId,
+		@Valid @RequestBody SubmitSpaneReq request
+	){
+		Long userId = resolveMemberId(authentication);
+		SubmitSpaneResp response = deepSessionService.submitSpane(userId, sessionId, request);
 		return ApiResponse.ok(response);
 	}
 
