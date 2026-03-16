@@ -97,6 +97,7 @@ public class ConstellationServiceImpl implements ConstellationService {
 			daily.getUsersId(),
 			constellation,
 			daily.getId(),
+			daily.getEmotionColor(),
 			AppTime.nowUtc()
 		);
 
@@ -182,6 +183,7 @@ public class ConstellationServiceImpl implements ConstellationService {
 		return GetStarMapResp.StarItem.builder()
 			.starId(star.getId())
 			.kind(star.getKind().name())
+			.color(star.getColor())
 			.targetId(targetId)
 			.constellationId(star.getConstellation().getId())
 			.weekStartDate(star.getConstellation().getWeekStartDate())

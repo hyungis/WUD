@@ -79,6 +79,9 @@ public class DailyServiceImpl implements DailyService {
 					.dailyId(saved.getId())
 					.dailyType(saved.getDailyType())
 					.s3ObjectKey(drawingImage.getImageKey())
+					.emotion(request.getEmotion().getLabel())
+					.emotionColor(request.getEmotion().getColor())
+					.content(saved.getContent())
 					.build()
 			);
 		} catch (BusinessException e) {
@@ -120,7 +123,7 @@ public class DailyServiceImpl implements DailyService {
 					.dailyId(daily.getId())
 					.dailyType(daily.getDailyType())
 					.entryDate(daily.getEntryDate())
-					.emotion(Emotion.labelOf(daily.getEmotionValue()))
+					.emotion(Emotion.labelOf(daily.getEmotionValue(), daily.getEmotionColor()))
 					.emotionValue(daily.getEmotionValue())
 					.emotionColor(daily.getEmotionColor())
 					.drawingImageId(daily.getDrawingImageId())
@@ -153,7 +156,7 @@ public class DailyServiceImpl implements DailyService {
 			.dailyType(daily.getDailyType())
 			.entryDate(daily.getEntryDate())
 			.content(daily.getContent())
-			.emotion(Emotion.labelOf(daily.getEmotionValue()))
+			.emotion(Emotion.labelOf(daily.getEmotionValue(), daily.getEmotionColor()))
 			.emotionValue(daily.getEmotionValue())
 			.emotionColor(daily.getEmotionColor())
 			.drawingImageId(daily.getDrawingImageId())

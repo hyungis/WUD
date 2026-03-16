@@ -16,4 +16,7 @@ public class DailyAiAnalyzeReq {
 	private Long dailyId;
 	private DailyType dailyType;
 	private String s3ObjectKey;
+	private String emotion;
+	private String emotionColor;
+	private String content;
 }

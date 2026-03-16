@@ -38,7 +38,7 @@ public class Daily {
 	@Column(name = "entry_date", nullable = false)
 	private LocalDate entryDate;
 
-	@Column(name = "content", nullable = false, columnDefinition = "text")
+	@Column(name = "content", columnDefinition = "text")
 	private String content;
 
 	@Column(name = "emotion_value", nullable = false)
@@ -80,7 +80,7 @@ public class Daily {
 		this.usersId = usersId;
 		this.dailyType = dailyType;
 		this.entryDate = entryDate;
-		this.content = content;
+		this.content = normalizeContent(content);
 		this.emotionValue = emotionValue;
 		this.emotionColor = emotionColor;
 		this.drawingImageId = drawingImageId;
@@ -127,7 +127,7 @@ public class Daily {
 	}
 
 	public void updateContentAndEmotion(String content, Emotion emotion) {
-		this.content = content;
+		this.content = normalizeContent(content);
 		this.emotionValue = emotion.getValue();
 		this.emotionColor = emotion.getColor();
 		this.updatedAt = AppTime.nowKst();
@@ -154,5 +154,14 @@ public class Daily {
 	private void changeAnalysisStatus(DailyAnalysisStatus status) {
 		this.analysisStatus = status;
 		this.updatedAt = AppTime.nowKst();
+	}
+
+	private static String normalizeContent(String content) {
+		if (content == null) {
+			return null;
+		}
+
+		String normalized = content.trim();
+		return normalized.isEmpty() ? null : normalized;
 	}
 }

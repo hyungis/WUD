@@ -1,5 +1,5 @@
 package com.woojudraw.domain.constellation.entity;
-import java.math.BigDecimal;
+
 import java.time.LocalDateTime;
 
 import jakarta.persistence.*;
@@ -33,6 +33,9 @@ public class Star {
 	@Column(name = "kind", nullable = false, length = 20)
 	private StarKind kind;
 
+	@Column(name = "color", length = 20)
+	private String color;
+
 	@Column(name = "created_at", nullable = false)
 	private LocalDateTime createdAt;
 
@@ -51,6 +54,7 @@ public class Star {
 			.deepSessionId(deepSessionId)
 			.dailyEntryId(null)
 			.kind(StarKind.DEEP)
+			.color(null)
 			.createdAt(now)
 			.updatedAt(now)
 			.build();
@@ -60,6 +64,7 @@ public class Star {
 		Long userId,
 		Constellation constellation,
 		Long dailyEntryId,
+		String color,
 		LocalDateTime now
 	) {
 		return Star.builder()
@@ -68,6 +73,7 @@ public class Star {
 			.dailyEntryId(dailyEntryId)
 			.deepSessionId(null)
 			.kind(StarKind.DAILY)
+			.color(color)
 			.createdAt(now)
 			.updatedAt(now)
 			.build();

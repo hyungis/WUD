@@ -26,7 +26,6 @@ public class CreateDailyReq {
 	@JsonFormat(pattern = "yyyy-MM-dd")
 	private LocalDate entryDate;
 
-	@NotBlank
 	@Size(max = 2000)
 	private String content;
 

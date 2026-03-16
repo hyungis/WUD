@@ -38,6 +38,7 @@ class ConstellationServiceImplTest {
 			.constellation(constellation)
 			.deepSessionId(99L)
 			.kind(StarKind.DEEP)
+			.color("#4FC3F7")
 			.createdAt(LocalDateTime.of(2026, 3, 12, 0, 15, 30))
 			.updatedAt(LocalDateTime.of(2026, 3, 12, 0, 15, 30))
 			.build();
@@ -47,6 +48,7 @@ class ConstellationServiceImplTest {
 		GetStarMapResp response = service.getStarMap(1L);
 
 		assertThat(response.getStars()).hasSize(1);
+		assertThat(response.getStars().get(0).getColor()).isEqualTo("#4FC3F7");
 		assertThat(response.getStars().get(0).getCreatedAt().toString()).isEqualTo("2026-03-12T09:15:30+09:00");
 	}
 }

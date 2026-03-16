@@ -5,6 +5,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -94,6 +95,9 @@ class DailyFlowIntegrationTest {
 		assertThat(requestCaptor.getValue().getDailyId()).isEqualTo(dailyId);
 		assertThat(requestCaptor.getValue().getDailyType()).isEqualTo(DailyType.MANDALA);
 		assertThat(requestCaptor.getValue().getS3ObjectKey()).startsWith("photos/users/" + userId + "/");
+		assertThat(requestCaptor.getValue().getEmotion()).isEqualTo("기쁨");
+		assertThat(requestCaptor.getValue().getEmotionColor()).isEqualTo("#FFD54F");
+		assertThat(requestCaptor.getValue().getContent()).isEqualTo("today drawing");
 
 		DailyDetailResp analyzingResp = dailyService.getDaily(userId, dailyId);
 		assertThat(analyzingResp.getDailyType()).isEqualTo(DailyType.MANDALA);
@@ -132,7 +136,44 @@ class DailyFlowIntegrationTest {
 		assertThat(stars).hasSize(1);
 		assertThat(stars.get(0).getKind()).isEqualTo(StarKind.DAILY);
 		assertThat(stars.get(0).getDailyEntryId()).isEqualTo(dailyId);
+		assertThat(stars.get(0).getColor()).isEqualTo("#FFD54F");
 		assertThat(stars.get(0).getConstellation().getWeekStartDate()).isEqualTo(LocalDate.now().with(java.time.DayOfWeek.MONDAY));
+	}
+
+	@Test
+	void createDaily_allowsMissingJournalContent() {
+		User user = userRepository.save(
+			User.builder()
+				.email("daily-optional-" + UUID.randomUUID().toString().substring(0, 8) + "@test.com")
+				.password("encoded-password")
+				.nickname("dailyOptionalTester")
+				.build()
+		);
+		Long userId = user.getId();
+		Long drawingImageId = createReadyImage(user, "image/png", 12_000L, 800, 800);
+
+		Map<String, Object> source = new HashMap<>();
+		source.put("dailyType", "FREE");
+		source.put("entryDate", LocalDate.now());
+		source.put("content", null);
+		source.put("emotion", "CALM");
+		source.put("drawingImageId", drawingImageId);
+
+		CreateDailyReq createReq = asDto(source, CreateDailyReq.class);
+
+		CreateDailyResp createResp = dailyService.createDaily(userId, createReq);
+
+		ArgumentCaptor<DailyAiAnalyzeReq> requestCaptor = ArgumentCaptor.forClass(DailyAiAnalyzeReq.class);
+		verify(dailyAiService, times(1)).requestDailyAnalysis(requestCaptor.capture());
+
+		DailyDetailResp dailyResp = dailyService.getDaily(userId, createResp.getDailyId());
+
+		assertThat(requestCaptor.getValue().getEmotion()).isEqualTo("평온");
+		assertThat(requestCaptor.getValue().getEmotionColor()).isEqualTo("#4FC3F7");
+		assertThat(requestCaptor.getValue().getContent()).isNull();
+		assertThat(dailyResp.getContent()).isNull();
+		assertThat(dailyResp.getEmotion()).isEqualTo("평온");
+		assertThat(dailyResp.getEmotionColor()).isEqualTo("#4FC3F7");
 	}
 
 	private Long createReadyImage(User user, String mimeType, Long byteSize, Integer width, Integer height) {
