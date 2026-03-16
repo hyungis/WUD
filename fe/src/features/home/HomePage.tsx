@@ -44,6 +44,7 @@ function HomePage() {
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [isTimelineOpen, setIsTimelineOpen] = useState(true);
   const setOverlayOpen = useUiStore((state) => state.setOverlayOpen);
+  const setDockHidden = useUiStore((state) => state.setDockHidden);
   const isDailyContentModalOpen = useUiStore((state) => state.isDailyContentModalOpen);
   const setDailyContentModalOpen = useUiStore((state) => state.setDailyContentModalOpen);
   const isDailyDetailModalOpen = useUiStore((state) => state.isDailyDetailModalOpen);
