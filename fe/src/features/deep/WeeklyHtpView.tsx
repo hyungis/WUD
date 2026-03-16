@@ -159,13 +159,13 @@ const STEPS: StepConfig[] = [
   },
 ];
 
-type HTPPageProps = {
+type WeeklyHtpViewProps = {
   isModal?: boolean;
   onClose?: () => void;
-  onBackToDeepContent?: () => void;
+  onBackToWeeklyContent?: () => void;
 };
 
-function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps) {
+function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent }: WeeklyHtpViewProps) {
   const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = useRef(false);
@@ -492,7 +492,7 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
       }
     } catch (error) {
       console.error("deep submit failed", error);
-      setSaveError("심층 API 저장에 실패해 로컬 저장 결과로 이동합니다.");
+      setSaveError("위클리 API 저장에 실패해 로컬 저장 결과로 이동합니다.");
     }
     setIsSaving(false);
     window.setTimeout(() => {
@@ -520,9 +520,9 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
     navigate("/");
   };
 
-  const handleBackToDeepContent = () => {
-    if (onBackToDeepContent) {
-      onBackToDeepContent();
+  const handleBackToWeeklyContent = () => {
+    if (onBackToWeeklyContent) {
+      onBackToWeeklyContent();
       return;
     }
 
@@ -531,19 +531,17 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
 
   const content = (
     <div className="relative h-[100dvh] overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 starfield z-20" />
-      </div>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(125,211,252,0.14),transparent_58%)]" />
 
-      <div className="relative mx-auto flex h-full w-full max-w-none min-h-0 flex-col gap-4 px-3 py-4 sm:px-6 sm:py-6">
+      <div className="relative z-10 mx-auto flex h-full w-full max-w-none min-h-0 flex-col gap-4 px-3 py-4 sm:px-6 sm:py-6">
         <header className="shrink-0">
           <div className="flex items-start justify-between gap-4 text-center sm:text-left">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-300">
+              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-100/75">
                 HTP Session
               </p>
               <h1 className="mt-3 text-2xl font-semibold text-slate-100 [font-family:'Manrope',sans-serif]">
-                별을 만드는 시간
+                위클리 HTP 기록
               </h1>
               <p className="mt-2 text-sm text-slate-300">
                 참고용 결과를 위한 검사이며, 진단이 아닙니다.
@@ -570,7 +568,7 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
                   Pre-Assessment
                 </p>
                 <h2 className="mt-4 text-3xl font-semibold text-slate-100">
-                  심층 검사 전 설문
+                  위클리 검사 전 설문
                 </h2>
                 <p className="mt-3 text-sm text-slate-300">
                   최근 2주간의 기분을 솔직하게 선택해 주세요.
@@ -610,8 +608,8 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
               </div>
 
               <div className="flex items-center justify-center gap-3">
-                <Button type="button" variant="secondary" onClick={handleBackToDeepContent}>
-                  취소
+                <Button type="button" variant="secondary" onClick={handleBackToWeeklyContent}>
+                  이전 단계
                 </Button>
                 <Button type="button" onClick={() => setPhase("draw")}>
                   검사 시작하기
@@ -778,7 +776,7 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
         <div className="htp-save-overlay" aria-live="polite">
           <div className="htp-save-star" aria-hidden="true" />
           <p className="text-sm uppercase tracking-[0.35em] text-slate-200">
-            별이 생성되고 있어요
+            위클리 기록을 저장 중이에요
           </p>
         </div>
       )}
@@ -804,4 +802,4 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
   );
 }
 
-export default HTPPage;
+export default WeeklyHtpView;

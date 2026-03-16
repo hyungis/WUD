@@ -17,7 +17,13 @@ function routeByType(type: string) {
     return "/deep/content";
 }
 
-function DeepContentPage() {
+type DeepContentPageProps = {
+    isModal?: boolean;
+    onClose?: () => void;
+    onStartHtp?: () => void;
+};
+
+function DeepContentPage({ isModal = false, onClose, onStartHtp }: DeepContentPageProps) {
     const navigate = useNavigate();
     const [features, setFeatures] = useState<DeepTestInfo[]>(DEFAULT_FEATURES);
     const [guide, setGuide] = useState<DeepTestGuide | null>(null);
@@ -57,7 +63,30 @@ function DeepContentPage() {
         };
     }, []);
 
-    return (
+    const handleClose = () => {
+        if (onClose) {
+            onClose();
+            return;
+        }
+
+        if (window.history.length > 1) {
+            navigate(-1);
+            return;
+        }
+
+        navigate("/");
+    };
+
+    const handleOpenByType = (type: string) => {
+        if (type === "HTP" && onStartHtp) {
+            onStartHtp();
+            return;
+        }
+
+        navigate(routeByType(type));
+    };
+
+    const content = (
         <div className="relative min-h-screen overflow-hidden bg-black text-slate-100">
             <div
                 className="pointer-events-none fixed inset-0 z-10 opacity-80"
@@ -84,10 +113,11 @@ function DeepContentPage() {
                             </span>
                             <button
                                 type="button"
-                                onClick={() => navigate("/")}
-                                className="liquid-btn liquid-btn--neutral px-3 py-1.5 text-xs"
+                                onClick={handleClose}
+                                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/5 text-sm text-slate-200 transition hover:bg-white/10"
+                                aria-label="닫기"
                             >
-                                닫기
+                                X
                             </button>
                         </div>
                         <div className="mt-2 flex flex-col items-center gap-3">
@@ -108,7 +138,7 @@ function DeepContentPage() {
                             <button
                                 key={task.type}
                                 disabled={!task.available}
-                                onClick={() => task.available && navigate(routeByType(task.type))}
+                                onClick={() => task.available && handleOpenByType(task.type)}
                                 className={`group flex flex-col items-start rounded-2xl border-2 px-6 py-7 text-left shadow-lg transition-all duration-150 focus:outline-none ${task.available
                                     ? "border-white/20 bg-slate-900/55 backdrop-blur-md hover:scale-[1.02] hover:border-emerald-300/60 hover:shadow-emerald-500/20"
                                     : "cursor-not-allowed border-white/10 bg-white/5 text-slate-500 opacity-60"
@@ -141,13 +171,31 @@ function DeepContentPage() {
                     <div className="mt-4 flex items-center justify-center gap-3">
                         <Button
                             type="button"
-                            onClick={() => navigate("/deep/htp")}
+                            onClick={() => handleOpenByType("HTP")}
                             className="liquid-btn liquid-btn--deep px-8 py-3 text-lg"
                         >
                             기본 검사 시작하기
                         </Button>
                     </div>
                 </div>
+            </div>
+        </div>
+    );
+
+    if (!isModal) {
+        return content;
+    }
+
+    return (
+        <div className="custom-scrollbar fixed inset-0 z-[88] flex items-center justify-center overflow-y-auto overflow-x-hidden bg-black/35 px-4 py-8 text-slate-100">
+            <button
+                type="button"
+                aria-label="모달 닫기"
+                onClick={handleClose}
+                className="absolute inset-0 h-full w-full cursor-default"
+            />
+            <div className="relative z-10 mx-auto w-full max-w-6xl translate-y-3 overflow-x-hidden rounded-3xl border border-white/10 bg-slate-950/65 shadow-[0_24px_80px_rgba(0,0,0,0.42)] ring-1 ring-white/10 backdrop-blur-xl">
+                {content}
             </div>
         </div>
     );

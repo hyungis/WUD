@@ -14,6 +14,8 @@ import { StarSidePanel } from "./components/ui/StarSidePanel";
 import DailyContentSelector from "../daily/components/DailyContentSelector";
 import DailyDetailView from "../daily/DailyDetailView";
 import DailyCompleteView from "../daily/DailyCompleteView";
+import WeeklyContentView from "../deep/WeeklyContentView";
+import WeeklyHtpView from "../deep/WeeklyHtpView";
 
 type HomeStar = {
   id: string;
@@ -48,16 +50,33 @@ function HomePage() {
   const setDailyDetailModalOpen = useUiStore((state) => state.setDailyDetailModalOpen);
   const isDailyCompleteModalOpen = useUiStore((state) => state.isDailyCompleteModalOpen);
   const setDailyCompleteModalOpen = useUiStore((state) => state.setDailyCompleteModalOpen);
+  const isWeeklyContentModalOpen = useUiStore((state) => state.isWeeklyContentModalOpen);
+  const setWeeklyContentModalOpen = useUiStore((state) => state.setWeeklyContentModalOpen);
+  const isWeeklyHtpModalOpen = useUiStore((state) => state.isWeeklyHtpModalOpen);
+  const setWeeklyHtpModalOpen = useUiStore((state) => state.setWeeklyHtpModalOpen);
 
   const isMacro = viewMode === "macro";
   const hoverClearTimerRef = useRef<number | null>(null);
   const isTooltipHoverRef = useRef(false);
 
   useEffect(() => {
-    const overlayOpen = isMyUniverseOpen || isDailyContentModalOpen || isDailyDetailModalOpen || isDailyCompleteModalOpen;
+    const overlayOpen = isMyUniverseOpen
+      || isDailyContentModalOpen
+      || isDailyDetailModalOpen
+      || isDailyCompleteModalOpen
+      || isWeeklyContentModalOpen
+      || isWeeklyHtpModalOpen;
     setOverlayOpen(overlayOpen);
     return () => setOverlayOpen(false);
-  }, [isMyUniverseOpen, isDailyContentModalOpen, isDailyDetailModalOpen, isDailyCompleteModalOpen, setOverlayOpen]);
+  }, [
+    isMyUniverseOpen,
+    isDailyContentModalOpen,
+    isDailyDetailModalOpen,
+    isDailyCompleteModalOpen,
+    isWeeklyContentModalOpen,
+    isWeeklyHtpModalOpen,
+    setOverlayOpen,
+  ]);
 
   const mypageStar = useMemo(() => ({
     id: "center-mypage-star",
@@ -111,7 +130,7 @@ function HomePage() {
           id: s.id,
           kind: (s.kind || "daily").toLowerCase(),
           color: s.color,
-          label: s.kind === "DAILY" ? "데일리 행성" : "심층 별",
+          label: s.kind === "DAILY" ? "데일리 행성" : "위클리 별",
           weekKey: s.weekStartDate ? getWeekKey(new Date(s.weekStartDate)) : getWeekKey(new Date(s.createdAt)),
           createdAt: s.createdAt,
           original: s,
@@ -149,7 +168,7 @@ function HomePage() {
         toneColor: s.color,
         createdAt: s.createdAt,
         weekKey: s.weekStartDate ? getWeekKey(new Date(s.weekStartDate)) : getWeekKey(new Date(s.createdAt)),
-        label: "심층 별",
+        label: "위클리 별",
       })) as (DeepStar & { targetId?: number; aiSummary?: string; questions?: string[] })[],
     [stars],
   );
@@ -162,7 +181,7 @@ function HomePage() {
 
     const sessionId = Number(star.targetId ?? star.id);
     if (Number.isNaN(sessionId) || sessionId <= 0) {
-      setReportError("심층 리포트 ID가 유효하지 않습니다.");
+      setReportError("위클리 리포트 ID가 유효하지 않습니다.");
       return;
     }
 
@@ -181,7 +200,7 @@ function HomePage() {
       setSelectedDeepStar((prev: any) => ({ ...prev, aiSummary, submissions, psychAssessments, deepType, status, createdAt }));
     } catch (e) {
       console.error("fetch deep result fail:", e);
-      setReportError("심층 리포트를 불러오지 못했습니다.");
+      setReportError("위클리 리포트를 불러오지 못했습니다.");
     } finally {
       setReportLoading(false);
     }
@@ -355,6 +374,28 @@ function HomePage() {
           onBackToDetail={() => {
             setDailyCompleteModalOpen(false);
             setDailyDetailModalOpen(true);
+          }}
+        />
+      )}
+
+      {isWeeklyContentModalOpen && (
+        <WeeklyContentView
+          isModal
+          onClose={() => setWeeklyContentModalOpen(false)}
+          onStartHtp={() => {
+            setWeeklyContentModalOpen(false);
+            setWeeklyHtpModalOpen(true);
+          }}
+        />
+      )}
+
+      {isWeeklyHtpModalOpen && (
+        <WeeklyHtpView
+          isModal
+          onClose={() => setWeeklyHtpModalOpen(false)}
+          onBackToWeeklyContent={() => {
+            setWeeklyHtpModalOpen(false);
+            setWeeklyContentModalOpen(true);
           }}
         />
       )}
