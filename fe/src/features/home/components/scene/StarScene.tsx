@@ -550,37 +550,53 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = fal
     return { subdividedPts: sPts, vertexColors: vCols };
   }, [pts]);
 
+  // 내부 상태: 현재 투명도와 선 두께를 부드럽게 추적
+  const currentOpacity = useRef(0);
+  const currentLineWidth = useRef(0.5);
+
   useFrame((state, delta) => {
     if (!lineRef.current?.material) return;
     if (freezeMotion) return;
 
-    const safeDelta = Math.min(delta, 0.1);
+    const dt = Math.min(delta, 0.1);
+
+    // ── 목표값 결정 ──
+    let goalOpacity: number;
+    let goalWidth: number;
 
     if (isHovered) {
-      // 마우스 오버 시 밝고 두껍게 고정
-      lineRef.current.material.opacity += (0.8 - lineRef.current.material.opacity) * (safeDelta * 10);
-      lineRef.current.material.linewidth = 1.0;
+      // 선택/호버 상태: 또렷하게
+      goalOpacity = 0.7;
+      goalWidth = 1.2;
     } else {
+      // 비활성 상태: 아주 은은한 반짝임
       const time = state.clock.elapsedTime;
+      const speed = 0.15 + (seed % 7) * 0.02;  // 매우 느린 주기 (약 10~20초)
+      const phase = (seed % 100) * 0.5;
+      const wave = Math.sin(time * speed + phase) * 0.5 + 0.5;  // 0~1
 
-      const speed = 0.5 + (seed % 5) * 0.05;
-      const phase = seed % 100;
-      const wave = Math.sin(time * speed + phase) * 0.5 + 0.5;
-
-      // 🚨 [수정됨] 
-      // 1. wave가 0.75를 넘을 때만 서서히 나타남 (숨어있는 시간이 더 긺)
-      // 2. 기본 투명도를 0.05 -> 0.0 으로 변경하여 완벽하게 숨김
-      const targetOpacity = wave > 0.75 ? ((wave - 0.75) / 0.25) * 0.3 : 0.0;
-
-      lineRef.current.material.opacity += (targetOpacity - lineRef.current.material.opacity) * (safeDelta * 8);
-
-      // 렌더링 최적화: 눈에 안 보일 정도로 투명해지면 아예 0으로 고정
-      if (lineRef.current.material.opacity < 0.001) {
-        lineRef.current.material.opacity = 0;
-      }
-
-      lineRef.current.material.linewidth = 0.5;
+      // wave가 0.9 이상일 때만 살짝 보임 (전체 시간의 ~10%)
+      goalOpacity = wave > 0.9 ? ((wave - 0.9) / 0.1) * 0.08 : 0.0;
+      goalWidth = 0.5;
     }
+
+    // ── 비대칭 보간: 밝아질 때는 느리게, 사라질 때는 더 느리게 ──
+    const diff = goalOpacity - currentOpacity.current;
+    const lerpSpeed = diff > 0
+      ? dt * 1.8   // 페이드인: 약 0.5초에 걸쳐 밝아짐
+      : dt * 0.8;  // 페이드아웃: 약 1.2초에 걸쳐 사라짐 (더 느림)
+
+    currentOpacity.current += diff * lerpSpeed;
+
+    // 선 두께도 부드럽게 보간
+    currentLineWidth.current += (goalWidth - currentLineWidth.current) * (dt * 1.5);
+
+    // 극소값 최적화
+    if (currentOpacity.current < 0.002) currentOpacity.current = 0;
+
+    // material에 반영
+    lineRef.current.material.opacity = currentOpacity.current;
+    lineRef.current.material.linewidth = currentLineWidth.current;
   });
 
   return (
@@ -829,9 +845,9 @@ export function StarScene({
 
           {!isReportOpen && (
             <SpreadScaleGroup>
-              {constellationLines.map(({ weekKey, pts }, idx) => (
+              {constellationLines.map(({ weekKey, pts }) => (
                 <AnimatedConstellationLine
-                  key={`constellation-${idx}`}
+                  key={`constellation-${weekKey}`}
                   weekKey={weekKey}
                   pts={pts}
                   isHovered={highlightedWeekKey === weekKey}
