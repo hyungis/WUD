@@ -59,6 +59,17 @@ function HomePage() {
     return () => setOverlayOpen(false);
   }, [isMyUniverseOpen, isDailyContentModalOpen, isDailyDetailModalOpen, isDailyCompleteModalOpen, setOverlayOpen]);
 
+  useEffect(() => {
+    // 리포트 패널이 열리면 하단 플로팅 도크를 즉시 숨긴다.
+    if (isSidePanelOpen) {
+      setDockHidden(true);
+      return;
+    }
+
+    // 패널이 닫히면 Dock 표시 제어는 씬(zoom 로직)에 맡긴다.
+    setDockHidden(false);
+  }, [isSidePanelOpen, setDockHidden]);
+
   const mypageStar = useMemo(() => ({
     id: "center-mypage-star",
     createdAt: new Date().toISOString(),
@@ -253,6 +264,7 @@ function HomePage() {
     <div className="relative min-h-screen overflow-hidden bg-black text-slate-100 animate-[fadeIn_0.6s_ease-out]">
       <StarScene
         dailyPlanets={dailyPlanets} deepStars={deepStars} mypageStar={mypageStar}
+        isReportOpen={isSidePanelOpen}
         onViewModeChange={setViewMode} onStarSelect={setSelectedStarId}
         hoveredStarId={hoveredPlanet?.id || null}
         selectedWeekKey={selectedWeekKey}

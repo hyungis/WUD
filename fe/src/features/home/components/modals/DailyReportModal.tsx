@@ -27,134 +27,142 @@ export function DailyReportModal({
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative mx-4 flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-2xl">
-        {/* 헤더 */}
-        <div className="relative px-8 pt-7 pb-5 flex-shrink-0">
+      <div
+        className="relative mx-4 flex w-full flex-row overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-2xl"
+        style={{ maxWidth: "1280px", height: "85vh", maxHeight: "94vh" }}
+      >
+        {/* ── 왼쪽: 별 시각화 영역 (1/3) ── */}
+        <div
+          className="relative flex flex-col items-center justify-center border-r border-white/10 overflow-hidden"
+          style={{ width: "33.333%", flexShrink: 0, background: `radial-gradient(ellipse at center, ${planet.shell}12 0%, transparent 70%)` }}
+        >
           <div
-            className="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 h-28 w-28 rounded-full blur-3xl opacity-40"
-            style={{ backgroundColor: planet.shell }}
+            className="pointer-events-none absolute rounded-full"
+            style={{ top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 288, height: 288, filter: "blur(100px)", opacity: 0.3, backgroundColor: planet.shell }}
           />
-          <div className="flex items-center gap-3 relative z-10">
-            {/* 데일리 헤더 아이콘: 다이아몬드 + 고리 */}
-            <div className="relative flex-shrink-0 h-12 w-12 flex items-center justify-center ml-1 mx-2">
-              <div
-                className="absolute h-9 w-9 rotate-45 rounded-sm z-10"
-                style={{
-                  background: `linear-gradient(135deg, ${planet.shell}ff, ${planet.core || planet.shell}88)`,
-                  boxShadow: `0 0 15px ${planet.shell}66`,
-                }}
-              />
-              <div
-                className="absolute w-14 h-5 rounded-[100%] border-2"
-                style={{ borderColor: `${planet.shell}88`, transform: "rotate(-15deg)" }}
-              />
-              <div
-                className="absolute w-14 h-5 rounded-[100%] border-t-2 border-transparent z-20"
-                style={{ borderBottomColor: `${planet.shell}aa`, transform: "rotate(-15deg)" }}
-              />
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full animate-pulse"
+              style={{
+                width: 4, height: 4,
+                backgroundColor: planet.shell,
+                opacity: 0.3 + (i % 3) * 0.15,
+                top: `${15 + i * 14}%`,
+                left: `${10 + ((i * 37) % 80)}%`,
+                animationDelay: `${i * 0.4}s`,
+              }}
+            />
+          ))}
+          <div className="relative flex items-center justify-center" style={{ marginBottom: 32 }}>
+            <div
+              className="relative rounded-md"
+              style={{
+                zIndex: 10, width: 112, height: 112, transform: "rotate(45deg)",
+                background: `linear-gradient(135deg, ${planet.shell}ff, ${planet.core || planet.shell}88, ${planet.shell}33)`,
+                boxShadow: `0 0 60px ${planet.shell}55, 0 0 120px ${planet.shell}22`,
+              }}
+            />
+            <div
+              className="absolute rounded-[100%]"
+              style={{ width: 208, height: 64, border: `3px solid ${planet.shell}44`, transform: "rotate(-15deg)" }}
+            />
+            <div
+              className="absolute rounded-[100%]"
+              style={{ width: 208, height: 64, borderTop: "3px solid transparent", borderBottom: `3px solid ${planet.shell}99`, borderLeft: "3px solid transparent", borderRight: "3px solid transparent", transform: "rotate(-15deg)", zIndex: 20 }}
+            />
+          </div>
+          <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.35em", color: "#64748b", marginBottom: 4 }}>Daily Planet</p>
+          <h3 style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9", textAlign: "center", padding: "0 24px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>
+            {planet.memo?.slice(0, 24) || "데일리 행성"}
+          </h3>
+          <p style={{ fontSize: 12, color: "#64748b", marginTop: 8 }}>{formatDateTimeKST(planet.createdAt)}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, borderRadius: 9999, background: "rgba(255,255,255,0.05)", padding: "6px 12px", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <div style={{ width: 12, height: 12, borderRadius: 9999, backgroundColor: planet.shell }} />
+              <span style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace" }}>{planet.shell}</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.35em] text-slate-400">Daily Report</p>
-              <h3 className="text-base font-bold text-slate-100 truncate mt-0.5">
-                {planet.memo?.slice(0, 24) || "데일리 행성"}
-              </h3>
+            {planet.core && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, borderRadius: 9999, background: "rgba(255,255,255,0.05)", padding: "6px 12px", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <div style={{ width: 12, height: 12, borderRadius: 9999, backgroundColor: planet.core }} />
+                <span style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace" }}>{planet.core}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── 오른쪽: 리포트 영역 (2/3) ── */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+          {/* 헤더 */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "28px 32px 20px", flexShrink: 0, borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+            <div>
+              <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.35em", color: "#94a3b8" }}>Daily Report</p>
+              <h3 style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", marginTop: 4 }}>감정 분석 리포트</h3>
             </div>
             <button
               onClick={onClose}
-              className="flex-shrink-0 h-8 w-8 rounded-full bg-white/5 hover:bg-white/15 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+              style={{ flexShrink: 0, width: 36, height: 36, borderRadius: 9999, background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", border: "none", cursor: "pointer" }}
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ width: 16, height: 16 }}>
                 <path d="M18 6 6 18M6 6l12 12" />
               </svg>
             </button>
           </div>
-        </div>
-        {/* 본문 */}
-        <div className="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar space-y-5">
-          {/* 데일리 본문 시각화: 다이아몬드 + 큰 궤도 고리 */}
-          <div className="relative flex justify-center py-8 my-2">
-            <div
-              className="relative z-10 h-20 w-20 rotate-45 rounded-sm shadow-2xl"
-              style={{
-                background: `linear-gradient(135deg, ${planet.shell}ff, ${planet.core || planet.shell}88, ${
-                  planet.shell
-                }33)`,
-                boxShadow: `0 0 40px ${planet.shell}66, 0 0 80px ${planet.shell}33`,
-              }}
-            />
-            {/* 뒤쪽 고리 반원 */}
-            <div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-36 h-12 rounded-[100%] border-4"
-              style={{ borderColor: `${planet.shell}66`, transform: "translate(-50%, -50%) rotate(-15deg)" }}
-            />
-            {/* 앞쪽 고리 반원 (행성 위로 렌더링되도록 Z-index 높임) */}
-            <div
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-36 h-12 rounded-[100%] border-t-4 border-transparent z-20"
-              style={{ borderBottomColor: `${planet.shell}cc`, transform: "translate(-50%, -50%) rotate(-15deg)" }}
-            />
-          </div>
-          {/* ── 분석 ── */}
-          <div className="rounded-2xl border border-white/8 bg-gradient-to-br from-white/5 to-white/[0.02] p-5">
-            <p className="mb-2 text-[10px] uppercase tracking-[0.35em] text-slate-400">✦ AI 분석 리포트</p>
-            <p className="text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">{dailySummary}</p>
-          </div>
-          {/* 색상 무드 */}
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">색채 에너지</p>
-            <p className="text-sm font-semibold text-slate-100 mb-1">{planet.shell}</p>
-            <p className="text-xs text-slate-300 leading-relaxed">실제 감정 색상 데이터를 기반으로 표시됩니다.</p>
-          </div>
-          {/* 색상 정보 */}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">Shell 색상</p>
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-lg flex-shrink-0" style={{ backgroundColor: planet.shell }} />
-                <span className="text-xs text-slate-200 font-mono">{planet.shell}</span>
+
+          {/* 본문 */}
+          <div className="custom-scrollbar" style={{ flex: 1, overflowY: "auto", padding: "24px 32px 32px", display: "flex", flexDirection: "column", gap: 20 }}>
+            {reportLoading && (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "64px 0", color: "#94a3b8" }}>
+                <div className="animate-spin" style={{ width: 36, height: 36, borderRadius: 9999, border: "2px solid #6366f1", borderTopColor: "transparent", marginBottom: 16 }} />
+                <p style={{ fontSize: 14 }}>리포트 불러오는 중...</p>
+              </div>
+            )}
+            {reportError && (
+              <div style={{ borderRadius: 16, border: "1px solid rgba(252,165,165,0.3)", background: "rgba(252,165,165,0.1)", padding: 16, fontSize: 12, color: "#ffe4e6" }}>
+                {reportError}
+              </div>
+            )}
+            <div style={{ borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", background: "linear-gradient(to bottom right, rgba(255,255,255,0.05), rgba(255,255,255,0.02))", padding: 24 }}>
+              <p style={{ marginBottom: 12, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.35em", color: "#94a3b8" }}>✦ AI 분석 리포트</p>
+              <p style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{dailySummary}</p>
+            </div>
+            {planet.memo && (
+              <div style={{ borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", padding: 20 }}>
+                <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "#94a3b8", marginBottom: 8 }}>오늘의 한 줄</p>
+                <p style={{ fontSize: 16, color: "#e2e8f0", lineHeight: 1.6, fontStyle: "italic" }}>"{planet.memo}"</p>
+              </div>
+            )}
+            <div style={{ borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", padding: 20 }}>
+              <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "#94a3b8", marginBottom: 12 }}>색채 에너지</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, borderRadius: 12, background: "rgba(255,255,255,0.05)", padding: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, backgroundColor: planet.shell }} />
+                  <div>
+                    <p style={{ fontSize: 10, textTransform: "uppercase", color: "#64748b" }}>Shell</p>
+                    <p style={{ fontSize: 14, color: "#e2e8f0", fontFamily: "monospace" }}>{planet.shell}</p>
+                  </div>
+                </div>
+                {planet.core && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, borderRadius: 12, background: "rgba(255,255,255,0.05)", padding: 12 }}>
+                    <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, backgroundColor: planet.core }} />
+                    <div>
+                      <p style={{ fontSize: 10, textTransform: "uppercase", color: "#64748b" }}>Core</p>
+                      <p style={{ fontSize: 14, color: "#e2e8f0", fontFamily: "monospace" }}>{planet.core}</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-            {planet.core && (
-              <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">Core 색상</p>
-                <div className="flex items-center gap-2">
-                  <div className="h-6 w-6 rounded-lg flex-shrink-0" style={{ backgroundColor: planet.core }} />
-                  <span className="text-xs text-slate-200 font-mono">{planet.core}</span>
+            {planet.objectType && (
+              <div style={{ borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", padding: 16 }}>
+                <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "#94a3b8", marginBottom: 8 }}>오브젝트 타입</p>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 12, padding: "4px 12px", borderRadius: 9999, background: "rgba(56,189,248,0.15)", color: "#7dd3fc", border: "1px solid rgba(56,189,248,0.2)" }}>{planet.objectType}</span>
+                  {planet.objectColor && <div style={{ width: 20, height: 20, borderRadius: 9999, border: "1px solid rgba(255,255,255,0.1)", backgroundColor: planet.objectColor }} />}
                 </div>
               </div>
             )}
           </div>
-          {/* 메모 */}
-          {planet.memo && (
-            <div className="rounded-2xl border border-white/8 bg-white/5 p-5">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">오늘의 한 줄</p>
-              <p className="text-sm text-slate-200 leading-relaxed">"{planet.memo}"</p>
-            </div>
-          )}
-          {/* 오브젝트 타입 */}
-          {planet.objectType && (
-            <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-              <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">오브젝트 타입</p>
-              <div className="flex items-center gap-2">
-                <span className="text-xs px-2 py-1 rounded-full bg-sky-500/15 text-sky-300">{planet.objectType}</span>
-                {planet.objectColor && <div className="h-5 w-5 rounded-full" style={{ backgroundColor: planet.objectColor }} />}
-              </div>
-            </div>
-          )}
-          {/* 날짜 */}
-          <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">기록 일시</p>
-            <p className="text-sm text-slate-200">{formatDateTimeKST(planet.createdAt)}</p>
-          </div>
-          {reportLoading && (
-            <div className="rounded-2xl border border-white/8 bg-white/5 p-4 text-xs text-slate-300">
-              리포트 불러오는 중...
-            </div>
-          )}
-          {reportError && (
-            <div className="rounded-2xl border border-rose-300/30 bg-rose-300/10 p-4 text-xs text-rose-100">
-              {reportError}
-            </div>
-          )}
         </div>
       </div>
     </div>
