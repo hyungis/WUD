@@ -1,9 +1,9 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import LoginPage from "./features/auth/LoginPage";
-import DailyDetailPage from "./features/daily/DailyDetailPage";
-import DailyContentPage from "./features/daily/DailyContentPage";
-import DailyCompletePage from "./features/daily/DailyCompletePage";
+import DailyDetailView from "./features/daily/DailyDetailView";
+import DailyContentView from "./features/daily/DailyContentView";
+import DailyCompleteView from "./features/daily/DailyCompleteView";
 import WeeklyPage from "./features/weekly/WeeklyPage";
 import WeeklyDrawPage from "./features/weekly/WeeklyDrawPage";
 import WeeklyColorPage from "./features/weekly/WeeklyColorPage";
@@ -142,7 +142,7 @@ function App() {
           path="/daily/detail"
           element={
             <PrivateRoute>
-              <DailyDetailPage />
+              <DailyDetailView />
             </PrivateRoute>
           }
         />
@@ -150,7 +150,7 @@ function App() {
           path="/daily/complete"
           element={
             <PrivateRoute>
-              <DailyCompletePage />
+              <DailyCompleteView />
             </PrivateRoute>
           }
         />
@@ -158,7 +158,7 @@ function App() {
           path="/daily/content"
           element={
             <PrivateRoute>
-              <DailyContentPage />
+              <DailyContentView />
             </PrivateRoute>
           }
         />
@@ -234,6 +234,7 @@ function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+
       {isAuthenticated && location.pathname === "/" && <FloatingDock />}
     </>
   );

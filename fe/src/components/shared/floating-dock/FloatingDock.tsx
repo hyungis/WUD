@@ -10,6 +10,8 @@ export default function FloatingDock() {
     const user = useAuthStore((state) => state.user);
     const isDockHidden = useUiStore((state) => state.isDockHidden);
     const isOverlayOpen = useUiStore((state) => state.isOverlayOpen);
+    const setDailyContentModalOpen = useUiStore((state) => state.setDailyContentModalOpen);
+    const setDailyDetailModalOpen = useUiStore((state) => state.setDailyDetailModalOpen);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -52,7 +54,10 @@ export default function FloatingDock() {
                 {/* 2. 주요 액션 (데일리, 심층) */}
                 <div className="flex items-center gap-3 pr-4 border-r border-white/10">
                     <button
-                        onClick={() => navigate("/daily/content")}
+                        onClick={() => {
+                            setDailyDetailModalOpen(false);
+                            setDailyContentModalOpen(true);
+                        }}
                         className="liquid-btn liquid-btn--daily min-w-[90px] px-4 py-2 text-sm"
                     >
                         데일리

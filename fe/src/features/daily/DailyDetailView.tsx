@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../../components/shared/Button";
 
@@ -110,7 +110,7 @@ function ToolBtn({
       tabIndex={-1}
       title={title}
       className={`flex items-center justify-center rounded-lg px-2.5 py-2 text-xs transition-all duration-150 ${active
-        ? "bg-indigo-500/30 text-indigo-200 ring-1 ring-indigo-400/50 shadow-[0_0_10px_rgba(99,102,241,0.25)]"
+        ? "bg-cyan-400/20 text-cyan-100 ring-1 ring-cyan-300/50 shadow-[0_0_10px_rgba(56,189,248,0.25)]"
         : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200"
         }`}
     >
@@ -120,7 +120,14 @@ function ToolBtn({
 }
 
 /* ── main page ── */
-function DailyDetailPage() {
+type DailyDetailViewProps = {
+  isModal?: boolean;
+  onClose?: () => void;
+  onBackToContent?: () => void;
+  onComplete?: () => void;
+};
+
+function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete }: DailyDetailViewProps) {
   const navigate = useNavigate();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = useRef(false);
@@ -133,8 +140,6 @@ function DailyDetailPage() {
   const [symmetry, setSymmetry] = useState(8);
   const [symmetryInput, setSymmetryInput] = useState("8");
   const [tool, setTool] = useState<ToolType>("brush");
-
-  const selectedColor = useMemo(() => shellColor, [shellColor]);
 
   /* canvas setup */
   useEffect(() => {
@@ -263,34 +268,74 @@ function DailyDetailPage() {
   const canvasCursor = tool === "fill" ? "crosshair" : tool === "eraser" ? "cell" : "default";
   const strokeDensity = Math.min(100, Math.round((brushSize / 12) * 100));
 
-  return (
-    <div className="relative h-[100dvh] overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100">
-      <div className="pointer-events-none absolute inset-0">
-        <div className="absolute inset-0 starfield z-20" />
-      </div>
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+      return;
+    }
 
+    if (window.history.length > 1) {
+      navigate(-1);
+      return;
+    }
+
+    navigate("/");
+  };
+
+  const handleBackToContent = () => {
+    if (onBackToContent) {
+      onBackToContent();
+      return;
+    }
+
+    navigate("/daily/content");
+  };
+
+  const handleOpenComplete = () => {
+    if (onComplete) {
+      onComplete();
+      return;
+    }
+
+    navigate("/daily/complete");
+  };
+
+  const content = (
+    <div className="relative h-[100dvh] overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100">
       <div className="relative mx-auto flex h-full w-full max-w-6xl min-h-0 flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(125,211,252,0.12),transparent_54%)]" />
         {/* header */}
-        <header className="shrink-0 flex flex-wrap items-center justify-between gap-4">
+        <header className="relative z-10 shrink-0 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-300">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-100/75">
               Daily Detail
             </p>
-            <h1 className="mt-2 text-2xl font-semibold text-slate-100 [font-family:'Manrope',sans-serif]">
+            <h1 className="mt-2 text-2xl font-semibold text-slate-50 [font-family:'Manrope',sans-serif] sm:text-3xl">
               만다라 디테일
             </h1>
-            <p className="mt-1 text-sm text-slate-400">오늘의 감정을 채워보세요.</p>
+            <p className="mt-1 text-sm text-slate-300/90">오늘의 감정을 채워보세요.</p>
           </div>
           <div className="flex items-center gap-3">
-            <Button type="button" variant="secondary" onClick={() => navigate("/daily/content")}>
+            <Button type="button" variant="secondary" onClick={handleBackToContent}>
               선택으로
             </Button>
-            <Button type="button" onClick={() => navigate("/")}>메인으로</Button>
+            {isModal ? (
+              <button
+                type="button"
+                onClick={handleClose}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/5 text-sm text-slate-200 transition hover:bg-white/10"
+                aria-label="닫기"
+              >
+                X
+              </button>
+            ) : (
+              <Button type="button" onClick={handleClose}>메인으로</Button>
+            )}
           </div>
         </header>
 
         {/* ─── toolbar ─── */}
-        <div className="shrink-0 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm px-5 py-4">
+        <div className="relative z-10 shrink-0 flex flex-col gap-3 rounded-2xl border border-cyan-100/15 bg-slate-900/55 px-5 py-4 shadow-[0_18px_40px_rgba(2,6,23,0.3)] backdrop-blur-md">
           {/* row 1 : tools + symmetry */}
           <div className="flex flex-wrap items-center gap-6">
             {/* 도구 */}
@@ -328,7 +373,7 @@ function DailyDetailPage() {
                 onChange={(e) => setSymmetryInput(e.target.value)}
                 onBlur={commitSymmetry}
                 onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                className="w-11 rounded-lg border border-white/15 bg-slate-800/70 px-1.5 py-1.5 text-center text-xs text-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-1 focus:ring-indigo-400/40 transition"
+                className="w-11 rounded-lg border border-white/15 bg-slate-800/70 px-1.5 py-1.5 text-center text-xs text-slate-100 transition focus:border-cyan-300 focus:outline-none focus:ring-1 focus:ring-cyan-300/40"
                 aria-label="대칭선 개수 직접 입력"
               />
             </div>
@@ -354,14 +399,6 @@ function DailyDetailPage() {
 
           {/* row 2 : color + actions */}
           <div className="flex flex-wrap items-center gap-6">
-            {/* 감정 색 표시 */}
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span className="h-4 w-4 rounded-full ring-1 ring-white/20" style={{ backgroundColor: selectedColor }} />
-              감정 색
-            </div>
-
-            <div className="h-6 w-px bg-white/10" />
-
             {/* 색상 팔레트 */}
             <div className="flex items-center gap-1.5">
               <span className="mr-1 text-[11px] font-medium uppercase tracking-widest text-slate-500">색상</span>
@@ -422,7 +459,7 @@ function DailyDetailPage() {
                     createdAt,
                   }));
                   localStorage.setItem("dailyMoodColor", shellColor);
-                  navigate("/daily/complete");
+                  handleOpenComplete();
                 }}
               >
                 완료하기
@@ -470,7 +507,7 @@ function DailyDetailPage() {
           </svg>
         </div>
 
-        <div className="shrink-0 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
+        <div className="relative z-10 shrink-0 rounded-2xl border border-cyan-100/15 bg-slate-900/55 px-4 py-3 backdrop-blur-md">
           <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.28em] text-slate-400">
             <span>Canvas Ready</span>
             <span>대칭 {symmetry} / 굵기 {brushSize}px</span>
@@ -482,6 +519,24 @@ function DailyDetailPage() {
       </div>
     </div>
   );
+
+  if (!isModal) {
+    return content;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/35 px-4 py-4 text-slate-100">
+      <button
+        type="button"
+        aria-label="모달 닫기"
+        onClick={handleClose}
+        className="absolute inset-0 h-full w-full cursor-default"
+      />
+      <div className="relative z-10 h-[92vh] w-full max-w-6xl overflow-hidden rounded-3xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.42)] ring-1 ring-white/10">
+        {content}
+      </div>
+    </div>
+  );
 }
 
-export default DailyDetailPage;
+export default DailyDetailView;
