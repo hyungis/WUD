@@ -12,6 +12,8 @@ export default function FloatingDock() {
     const isOverlayOpen = useUiStore((state) => state.isOverlayOpen);
     const setDailyContentModalOpen = useUiStore((state) => state.setDailyContentModalOpen);
     const setDailyDetailModalOpen = useUiStore((state) => state.setDailyDetailModalOpen);
+    const setWeeklyContentModalOpen = useUiStore((state) => state.setWeeklyContentModalOpen);
+    const setWeeklyHtpModalOpen = useUiStore((state) => state.setWeeklyHtpModalOpen);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -51,7 +53,7 @@ export default function FloatingDock() {
                     </Link>
                 </div>
 
-                {/* 2. 주요 액션 (데일리, 심층) */}
+                {/* 2. 주요 액션 (데일리, 위클리) */}
                 <div className="flex items-center gap-3 pr-4 border-r border-white/10">
                     <button
                         onClick={() => {
@@ -63,10 +65,13 @@ export default function FloatingDock() {
                         데일리
                     </button>
                     <button
-                        onClick={() => navigate("/deep/content")}
+                        onClick={() => {
+                            setWeeklyHtpModalOpen(false);
+                            setWeeklyContentModalOpen(true);
+                        }}
                         className="liquid-btn liquid-btn--deep min-w-[90px] px-4 py-2 text-sm"
                     >
-                        심층
+                        위클리
                     </button>
                 </div>
 

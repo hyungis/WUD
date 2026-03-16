@@ -10,6 +10,8 @@ type UiState = {
   isDailyContentModalOpen: boolean;
   isDailyDetailModalOpen: boolean;
   isDailyCompleteModalOpen: boolean;
+  isWeeklyContentModalOpen: boolean;
+  isWeeklyHtpModalOpen: boolean;
   
   // 추가된 필드들
   globalPhase: "landing" | "login" | "dashboard" | "success";
@@ -28,6 +30,8 @@ type UiState = {
   setDailyContentModalOpen: (isOpen: boolean) => void;
   setDailyDetailModalOpen: (isOpen: boolean) => void;
   setDailyCompleteModalOpen: (isOpen: boolean) => void;
+  setWeeklyContentModalOpen: (isOpen: boolean) => void;
+  setWeeklyHtpModalOpen: (isOpen: boolean) => void;
   
   // 추가된 Setter들
   setGlobalPhase: (phase: "landing" | "login" | "dashboard" | "success") => void;
@@ -47,6 +51,8 @@ export const useUiStore = create<UiState>((set) => ({
   isDailyContentModalOpen: false,
   isDailyDetailModalOpen: false,
   isDailyCompleteModalOpen: false,
+  isWeeklyContentModalOpen: false,
+  isWeeklyHtpModalOpen: false,
   
   globalPhase: "landing",
   stars: [],
@@ -64,6 +70,8 @@ export const useUiStore = create<UiState>((set) => ({
   setDailyContentModalOpen: (isDailyContentModalOpen) => set({ isDailyContentModalOpen }),
   setDailyDetailModalOpen: (isDailyDetailModalOpen) => set({ isDailyDetailModalOpen }),
   setDailyCompleteModalOpen: (isDailyCompleteModalOpen) => set({ isDailyCompleteModalOpen }),
+  setWeeklyContentModalOpen: (isWeeklyContentModalOpen) => set({ isWeeklyContentModalOpen }),
+  setWeeklyHtpModalOpen: (isWeeklyHtpModalOpen) => set({ isWeeklyHtpModalOpen }),
   
   setGlobalPhase: (globalPhase) => set({ globalPhase }),
   setStars: (stars) => set({ stars }),

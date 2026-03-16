@@ -10,8 +10,8 @@ import WeeklyColorPage from "./features/weekly/WeeklyColorPage";
 import WeeklyJournalPage from "./features/weekly/WeeklyJournalPage";
 import HomePage from "./features/home/HomePage";
 import WelcomePage from "./features/home/WelcomePage";
-import DeepContentPage from "./features/deep/DeepContentPage";
-import HTPPage from "./features/deep/HTPPage";
+import WeeklyContentView from "./features/deep/WeeklyContentView";
+import WeeklyHtpView from "./features/deep/WeeklyHtpView";
 // import MyPage from "./features/user/MyPage";
 import PrivateRoute from "./routes/PrivateRoute";
 import PublicRoute from "./routes/PublicRoute";
@@ -206,7 +206,7 @@ function App() {
           path="/deep/content"
           element={
             <PrivateRoute>
-              <DeepContentPage />
+              <WeeklyContentView />
             </PrivateRoute>
           }
         />
@@ -214,7 +214,7 @@ function App() {
           path="/deep/htp"
           element={
             <PrivateRoute>
-              <HTPPage />
+              <WeeklyHtpView />
             </PrivateRoute>
           }
         />
