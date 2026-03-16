@@ -4,6 +4,7 @@ import static java.util.stream.Collectors.*;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -14,7 +15,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.woojudraw.domain.deep.api.dto.req.AiAnalyzeReq;
 import com.woojudraw.domain.deep.api.dto.req.CreateDeepSessionReq;
 import com.woojudraw.domain.deep.api.dto.req.HtpImagesAnalyzeReq;
+import com.woojudraw.domain.deep.api.dto.req.SpaneAnalyzeReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitHtpReq;
+import com.woojudraw.domain.deep.api.dto.req.SubmitSpaneReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitWho5Req;
 import com.woojudraw.domain.deep.api.dto.req.Who5AnalyzeReq;
 import com.woojudraw.domain.deep.api.dto.resp.CreateDeepSessionResp;
@@ -25,6 +28,7 @@ import com.woojudraw.domain.deep.api.dto.resp.DeepSessionListItemResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSessionStatusResp;
 import com.woojudraw.domain.deep.api.dto.resp.DeepSubmissionItemResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitHtpResp;
+import com.woojudraw.domain.deep.api.dto.resp.SubmitSpaneResp;
 import com.woojudraw.domain.deep.api.dto.resp.SubmitWho5Resp;
 import com.woojudraw.domain.deep.application.DeepAiService;
 import com.woojudraw.domain.deep.application.DeepSessionService;
@@ -104,6 +108,36 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 	}
 
 	@Override
+	public SubmitSpaneResp submitSpane(Long userId, Long sessionId, SubmitSpaneReq request) {
+		DeepSession deepSession = deepSessionRepository.findById(sessionId)
+			.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
+
+		if (!deepSession.getUserId().equals(userId)) {
+			throw new BusinessException(ResponseCode.DEEP_SESSION_ACCESS_DENIED);
+		}
+
+		validateSpaneAnswers(request);
+
+		LocalDate weekStartDate = deepSession.getCreatedAt().toLocalDate();
+
+		DeepPsychAssessment assessment = DeepPsychAssessment.createSpane(
+			deepSession.getId(),
+			userId,
+			request.getAnswers(),
+			weekStartDate,
+			objectMapper);
+
+		DeepPsychAssessment saved = deepPsychAssessmentRepository.save(assessment);
+
+		return SubmitSpaneResp.builder()
+			.assessmentId(saved.getId())
+			.scorePositive(saved.getScorePositive())
+			.scoreNegative(saved.getScoreNegative())
+			.scoreBalance(saved.getScoreBalance())
+			.build();
+	}
+
+	@Override
 	public SubmitHtpResp submitHtp(Long userId, Long sessionId, SubmitHtpReq request) {
 		DeepSession deepSession = deepSessionRepository.findById(sessionId)
 				.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
@@ -128,6 +162,10 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 				.findByDeepSessionIdAndTestCode(sessionId, PsychTestCode.WHO5)
 				.orElseThrow(() -> new BusinessException(ResponseCode.WHO5_NOT_FOUND));
 
+		DeepPsychAssessment spaneAssessment = deepPsychAssessmentRepository
+				.findByDeepSessionIdAndTestCode(sessionId, PsychTestCode.SPANE)
+			    .orElseThrow(() -> new BusinessException(ResponseCode.SPANE_NOT_FOUND));
+
 		deepSubmissionRepository.save(
 				DeepSubmission.create(sessionId, request.getHouseImageId(), SubmissionType.HOUSE));
 		deepSubmissionRepository.save(
@@ -148,6 +186,13 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 									.scoreTotal(who5Assessment.getScoreTotal())
 									.raw(convertWho5Raw(who5Assessment))
 									.build())
+					.spane(
+						SpaneAnalyzeReq.builder()
+							.scorePositive(spaneAssessment.getScorePositive())
+							.scoreNegative(spaneAssessment.getScoreNegative())
+							.scoreBalance(spaneAssessment.getScoreBalance())
+							.raw(convertSpaneRaw(spaneAssessment)) // 아래 유틸 메서드 필요
+							.build())
 					.images(
 							HtpImagesAnalyzeReq.builder()
 									.houseImageKey(houseImage.getImageKey())
@@ -353,6 +398,22 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		}
 	}
 
+	private Map<String, Integer> convertSpaneRaw(DeepPsychAssessment assessment) {
+		try {
+			Map<String, Object> rawMap = objectMapper.readValue(
+				assessment.getRaw(),
+				new TypeReference<Map<String, Object>>() {});
+			List<Integer> answers = (List<Integer>) rawMap.get("answers");
+			Map<String, Integer> result = new HashMap<>();
+			for (int i = 0; i < answers.size(); i++) {
+				result.put("q" + (i + 1), answers.get(i));
+			}
+			return result;
+		} catch (Exception e) {
+			throw new BusinessException(ResponseCode.INVALID_REQUEST);
+		}
+	}
+
 	private Map<String, Object> parseDeepResultRaw(String raw) {
 		try {
 			if (raw == null || raw.isBlank()) {
@@ -406,4 +467,14 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 			throw new BusinessException(ResponseCode.INVALID_REQUEST);
 		}
 	}
+
+	private void validateSpaneAnswers(SubmitSpaneReq request){
+		boolean invalid = request.getAnswers().stream()
+			.anyMatch(answer -> answer == null || answer < 1 || answer > 5);
+
+		if(invalid){
+			throw new BusinessException(ResponseCode.SPANE_INVALID_ANSWER);
+		}
+	}
+
 }

@@ -1,5 +1,7 @@
 package com.woojudraw.domain.deep.api.dto.req;
 
+import java.util.Map;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -9,11 +11,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AiAnalyzeReq {
-
-	private Long sessionId;
-	private String deepType;
-	private Who5AnalyzeReq who5;
-	private SpaneAnalyzeReq spane;
-	private HtpImagesAnalyzeReq images;
+public class SpaneAnalyzeReq {
+	private Short scorePositive;
+	private Short scoreNegative;
+	private Short scoreBalance;
+	private Map<String, Integer> raw;
 }

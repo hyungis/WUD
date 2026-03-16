@@ -159,7 +159,8 @@ public enum ResponseCode {
 	UNSUPPORTED_DEEP_CONTENT_TYPE(HttpStatus.BAD_REQUEST, "P009", "지원하지 않는 심층 컨텐츠 타입입니다."),
 	INVALID_DEEP_SESSION_STATUS(HttpStatus.BAD_REQUEST, "P010", "유효하지 않은 심층 세션입니다."),
 	WHO5_NOT_FOUND(HttpStatus.NOT_FOUND, "P011", "WHO5설문이 제출되지 않았습니다."),
-
+	SPANE_INVALID_ANSWER(HttpStatus.BAD_REQUEST, "P012", "SPANE 응답 값이 올바르지 않습니다."),
+	SPANE_NOT_FOUND(HttpStatus.NOT_FOUND, "P013", "SPANE설문이 제출되지 않았습니다."),
 	/*
 	 * =========================================================
 	 * AI

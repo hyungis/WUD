@@ -124,5 +124,44 @@ public class DeepPsychAssessment {
 			.build();
 	}
 
+	public static DeepPsychAssessment createSpane(
+		Long deepSessionId,
+		Long userId,
+		List<Integer> answers,
+		LocalDate weekStartDate,
+		ObjectMapper objectMapper
+	) {
+		// 문항 순서에 따라 처리 (앞의 6개가 긍정, 뒤의 6개가 부정)
+		short positive = (short) answers.subList(0, 6).stream().mapToInt(Integer::intValue).sum();
+		short negative = (short) answers.subList(6, 12).stream().mapToInt(Integer::intValue).sum();
+		short balance = (short) (positive - negative); // SPANE-B 계산
+
+		OffsetDateTime now = AppTime.nowKst();
+
+		Map<String, Object> rawMap = new HashMap<>();
+		rawMap.put("answers", answers);
+		rawMap.put("scale", "SPANE");
+
+		String rawJson;
+		try {
+			rawJson = objectMapper.writeValueAsString(rawMap);
+		} catch (JsonProcessingException e) {
+			throw new IllegalArgumentException("SPANE raw 데이터 직렬화에 실패했습니다.");
+		}
+
+		return DeepPsychAssessment.builder()
+			.deepSessionId(deepSessionId)
+			.userId(userId)
+			.testCode(PsychTestCode.SPANE)
+			.scorePositive(positive)
+			.scoreNegative(negative)
+			.scoreBalance(balance)
+			.weekStartDate(weekStartDate)
+			.raw(rawJson)
+			.createdAt(now)
+			.build();
+	}
+
+
 
 }
