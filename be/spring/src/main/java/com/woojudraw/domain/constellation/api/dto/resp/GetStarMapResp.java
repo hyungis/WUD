@@ -18,6 +18,7 @@ public class GetStarMapResp {
 	public static class StarItem{
 		private Long starId;
 		private String kind;
+		private String color;
 		private Long targetId;
 		private Long constellationId;
 		private LocalDate weekStartDate;

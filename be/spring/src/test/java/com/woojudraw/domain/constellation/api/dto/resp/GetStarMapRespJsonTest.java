@@ -26,6 +26,7 @@ class GetStarMapRespJsonTest {
 				GetStarMapResp.StarItem.builder()
 					.starId(1L)
 					.kind("DEEP")
+					.color("#4FC3F7")
 					.targetId(5L)
 					.constellationId(2L)
 					.weekStartDate(LocalDate.of(2026, 3, 9))
@@ -37,6 +38,7 @@ class GetStarMapRespJsonTest {
 
 		String json = objectMapper.writeValueAsString(ApiResponse.ok(response));
 
+		assertThat(json).contains("#4FC3F7");
 		assertThat(json).contains("2026-03-12T09:15:30+09:00");
 	}
 }

@@ -17,6 +17,7 @@ import com.woojudraw.domain.constellation.entity.Star;
 import com.woojudraw.domain.constellation.entity.StarKind;
 import com.woojudraw.domain.constellation.repository.ConstellationRepository;
 import com.woojudraw.domain.constellation.repository.StarRepository;
+import com.woojudraw.domain.daily.entity.Daily;
 import com.woojudraw.domain.deep.entity.DeepSession;
 import com.woojudraw.domain.deep.entity.DeepStatus;
 import com.woojudraw.global.exception.BusinessException;
@@ -69,9 +70,38 @@ public class ConstellationServiceImpl implements ConstellationService {
 		);
 
 		starRepository.save(deepStar);
+	}
 
+	@Override
+	public void createDailyStarIfNeeded(Daily daily) {
+		validateDailyForStarCreation(daily);
 
+		if (starRepository.existsByDailyEntryId(daily.getId())) {
+			return;
+		}
 
+		LocalDate weekStartDate = getIsoWeekStartDate(daily.getEntryDate());
+		LocalDate weekEndDate = weekStartDate.plusDays(6);
+
+		Constellation constellation = constellationRepository
+			.findByUserIdAndWeekStartDate(daily.getUsersId(), weekStartDate)
+			.orElseGet(() -> constellationRepository.save(
+				Constellation.builder()
+					.userId(daily.getUsersId())
+					.weekStartDate(weekStartDate)
+					.weekEndDate(weekEndDate)
+					.build()
+			));
+
+		Star dailyStar = Star.createDailyStar(
+			daily.getUsersId(),
+			constellation,
+			daily.getId(),
+			daily.getEmotionColor(),
+			AppTime.nowUtc()
+		);
+
+		starRepository.save(dailyStar);
 	}
 
 	@Override
@@ -133,6 +163,16 @@ public class ConstellationServiceImpl implements ConstellationService {
 		}
 	}
 
+	private void validateDailyForStarCreation(Daily daily) {
+		if (daily == null || daily.isDeleted()) {
+			throw new BusinessException(ResponseCode.DAILY_NOT_FOUND);
+		}
+
+		if (daily.currentAnalysisStatus() != com.woojudraw.domain.daily.entity.DailyAnalysisStatus.DONE) {
+			throw new BusinessException(ResponseCode.DAILY_UPDATE_NOT_ALLOWED);
+		}
+	}
+
 	private LocalDate getIsoWeekStartDate(LocalDate date) {
 		return date.with(DayOfWeek.MONDAY);
 	}
@@ -143,6 +183,7 @@ public class ConstellationServiceImpl implements ConstellationService {
 		return GetStarMapResp.StarItem.builder()
 			.starId(star.getId())
 			.kind(star.getKind().name())
+			.color(star.getColor())
 			.targetId(targetId)
 			.constellationId(star.getConstellation().getId())
 			.weekStartDate(star.getConstellation().getWeekStartDate())

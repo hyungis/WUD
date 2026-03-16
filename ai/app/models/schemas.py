@@ -38,3 +38,24 @@ class AiAnalyzeResp(BaseModel):
     message: str
     data: Optional[AiAnalysisData] = None
 
+
+class DailyAiAnalyzeReq(BaseModel):
+    dailyId: int
+    dailyType: str
+    s3ObjectKey: str
+    emotion: Optional[str] = None
+    emotionColor: Optional[str] = None
+    content: Optional[str] = None
+
+
+class DailyAiAnalysisData(BaseModel):
+    resultSummary: str
+    raw: Dict[str, Any]
+
+
+class DailyAiAnalyzeResp(BaseModel):
+    dailyId: Optional[int] = None
+    status: str
+    message: str
+    data: Optional[DailyAiAnalysisData] = None
+
