@@ -41,6 +41,7 @@ function HomePage() {
   const [hoveredPlanet, setHoveredPlanet] = useState<{ id: string; x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [isTimelineOpen, setIsTimelineOpen] = useState(true);
+  const setDockHidden = useUiStore((state) => state.setDockHidden);
   const setOverlayOpen = useUiStore((state) => state.setOverlayOpen);
   const isDailyContentModalOpen = useUiStore((state) => state.isDailyContentModalOpen);
   const setDailyContentModalOpen = useUiStore((state) => state.setDailyContentModalOpen);
