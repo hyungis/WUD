@@ -11,6 +11,9 @@ import { useUiStore } from "../../store/uiStore";
 import { MyUniverseModal } from "./components/modals/MyUniverseModal";
 import { TimelineHUD } from "./components/ui/TimelineHUD";
 import { StarSidePanel } from "./components/ui/StarSidePanel";
+import DailyContentSelector from "../daily/components/DailyContentSelector";
+import DailyDetailView from "../daily/DailyDetailView";
+import DailyCompleteView from "../daily/DailyCompleteView";
 
 type HomeStar = {
   id: string;
@@ -39,17 +42,22 @@ function HomePage() {
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [isTimelineOpen, setIsTimelineOpen] = useState(true);
   const setOverlayOpen = useUiStore((state) => state.setOverlayOpen);
-  const setDockHidden = useUiStore((state) => state.setDockHidden);
+  const isDailyContentModalOpen = useUiStore((state) => state.isDailyContentModalOpen);
+  const setDailyContentModalOpen = useUiStore((state) => state.setDailyContentModalOpen);
+  const isDailyDetailModalOpen = useUiStore((state) => state.isDailyDetailModalOpen);
+  const setDailyDetailModalOpen = useUiStore((state) => state.setDailyDetailModalOpen);
+  const isDailyCompleteModalOpen = useUiStore((state) => state.isDailyCompleteModalOpen);
+  const setDailyCompleteModalOpen = useUiStore((state) => state.setDailyCompleteModalOpen);
 
   const isMacro = viewMode === "macro";
   const hoverClearTimerRef = useRef<number | null>(null);
   const isTooltipHoverRef = useRef(false);
 
   useEffect(() => {
-    const overlayOpen = isMyUniverseOpen;
+    const overlayOpen = isMyUniverseOpen || isDailyContentModalOpen || isDailyDetailModalOpen || isDailyCompleteModalOpen;
     setOverlayOpen(overlayOpen);
     return () => setOverlayOpen(false);
-  }, [isMyUniverseOpen, setOverlayOpen]);
+  }, [isMyUniverseOpen, isDailyContentModalOpen, isDailyDetailModalOpen, isDailyCompleteModalOpen, setOverlayOpen]);
 
   useEffect(() => {
     // 리포트 패널이 열리면 하단 플로팅 도크를 즉시 숨긴다.
@@ -329,6 +337,39 @@ function HomePage() {
         deepStars={deepStars}
         onDeepStarClick={(star) => { setIsMyUniverseOpen(false); void openDeepReport(star as any); }}
       />
+
+      {isDailyContentModalOpen && (
+        <DailyContentSelector
+          isModal
+          onClose={() => setDailyContentModalOpen(false)}
+        />
+      )}
+
+      {isDailyDetailModalOpen && (
+        <DailyDetailView
+          isModal
+          onClose={() => setDailyDetailModalOpen(false)}
+          onBackToContent={() => {
+            setDailyDetailModalOpen(false);
+            setDailyContentModalOpen(true);
+          }}
+          onComplete={() => {
+            setDailyDetailModalOpen(false);
+            setDailyCompleteModalOpen(true);
+          }}
+        />
+      )}
+
+      {isDailyCompleteModalOpen && (
+        <DailyCompleteView
+          isModal
+          onClose={() => setDailyCompleteModalOpen(false)}
+          onBackToDetail={() => {
+            setDailyCompleteModalOpen(false);
+            setDailyDetailModalOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 }

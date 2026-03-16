@@ -7,6 +7,9 @@ type UiState = {
   error: string | null;
   isDockHidden: boolean;
   isOverlayOpen: boolean;
+  isDailyContentModalOpen: boolean;
+  isDailyDetailModalOpen: boolean;
+  isDailyCompleteModalOpen: boolean;
   
   // 추가된 필드들
   globalPhase: "landing" | "login" | "dashboard" | "success";
@@ -22,6 +25,9 @@ type UiState = {
   clearError: () => void;
   setDockHidden: (isHidden: boolean) => void;
   setOverlayOpen: (isOpen: boolean) => void;
+  setDailyContentModalOpen: (isOpen: boolean) => void;
+  setDailyDetailModalOpen: (isOpen: boolean) => void;
+  setDailyCompleteModalOpen: (isOpen: boolean) => void;
   
   // 추가된 Setter들
   setGlobalPhase: (phase: "landing" | "login" | "dashboard" | "success") => void;
@@ -38,6 +44,9 @@ export const useUiStore = create<UiState>((set) => ({
   error: null,
   isDockHidden: false,
   isOverlayOpen: false,
+  isDailyContentModalOpen: false,
+  isDailyDetailModalOpen: false,
+  isDailyCompleteModalOpen: false,
   
   globalPhase: "landing",
   stars: [],
@@ -52,6 +61,9 @@ export const useUiStore = create<UiState>((set) => ({
   clearError: () => set({ error: null }),
   setDockHidden: (isDockHidden) => set({ isDockHidden }),
   setOverlayOpen: (isOverlayOpen) => set({ isOverlayOpen }),
+  setDailyContentModalOpen: (isDailyContentModalOpen) => set({ isDailyContentModalOpen }),
+  setDailyDetailModalOpen: (isDailyDetailModalOpen) => set({ isDailyDetailModalOpen }),
+  setDailyCompleteModalOpen: (isDailyCompleteModalOpen) => set({ isDailyCompleteModalOpen }),
   
   setGlobalPhase: (globalPhase) => set({ globalPhase }),
   setStars: (stars) => set({ stars }),
