@@ -65,11 +65,17 @@ services:
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - DAILY_AI_USE_MOCK=true
       - AI_RABBITMQ_EXCHANGE=wud.deep.ai.exchange
       - AI_RABBITMQ_REQUEST_QUEUE=wud.deep.ai.request.queue
       - AI_RABBITMQ_ROUTING_KEY=wud.deep.ai.request.routing-key
       - AI_RABBITMQ_RESULT_EXCHANGE=wud.deep.ai.exchange
       - AI_RABBITMQ_RESULT_ROUTING_KEY=wud.deep.ai.result.routing-key
+      - AI_DAILY_RABBITMQ_EXCHANGE=wud.daily.ai.exchange
+      - AI_DAILY_RABBITMQ_REQUEST_QUEUE=wud.daily.ai.request.queue
+      - AI_DAILY_RABBITMQ_ROUTING_KEY=wud.daily.ai.request.routing-key
+      - AI_DAILY_RABBITMQ_RESULT_EXCHANGE=wud.daily.ai.exchange
+      - AI_DAILY_RABBITMQ_RESULT_ROUTING_KEY=wud.daily.ai.result.routing-key
     depends_on:
       - rabbitmq
     networks:

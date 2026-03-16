@@ -1,9 +1,17 @@
 from fastapi import APIRouter
-from app.models.schemas import AnalyzeRequest, AnalyzeResponse, AiAnalyzeReq, AiAnalyzeResp
+from app.models.schemas import (
+    AnalyzeRequest,
+    AnalyzeResponse,
+    AiAnalyzeReq,
+    AiAnalyzeResp,
+    DailyAiAnalyzeReq,
+    DailyAiAnalyzeResp,
+)
 from app.services.s3_service import s3_service
 from app.services.yolo_service import YoloService
 from app.services.llm_service import llm_service
 from app.services.deep_analyze_service import analyze_deep_session_request
+from app.services.daily_analyze_service import analyze_daily_request
 import os
 
 router = APIRouter()
@@ -54,6 +62,24 @@ async def analyze_deep_session(request: AiAnalyzeReq):
         print(f"Deep Analysis failed: {str(e)}")
         return AiAnalyzeResp(
             sessionId=request.sessionId,
+            status="ERROR",
+            message=str(e),
+            data=None,
+        )
+
+
+@router.post("/daily/feedback", response_model=DailyAiAnalyzeResp)
+async def analyze_daily_feedback(request: DailyAiAnalyzeReq):
+    """
+    HTTP 기반 daily 피드백 테스트 엔드포인트.
+    RabbitMQ consumer와 동일한 mock 분석 로직을 사용한다.
+    """
+    try:
+        return analyze_daily_request(request)
+    except Exception as e:
+        print(f"Daily Feedback failed: {str(e)}")
+        return DailyAiAnalyzeResp(
+            dailyId=request.dailyId,
             status="ERROR",
             message=str(e),
             data=None,

@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.routes import api
+from app.services.daily_rabbitmq_rpc_service import daily_ai_rpc_consumer
 from app.services.rabbitmq_rpc_service import deep_ai_rpc_consumer
 from app.services.yolo_service import YoloService
 from app.core.config import settings
@@ -25,9 +26,11 @@ async def lifespan(app: FastAPI):
         print(f"[Startup] HTP YOLO preload failed: {e}")
 
     deep_ai_rpc_consumer.start()
+    daily_ai_rpc_consumer.start()
     try:
         yield
     finally:
+        daily_ai_rpc_consumer.stop()
         deep_ai_rpc_consumer.stop()
         print("Shutting down AI Server...")
 
