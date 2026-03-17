@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../../components/shared/Button";
+import { useCanvasDrawing } from "./hooks/useCanvasDrawing";
+import type { ToolType } from "./hooks/useCanvasDrawing";
+import { DailyMandalaCanvas } from "./components/DailyMandalaCanvas";
 
 /* ── constants ── */
 const PALETTE = [
@@ -11,69 +14,6 @@ const PALETTE = [
 ];
 const SYMMETRY_OPTIONS = [4, 6, 8, 12, 16];
 const BRUSH_PRESETS = [2, 4, 6, 8, 12];
-
-type ToolType = "brush" | "fill" | "eraser";
-
-/* ── Flood‑fill ── */
-function floodFill(
-  ctx: CanvasRenderingContext2D,
-  startX: number,
-  startY: number,
-  fillColor: string,
-  tolerance = 32,
-) {
-  const canvas = ctx.canvas;
-  const w = canvas.width;
-  const h = canvas.height;
-  const imageData = ctx.getImageData(0, 0, w, h);
-  const data = imageData.data;
-
-  // parse target color
-  const tmp = document.createElement("canvas");
-  tmp.width = tmp.height = 1;
-  const tctx = tmp.getContext("2d")!;
-  tctx.fillStyle = fillColor;
-  tctx.fillRect(0, 0, 1, 1);
-  const [fr, fg, fb, fa] = tctx.getImageData(0, 0, 1, 1).data;
-
-  const sx = Math.round(startX);
-  const sy = Math.round(startY);
-  if (sx < 0 || sy < 0 || sx >= w || sy >= h) return;
-
-  const idx = (sy * w + sx) * 4;
-  const sr = data[idx], sg = data[idx + 1], sb = data[idx + 2], sa = data[idx + 3];
-
-  // if target same as fill, skip
-  if (sr === fr && sg === fg && sb === fb && sa === fa) return;
-
-  const match = (i: number) =>
-    Math.abs(data[i] - sr) <= tolerance &&
-    Math.abs(data[i + 1] - sg) <= tolerance &&
-    Math.abs(data[i + 2] - sb) <= tolerance &&
-    Math.abs(data[i + 3] - sa) <= tolerance;
-
-  const stack = [sx, sy];
-  const visited = new Uint8Array(w * h);
-
-  while (stack.length > 0) {
-    const cy = stack.pop()!;
-    const cx = stack.pop()!;
-    const pi = cy * w + cx;
-    if (visited[pi]) continue;
-    visited[pi] = 1;
-    const ci = pi * 4;
-    if (!match(ci)) continue;
-    data[ci] = fr;
-    data[ci + 1] = fg;
-    data[ci + 2] = fb;
-    data[ci + 3] = fa;
-    if (cx > 0) stack.push(cx - 1, cy);
-    if (cx < w - 1) stack.push(cx + 1, cy);
-    if (cy > 0) stack.push(cx, cy - 1);
-    if (cy < h - 1) stack.push(cx, cy + 1);
-  }
-  ctx.putImageData(imageData, 0, 0);
-}
 
 /* ── tiny SVG icons ── */
 const BrushIcon = () => (
@@ -129,10 +69,6 @@ type DailyDetailViewProps = {
 
 function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete }: DailyDetailViewProps) {
   const navigate = useNavigate();
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const isDrawingRef = useRef(false);
-  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
-  const canvasSizeRef = useRef({ width: 0, height: 0 });
 
   const [shellColor] = useState(() => localStorage.getItem("dailyMoodColor") || PALETTE[0]);
   const [paintColor, setPaintColor] = useState(PALETTE[0]);
@@ -141,117 +77,12 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
   const [symmetryInput, setSymmetryInput] = useState("8");
   const [tool, setTool] = useState<ToolType>("brush");
 
-  /* canvas setup */
-  useEffect(() => {
-    const resizeCanvas = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvasSizeRef.current = { width: rect.width, height: rect.height };
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, rect.width, rect.height);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-    };
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-    return () => window.removeEventListener("resize", resizeCanvas);
-  }, []);
-
-  useEffect(() => {
-    const ctx = canvasRef.current?.getContext("2d");
-    if (!ctx) return;
-    ctx.lineWidth = brushSize;
-    ctx.strokeStyle = paintColor;
-  }, [brushSize, paintColor]);
-
-  /* pointer helpers */
-  const getPoint = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-  }, []);
-
-  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!ctx || !canvas) return;
-
-    if (tool === "fill") {
-      const dpr = window.devicePixelRatio || 1;
-      const point = getPoint(event);
-      floodFill(ctx, point.x * dpr, point.y * dpr, paintColor);
-      return;
-    }
-
-    isDrawingRef.current = true;
-    lastPointRef.current = getPoint(event);
-  }, [tool, paintColor, getPoint]);
-
-  const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!ctx || !isDrawingRef.current) return;
-    const point = getPoint(event);
-    const lastPoint = lastPointRef.current;
-    if (!lastPoint) { lastPointRef.current = point; return; }
-
-    const { width, height } = canvasSizeRef.current;
-    const centerX = width / 2;
-    const centerY = height / 2;
-
-    if (tool === "eraser") {
-      ctx.save();
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.lineWidth = brushSize * 2;
-      ctx.beginPath();
-      ctx.moveTo(lastPoint.x, lastPoint.y);
-      ctx.lineTo(point.x, point.y);
-      ctx.stroke();
-      ctx.restore();
-    } else {
-      const segments = Math.max(1, symmetry);
-      const step = (Math.PI * 2) / segments;
-      ctx.lineWidth = brushSize;
-      ctx.strokeStyle = paintColor;
-      for (let i = 0; i < segments; i += 1) {
-        const angle = step * i;
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-        const fromX = cos * (lastPoint.x - centerX) - sin * (lastPoint.y - centerY) + centerX;
-        const fromY = sin * (lastPoint.x - centerX) + cos * (lastPoint.y - centerY) + centerY;
-        const toX = cos * (point.x - centerX) - sin * (point.y - centerY) + centerX;
-        const toY = sin * (point.x - centerX) + cos * (point.y - centerY) + centerY;
-        ctx.beginPath();
-        ctx.moveTo(fromX, fromY);
-        ctx.lineTo(toX, toY);
-        ctx.stroke();
-      }
-    }
-    lastPointRef.current = point;
-  }, [tool, symmetry, brushSize, paintColor, getPoint]);
-
-  const handlePointerUp = useCallback(() => {
-    isDrawingRef.current = false;
-    lastPointRef.current = null;
-  }, []);
-
-  const handleClearCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!ctx || !canvas) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const rect = canvas.getBoundingClientRect();
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, rect.width, rect.height);
-  }, []);
+  const drawing = useCanvasDrawing({
+    paintColor,
+    brushSize,
+    tool,
+    symmetry,
+  });
 
   /* symmetry input helpers */
   const commitSymmetry = () => {
@@ -264,8 +95,6 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
     }
   };
 
-  /* cursor style per tool */
-  const canvasCursor = tool === "fill" ? "crosshair" : tool === "eraser" ? "cell" : "default";
   const strokeDensity = Math.min(100, Math.round((brushSize / 12) * 100));
 
   const handleClose = () => {
@@ -443,7 +272,7 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleClearCanvas}
+                onClick={drawing.handleClearCanvas}
                 onMouseDown={(e) => e.preventDefault()}
                 tabIndex={-1}
                 className="flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-2 text-xs text-slate-400 transition hover:bg-red-500/15 hover:text-red-300"
@@ -455,7 +284,7 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
               <Button
                 type="button"
                 onClick={() => {
-                  const drawingImage = canvasRef.current?.toDataURL("image/png") ?? null;
+                  const drawingImage = drawing.canvasRef.current?.toDataURL("image/png") ?? null;
                   const createdAt = new Date().toISOString();
                   localStorage.setItem("pendingDailyRecord", JSON.stringify({
                     shellColor,
@@ -476,43 +305,11 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
         </div>
 
         {/* ─── canvas ─── */}
-        <div className="mandala-surface mandala-surface-white flex-1 min-h-0 overflow-hidden" style={{ position: "relative", zIndex: 30, isolation: "isolate" }}>
-          <canvas
-            ref={canvasRef}
-            className="daily-canvas h-full w-full touch-none"
-            style={{ cursor: canvasCursor, backgroundColor: "#ffffff" }}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
-          />
-          {/* 대칭 가이드 선 */}
-          <svg
-            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
-            aria-hidden="true"
-          >
-            {Array.from({ length: symmetry }, (_, i) => {
-              const angle = (2 * Math.PI * i) / symmetry;
-              const cx = 50;
-              const cy = 50;
-              const len = 50;
-              const x2 = cx + len * Math.cos(angle);
-              const y2 = cy + len * Math.sin(angle);
-              return (
-                <line
-                  key={i}
-                  x1={`${cx}%`}
-                  y1={`${cy}%`}
-                  x2={`${x2}%`}
-                  y2={`${y2}%`}
-                  stroke="#cbd5e1"
-                  strokeWidth="0.8"
-                  opacity="0.4"
-                />
-              );
-            })}
-          </svg>
-        </div>
+        <DailyMandalaCanvas
+          drawing={drawing}
+          symmetry={symmetry}
+          tool={tool}
+        />
 
         <div className="relative z-10 shrink-0 rounded-2xl border border-cyan-100/15 bg-slate-900/55 px-4 py-3 backdrop-blur-md">
           <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.28em] text-slate-400">
