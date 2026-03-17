@@ -59,4 +59,14 @@ public class User {
 	public void updateLastLogin() {
 		this.lastLoginAt = AppTime.nowUtc();
 	}
+
+	public void updateNickname(String nickname){
+		if(nickname != null && !nickname.isBlank()){
+			this.nickname = nickname;
+		}
+	}
+
+	public void updatePassword(String encodePassword){
+		this.password = encodePassword;
+	}
 }
