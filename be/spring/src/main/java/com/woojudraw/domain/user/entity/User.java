@@ -69,4 +69,9 @@ public class User {
 	public void updatePassword(String encodePassword){
 		this.password = encodePassword;
 	}
+
+	public void withdraw(){
+		this.status = UserStatus.DELETED;
+		this.deletedAt = AppTime.nowUtc();
+	}
 }

@@ -1,6 +1,7 @@
 package com.woojudraw.domain.user.api.controller;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,7 +31,7 @@ public class UserController {
 	@GetMapping("/me")
 	@Operation(security = @SecurityRequirement(name = "bearerAuth"))
 	public ApiResponse<GetUserProfileResp> getMyProfile(
-		Authentication authentication
+		@Parameter(hidden = true) Authentication authentication
 	){
 		GetUserProfileResp response = userService.getUserProfile(resolveMemberId(authentication));
 		return ApiResponse.ok(response);
@@ -53,6 +54,15 @@ public class UserController {
 		@Valid @RequestBody ChangePasswordReq req
 	){
 		userService.changePassword(resolveMemberId(authentication), req);
+		return ApiResponse.ok();
+	}
+
+	@DeleteMapping("/me")
+	@Operation(security = @SecurityRequirement(name = "bearerAuth"))
+	public ApiResponse<Void> withdraw(
+		@Parameter(hidden = true) Authentication authentication
+	){
+		userService.withdraw(resolveMemberId(authentication));
 		return ApiResponse.ok();
 	}
 

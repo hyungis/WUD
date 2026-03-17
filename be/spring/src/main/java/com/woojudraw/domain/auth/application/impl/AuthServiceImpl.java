@@ -11,6 +11,7 @@ import com.woojudraw.domain.auth.api.dto.req.SignupReq;
 import com.woojudraw.domain.auth.application.AuthService;
 import com.woojudraw.domain.auth.application.dto.IssuedTokens;
 import com.woojudraw.domain.user.entity.User;
+import com.woojudraw.domain.user.entity.UserStatus;
 import com.woojudraw.domain.user.repository.UserRepository;
 import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
@@ -56,6 +57,10 @@ public class AuthServiceImpl implements AuthService {
 
 		User user = userRepository.findByEmail(req.getEmail())
 			.orElseThrow(() -> new BusinessException(ResponseCode.INVALID_LOGIN));
+
+		if(user.getStatus() == UserStatus.DELETED){
+			throw new BusinessException(ResponseCode.USER_DELETED);
+		}
 
 		if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
 			throw new BusinessException(ResponseCode.INVALID_LOGIN);

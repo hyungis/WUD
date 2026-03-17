@@ -10,4 +10,6 @@ public interface UserService {
 	void updateProfile(Long userId, UpdateUserProfileReq req);
 
 	void changePassword(Long userId, ChangePasswordReq req);
+
+	void withdraw(Long userId);
 }
