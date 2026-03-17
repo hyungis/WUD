@@ -44,9 +44,9 @@ def analyze_deep_session_request(request: AiAnalyzeReq) -> AiAnalyzeResp:
         base_dir = Path(__file__).resolve().parents[2]  # .../ai/app
         yolo_models_dir = (base_dir / "yolo_models").resolve()
         model_paths = {
-            "house": str(yolo_models_dir / "house.pt"),
-            "tree": str(yolo_models_dir / "tree.pt"),
-            "person": str(yolo_models_dir / "person.pt"),
+            "house": str(yolo_models_dir / "house_640.pt"),
+            "tree": str(yolo_models_dir / "tree_640.pt"),
+            "person": str(yolo_models_dir / "person_640.pt"),
         }
 
         yolo_raw: dict[str, object] = {}
