@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useCanvasDrawing } from "./hooks/useCanvasDrawing";
-import type { ToolType } from "./hooks/useCanvasDrawing";
+import { useCanvasDrawing } from "../../hooks/useCanvasDrawing";
+import type { ToolType } from "../../hooks/useCanvasDrawing";
 import { DailyMandalaCanvas } from "./components/DailyMandalaCanvas";
 
 /* ── constants ── */
