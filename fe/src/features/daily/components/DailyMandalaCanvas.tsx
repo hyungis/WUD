@@ -1,6 +1,6 @@
-import { DrawingCanvas } from "./DrawingCanvas";
-import { useCanvasDrawing } from "../hooks/useCanvasDrawing";
-import type { ToolType } from "../hooks/useCanvasDrawing";
+import { DrawingCanvas } from "../../../components/shared/DrawingCanvas";
+import { useCanvasDrawing } from "../../../hooks/useCanvasDrawing";
+import type { ToolType } from "../../../hooks/useCanvasDrawing";
 
 interface DailyMandalaCanvasProps {
   drawing: ReturnType<typeof useCanvasDrawing>;
