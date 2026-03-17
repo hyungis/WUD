@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore";
 import { useUiStore } from "../../../store/uiStore";
 import { logout } from "../../../services/auth";
+import { starApi } from "../../../api/star";
 
 export default function FloatingDock() {
     const location = useLocation();
@@ -16,6 +17,7 @@ export default function FloatingDock() {
     const setWeeklyHtpModalOpen = useUiStore((state) => state.setWeeklyHtpModalOpen);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const [isCheckingWeekly, setIsCheckingWeekly] = useState(false);
 
     const displayName = user?.name || user?.email?.split("@")[0] || "사용자";
 
@@ -31,6 +33,64 @@ export default function FloatingDock() {
             navigate("/");
         } finally {
             setIsLoggingOut(false);
+        }
+    };
+
+    const getCurrentWeekStartDate = () => {
+        const now = new Date();
+        const localMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const day = localMidnight.getDay();
+        localMidnight.setDate(localMidnight.getDate() - day);
+
+        const yyyy = localMidnight.getFullYear();
+        const mm = String(localMidnight.getMonth() + 1).padStart(2, "0");
+        const dd = String(localMidnight.getDate()).padStart(2, "0");
+        return `${yyyy}-${mm}-${dd}`;
+    };
+
+    const hasDeepStarThisWeek = async () => {
+        const res = await starApi.getStarMap();
+        if (!res.success) {
+            return false;
+        }
+
+        const payload = res.data as any;
+        const rawStars = Array.isArray(payload?.stars)
+            ? payload.stars
+            : Array.isArray(payload)
+                ? payload
+                : [];
+
+        const weekStart = getCurrentWeekStartDate();
+        return rawStars.some((star: any) => {
+            const kind = String(star.kind ?? star.starKind ?? "").toUpperCase();
+            const deep = kind === "DEEP" || kind === "HTP" || kind.includes("DEEP");
+            const starWeekStart = String(star.weekStartDate ?? star.week_start_date ?? "").slice(0, 10);
+            return deep && starWeekStart === weekStart;
+        });
+    };
+
+    const handleWeeklyClick = async () => {
+        if (isCheckingWeekly) {
+            return;
+        }
+
+        setIsCheckingWeekly(true);
+        try {
+            const exists = await hasDeepStarThisWeek();
+            if (exists) {
+                window.alert("이번 주 위클리 별은 이미 생성되었어요. 다음 주에 새 별이 생성됩니다.");
+                return;
+            }
+
+            setWeeklyHtpModalOpen(false);
+            setWeeklyContentModalOpen(true);
+        } catch {
+            // 네트워크 확인 실패 시에는 기존 흐름을 유지해 기능 차단을 피한다.
+            setWeeklyHtpModalOpen(false);
+            setWeeklyContentModalOpen(true);
+        } finally {
+            setIsCheckingWeekly(false);
         }
     };
 
@@ -65,13 +125,11 @@ export default function FloatingDock() {
                         데일리
                     </button>
                     <button
-                        onClick={() => {
-                            setWeeklyHtpModalOpen(false);
-                            setWeeklyContentModalOpen(true);
-                        }}
+                        onClick={handleWeeklyClick}
+                        disabled={isCheckingWeekly}
                         className="liquid-btn liquid-btn--deep min-w-[90px] px-4 py-2 text-sm"
                     >
-                        위클리
+                        {isCheckingWeekly ? "확인 중..." : "위클리"}
                     </button>
                 </div>
 

@@ -96,6 +96,7 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
       }
     }
     const createdAt = new Date().toISOString();
+    localStorage.removeItem("dailyDrawingImageId");
     localStorage.setItem("pendingDailyRecord", JSON.stringify({
       shellColor, coreColor: paintColor, objectType: "halo", objectColor: paintColor,
       mandalaImage: drawingImage, createdAt,

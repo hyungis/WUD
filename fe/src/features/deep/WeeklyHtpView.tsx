@@ -24,6 +24,7 @@ const WHO5_QUESTIONS = [
   "지난 2주 동안 상쾌하게 잠에서 깼다.",
   "지난 2주 동안 일상생활이 흥미로웠다.",
 ];
+const DEFAULT_SPANE_ANSWERS = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3];
 const POLLING_INTERVAL_MS = 4000;
 const POLLING_MAX_TRIES = 30;
 
@@ -75,9 +76,10 @@ type WeeklyHtpViewProps = {
   isModal?: boolean;
   onClose?: () => void;
   onBackToWeeklyContent?: () => void;
+  onSaved?: () => void;
 };
 
-function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent }: WeeklyHtpViewProps) {
+function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSaved }: WeeklyHtpViewProps) {
   const navigate = useNavigate();
 
   const [stepIndex, setStepIndex] = useState(0);
@@ -293,34 +295,43 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent }: Week
 
       const sessionRes = await deepApi.createSession();
       const sessionId = sessionRes.data?.sessionId;
-      if (sessionId) {
-        localStorage.setItem("latestDeepSessionId", String(sessionId));
-        await deepApi.submitWho5Assessment(sessionId, { answers: who5Answers });
-        await deepApi.submitSubmissions(sessionId, { houseImageId, treeImageId, personImageId });
+      if (!sessionId) {
+        throw new Error("세션 생성에 실패했습니다.");
+      }
 
-        const pollingResult = await waitUntilAnalysisDone(sessionId);
-        if (pollingResult === "DONE") {
-          const resultRes = await deepApi.getDeepResult(sessionId);
-          if (resultRes.success && resultRes.data) {
-            setLatestResult(resultRes.data);
-            localStorage.setItem("latestDeepResultSummary", resultRes.data.aiResult.resultSummary || resultRes.data.aiResult.result || "");
-            localStorage.setItem("latestDeepResult", JSON.stringify(resultRes.data));
-            setIsSaving(false);
-            setPhase("result");
-            return;
-          }
-        } else if (pollingResult === "FAILED") {
-          setSaveError("AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-        } else {
-          setSaveError("분석이 지연되고 있습니다. 잠시 후 결과 화면에서 다시 확인해주세요.");
+      localStorage.setItem("latestDeepSessionId", String(sessionId));
+      await deepApi.submitWho5Assessment(sessionId, { answers: who5Answers });
+      await deepApi.submitSpaneAssessment(sessionId, { answers: DEFAULT_SPANE_ANSWERS });
+      await deepApi.submitSubmissions(sessionId, { houseImageId, treeImageId, personImageId });
+
+      if (isModal && onClose) {
+        setIsSaving(false);
+        onSaved?.();
+        onClose();
+        return;
+      }
+
+      const pollingResult = await waitUntilAnalysisDone(sessionId);
+      if (pollingResult === "DONE") {
+        const resultRes = await deepApi.getDeepResult(sessionId);
+        if (resultRes.success && resultRes.data) {
+          setLatestResult(resultRes.data);
+          localStorage.setItem("latestDeepResultSummary", resultRes.data.aiResult.resultSummary || resultRes.data.aiResult.result || "");
+          localStorage.setItem("latestDeepResult", JSON.stringify(resultRes.data));
+          setIsSaving(false);
+          setPhase("result");
+          return;
         }
+      } else if (pollingResult === "FAILED") {
+        setSaveError("AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      } else {
+        setSaveError("분석이 지연되고 있습니다. 잠시 후 결과 화면에서 다시 확인해주세요.");
       }
     } catch (error) {
       console.error("deep submit failed", error);
-      setSaveError("위클리 API 저장에 실패해 로컬 저장 결과로 이동합니다.");
+      setSaveError("위클리 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
     }
     setIsSaving(false);
-    window.setTimeout(() => navigate("/", { replace: true }), 1400);
   };
 
   const canvasCursor = tool === "fill" ? "crosshair" : tool === "eraser" ? "cell" : "default";
@@ -345,22 +356,28 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent }: Week
           <span className="text-sm font-medium text-slate-300">위클리 HTP 검사</span>
         </div>
         <div className="flex items-center gap-2">
-          {isModal && (
-            <button type="button" onClick={handleClose}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition text-xs">✕</button>
-          )}
           {phase === "draw" && (
             <>
               {stepIndex > 0 && (
                 <button type="button" onClick={handlePrevStep} className="h-8 px-4 rounded-xl bg-white/5 text-slate-300 text-xs font-semibold hover:bg-white/10 transition-colors">
-                  이전
+                  뒤로
                 </button>
               )}
               <button type="button" onClick={handleNextStep}
                 className="h-8 px-4 rounded-xl bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-500/20 hover:bg-indigo-400 transition-colors">
-                {stepIndex === STEPS.length - 1 ? "완료" : "다음"}
+                {stepIndex === STEPS.length - 1 ? "저장" : "다음"}
               </button>
             </>
+          )}
+          {isModal && (
+            <button
+              type="button"
+              onClick={handleClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition text-xs"
+              aria-label="닫기"
+            >
+              ✕
+            </button>
           )}
         </div>
       </header>
@@ -399,7 +416,9 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent }: Week
                   ))}
                 </div>
               </div>
-              <Button type="button" onClick={() => setPhase("draw")}>검사 시작하기</Button>
+              <div className="flex w-full items-center justify-end">
+                <Button type="button" className="liquid-btn liquid-btn--deep px-6 py-2.5" onClick={() => setPhase("draw")}>다음 단계</Button>
+              </div>
             </div>
           </div>
         )}

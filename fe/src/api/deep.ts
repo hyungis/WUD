@@ -4,6 +4,8 @@ import type {
     DeepSessionResponse,
     PsyTestRequest,
     PsyTestResponse,
+    SpaneTestRequest,
+    SpaneTestResponse,
     DeepTestInfo,
     DeepTestGuide,
     SubmitDrawingRequest,
@@ -20,6 +22,7 @@ export const deepApi = {
     getPastSessions: () => api.get<any, ApiResponse<DeepHistoryItem[]>>("/deep-sessions"),
 
     submitWho5Assessment: (sessionId: number, data: PsyTestRequest) => api.post<any, ApiResponse<PsyTestResponse>>(`/deep-sessions/${sessionId}/psych-assessments/who5`, data),
+    submitSpaneAssessment: (sessionId: number, data: SpaneTestRequest) => api.post<any, ApiResponse<SpaneTestResponse>>(`/deep-sessions/${sessionId}/psych-assessments/spane`, data),
     submitSubmissions: async (sessionId: number, data: SubmitDrawingRequest) => {
         try {
             // 명세 기준 경로

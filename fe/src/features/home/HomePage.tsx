@@ -27,6 +27,16 @@ type HomeStar = {
   color: string;
 };
 
+type TimelineItem = {
+  id: string;
+  kind: string;
+  color: string;
+  label: string;
+  weekKey: string;
+  createdAt: string;
+  original: HomeStar;
+};
+
 // ==========================================
 // 5. 메인 페이지 (UI)
 // ==========================================
@@ -98,63 +108,92 @@ function HomePage() {
   }), []);
 
   const [stars, setStars] = useState<HomeStar[]>([]);
-  const [timelineItems, setTimelineItems] = useState<any[]>([]);
+  const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
+
+  const applyStarsToState = (fetchedStars: HomeStar[]) => {
+    setStars(fetchedStars);
+
+    const grouped = fetchedStars.map((s) => ({
+      id: s.id,
+      kind: (s.kind || "daily").toLowerCase(),
+      color: s.color,
+      label: s.kind === "DAILY" ? "데일리 행성" : "위클리 별",
+      weekKey: s.weekStartDate ? getWeekKey(new Date(s.weekStartDate)) : getWeekKey(new Date(s.createdAt)),
+      createdAt: s.createdAt,
+      original: s,
+    }));
+    setTimelineItems(grouped);
+  };
+
+  const fetchStars = async () => {
+    const res = await starApi.getStarMap();
+    if (!res.success) {
+      throw new Error("star map API returned success=false");
+    }
+
+    const payload = res.data as any;
+    const rawStars = Array.isArray(payload?.stars)
+      ? payload.stars
+      : Array.isArray(payload)
+        ? payload
+        : Array.isArray((payload as any)?.data?.stars)
+          ? (payload as any).data.stars
+          : [];
+
+    const fetchedStars: HomeStar[] = rawStars.map((s: any) => {
+      const id = String(s.starId ?? s.id ?? s.targetId ?? "");
+      const kindRaw = String(s.kind ?? s.starKind ?? s.type ?? "DAILY").toUpperCase();
+      const kind = (kindRaw === "DEEP" || kindRaw === "HTP" || kindRaw.includes("DEEP") ? "DEEP" : "DAILY") as "DAILY" | "DEEP";
+      const createdAtRaw = s.createdAt ?? s.created_at ?? s.timestamp ?? s.weekStartDate;
+      const createdAt = createdAtRaw ? String(createdAtRaw) : new Date().toISOString();
+      const weekStartDate = s.weekStartDate ?? s.week_start_date;
+      const targetId = typeof s.targetId === "number" ? s.targetId : Number(s.targetId);
+      const constellationId = typeof s.constellationId === "number" ? s.constellationId : Number(s.constellationId);
+      return {
+        id,
+        targetId: Number.isNaN(targetId) ? undefined : targetId,
+        constellationId: Number.isNaN(constellationId) ? undefined : constellationId,
+        kind,
+        createdAt,
+        weekStartDate,
+        color: s.starColor || colorFromId(id, kind),
+      } as HomeStar;
+    }).filter((s: HomeStar) => s.id);
+
+    applyStarsToState(fetchedStars);
+  };
+
+  const refreshStarsAfterDailySave = () => {
+    // Daily star is created when AI result is consumed, so refresh a few times.
+    const delays = [0, 4000, 9000, 15000];
+    delays.forEach((delay) => {
+      window.setTimeout(() => {
+        void fetchStars().catch((e) => {
+          console.error("refresh star map fail:", e);
+        });
+      }, delay);
+    });
+  };
+
+  const refreshStarsAfterWeeklySave = () => {
+    // Weekly star is created asynchronously after AI processing, so keep longer retries.
+    const delays = [0, 4000, 9000, 15000, 25000];
+    delays.forEach((delay) => {
+      window.setTimeout(() => {
+        void fetchStars().catch((e) => {
+          console.error("refresh weekly star map fail:", e);
+        });
+      }, delay);
+    });
+  };
 
   // 컴포넌트 로드 시 지도(별) 조회
   useEffect(() => {
-    const fetchStars = async () => {
-      try {
-        const res = await starApi.getStarMap();
-        if (!res.success) throw new Error("star map API returned success=false");
-
-        const payload = res.data as any;
-        const rawStars = Array.isArray(payload?.stars)
-          ? payload.stars
-          : Array.isArray(payload)
-            ? payload
-            : Array.isArray((payload as any)?.data?.stars)
-              ? (payload as any).data.stars
-              : [];
-
-        const fetchedStars: HomeStar[] = rawStars.map((s: any) => {
-          const id = String(s.starId ?? s.id ?? s.targetId ?? "");
-          const kindRaw = String(s.kind ?? s.starKind ?? s.type ?? "DAILY").toUpperCase();
-          const kind = (kindRaw === "DEEP" || kindRaw === "HTP" || kindRaw.includes("DEEP") ? "DEEP" : "DAILY") as "DAILY" | "DEEP";
-          const createdAtRaw = s.createdAt ?? s.created_at ?? s.timestamp ?? s.weekStartDate;
-          const createdAt = createdAtRaw ? String(createdAtRaw) : new Date().toISOString();
-          const weekStartDate = s.weekStartDate ?? s.week_start_date;
-          const targetId = typeof s.targetId === "number" ? s.targetId : Number(s.targetId);
-          const constellationId = typeof s.constellationId === "number" ? s.constellationId : Number(s.constellationId);
-          return {
-            id,
-            targetId: Number.isNaN(targetId) ? undefined : targetId,
-            constellationId: Number.isNaN(constellationId) ? undefined : constellationId,
-            kind,
-            createdAt,
-            weekStartDate,
-            color: s.starColor || colorFromId(id, kind),
-          } as HomeStar;
-        }).filter((s: HomeStar) => s.id);
-
-        setStars(fetchedStars);
-
-        const grouped = fetchedStars.map((s) => ({
-          id: s.id,
-          kind: (s.kind || "daily").toLowerCase(),
-          color: s.color,
-          label: s.kind === "DAILY" ? "데일리 행성" : "위클리 별",
-          weekKey: s.weekStartDate ? getWeekKey(new Date(s.weekStartDate)) : getWeekKey(new Date(s.createdAt)),
-          createdAt: s.createdAt,
-          original: s,
-        }));
-        setTimelineItems(grouped);
-      } catch (e) {
-        console.error("fetch star map fail:", e);
-        setStars([]);
-        setTimelineItems([]);
-      }
-    };
-    fetchStars();
+    void fetchStars().catch((e) => {
+      console.error("fetch star map fail:", e);
+      setStars([]);
+      setTimelineItems([]);
+    });
   }, []);
 
   const dailyPlanets = useMemo(
@@ -384,6 +423,7 @@ function HomePage() {
         <DailyCompleteView
           isModal
           onClose={() => setDailyCompleteModalOpen(false)}
+          onSaved={refreshStarsAfterDailySave}
           onBackToDetail={() => {
             setDailyCompleteModalOpen(false);
             setDailyDetailModalOpen(true);
@@ -406,6 +446,7 @@ function HomePage() {
         <WeeklyHtpView
           isModal
           onClose={() => setWeeklyHtpModalOpen(false)}
+          onSaved={refreshStarsAfterWeeklySave}
           onBackToWeeklyContent={() => {
             setWeeklyHtpModalOpen(false);
             setWeeklyContentModalOpen(true);
