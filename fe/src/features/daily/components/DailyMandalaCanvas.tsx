@@ -18,7 +18,7 @@ export function DailyMandalaCanvas({
 
   return (
     <div
-      className="mandala-surface mandala-surface-white flex-1 min-h-0 overflow-hidden"
+      className="mandala-surface mandala-surface-white w-full max-w-md aspect-square mx-auto overflow-hidden rounded-2xl shadow-lg ring-1 ring-white/10"
       style={{ position: "relative", zIndex: 30, isolation: "isolate" }}
     >
       <DrawingCanvas
@@ -28,7 +28,7 @@ export function DailyMandalaCanvas({
         onPointerUp={drawing.handlePointerUp}
         cursor={cursor}
       />
-      
+
       {/* 대칭 가이드 선 - ported from DailyDetailView.tsx */}
       <svg
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
