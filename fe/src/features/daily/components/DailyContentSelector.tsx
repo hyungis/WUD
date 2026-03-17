@@ -132,12 +132,12 @@ function DailyContentInner({ onClose }: { onClose: () => void }) {
                       className="drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
                     />
                   </svg>
-                  <div 
+                  <div
                     className="absolute inset-0 rounded-full blur-2xl opacity-20"
                     style={{ backgroundColor: selectedEmotion?.color }}
                   />
                 </div>
-                
+
                 <h1 className="text-3xl font-semibold text-slate-50 [font-family:'Manrope',sans-serif] sm:text-4xl">
                   무엇으로 채워볼까요?
                 </h1>
@@ -199,12 +199,7 @@ export default function DailyContentSelector({ isModal = false, onClose }: Daily
           className="absolute inset-0 h-full w-full cursor-default"
         />
 
-        <div className="relative z-10 mx-auto w-full max-w-6xl translate-y-3 overflow-x-hidden rounded-3xl border border-white/10 bg-slate-950/65 p-6 shadow-[0_24px_80px_rgba(0,0,0,0.42)] ring-1 ring-white/10 backdrop-blur-xl sm:p-8">
-          <div
-            className="pointer-events-none absolute inset-0 z-10 opacity-35"
-            style={{ background: "radial-gradient(circle at center, transparent 34%, rgba(10, 5, 25, 0.28) 70%, rgba(0, 0, 0, 0.36) 100%)" }}
-          />
-
+        <div className="relative z-10 mx-auto w-full max-w-6xl translate-y-3 overflow-x-hidden">
           <DailyContentInner onClose={onClose} />
         </div>
       </div>
