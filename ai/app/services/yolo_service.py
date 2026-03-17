@@ -23,13 +23,24 @@ class YoloService:
             raise Exception("Failed to load YOLO model")
 
     @classmethod
-    def classify_image(cls, image_path: str, model_path: Optional[str] = None) -> List[Dict[str, Any]]:
+    def classify_image(
+        cls,
+        image_path: str,
+        model_path: Optional[str] = None,
+        imgsz: int = 640,
+        conf: float = 0.25
+    ) -> List[Dict[str, Any]]:
         model_path = model_path or settings.yolo_model_path
         model = cls.load_model(model_path)
             
         try:
-            print(f"Running YOLO on: {image_path} (model={model_path})")
-            results = model(image_path)
+            print(f"Running YOLO on: {image_path} (model={model_path}, imgsz={imgsz}, conf={conf})")
+            results = model.predict(
+                source=image_path,
+                imgsz=imgsz,
+                conf=conf,
+                verbose=False
+            )
             
             classifications = []
             
