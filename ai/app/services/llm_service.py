@@ -90,6 +90,106 @@ class LLMService:
             print(f"Error calling SSAFY GMS API: {e}")
             raise HTTPException(status_code=500, detail=f"LLM analysis failed: {str(e)}")
 
+    def analyze_daily_inner_feedback(
+        self,
+        *,
+        daily_id: int,
+        daily_type: str,
+        emotion: str | None,
+        emotion_color: str | None,
+        content: str | None,
+        image_url: str | None = None,
+        image_path: str | None = None,
+    ) -> str:
+        """
+        Daily 이미지(멀티모달) + 감정/텍스트를 기반으로
+        그림 단서를 근거로 사용자의 '내면 상태'를 추론한 한 문장 피드백을 생성합니다.
+        """
+        if not image_url and not image_path:
+            raise HTTPException(status_code=400, detail="Either image_url or image_path is required")
+
+        client = self._get_client()
+        model_name = (settings.gms_model or "").strip() or "gpt-4o"
+
+        allowed_endings = ("인 것 같아요.", "한 듯해요.", "해 보이네요.", "느껴져요.", "보여요.")
+
+        developer_prompt = (
+            "당신은 그림(시각적 단서)을 바탕으로 심리적 내면 상태를 추론하는 분석가입니다. "
+            "톤은 밝고 에너지 있게, 하지만 과장하거나 감정적으로 위로하지는 마세요. "
+            "반드시 그림의 구체 단서(색감/구도/여백/선의 강약/대상 배치 등) 1가지를 근거로, "
+            "사용자의 내면 상태를 '가능성/해석' 형태로 조심스럽게 제시하세요. "
+            "진단명·병리 라벨(우울증, 불안장애 등)과 단정적 표현(반드시/확실히)은 금지합니다. "
+            "출력은 한국어 한 문장으로만 작성하세요. "
+            "문장 끝은 반드시 다음 중 하나로 끝내세요: "
+            "'인 것 같아요.' / '한 듯해요.' / '해 보이네요.' / '느껴져요.' / '보여요.'. "
+            "'읽혀요'는 사용하지 마세요."
+        )
+
+        daily_type_norm = (daily_type or "").strip().upper()
+        emo = (emotion or "").strip()
+        emo_color = (emotion_color or "").strip()
+        diary = (content or "").strip()
+
+        text_parts = [
+            {"type": "text", "text": f"dailyId: {daily_id}"},
+            {"type": "text", "text": f"dailyType: {daily_type_norm}"},
+        ]
+        if emo:
+            text_parts.append({"type": "text", "text": f"emotion: {emo}"})
+        if emo_color:
+            text_parts.append({"type": "text", "text": f"emotionColor: {emo_color}"})
+        if diary:
+            text_parts.append({"type": "text", "text": f"diary: {diary}"})
+
+        text_parts.append(
+            {
+                "type": "text",
+                "text": (
+                    "아래 이미지(그림)를 보고, 위 정보(있다면)까지 함께 고려해 "
+                    "그림 단서를 근거로 사용자의 내면 상태를 '추론'한 분석을 한 문장으로 작성해 주세요. "
+                    "예: 색이 밝고 여백이 넓어, 안정 속에서 자기표현을 해보고 싶은 마음이 한 듯해요. "
+                    "이모지/따옴표/번호는 사용하지 말고, 끝맺음은 반드시 "
+                    "'인 것 같아요.' / '한 듯해요.' / '해 보이네요.' / '느껴져요.' / '보여요.' 중 하나로 해주세요."
+                ),
+            }
+        )
+
+        content_parts: List[Dict[str, Any]] = list(text_parts)
+        if image_url:
+            content_parts.append({"type": "image_url", "image_url": {"url": image_url}})
+        else:
+            data_url = self._file_to_data_url(image_path or "")
+            content_parts.append({"type": "image_url", "image_url": {"url": data_url}})
+
+        try:
+            print("Requesting SSAFY GMS(OpenAI SDK) for daily vision feedback...")
+            resp = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "developer", "content": developer_prompt},
+                    {"role": "user", "content": content_parts},
+                ],
+                temperature=0.6,
+                max_tokens=120,
+            )
+            out = (resp.choices[0].message.content or "").strip()
+            # Keep it single-line/single-sentence-ish for the backend.
+            out = " ".join(out.split())
+            if not out:
+                raise ValueError("Empty LLM content")
+            # Enforce preferred ending for daily one-liner storage.
+            if out.endswith("읽혀요.") or out.endswith("읽힐 수 있어요.") or out.endswith("읽힙니다."):
+                out = out.rstrip(".")
+                out = out + "인 것 같아요."
+            if not out.endswith(allowed_endings):
+                if out.endswith(".") or out.endswith("!") or out.endswith("?"):
+                    out = out[:-1]
+                out = out + "인 것 같아요."
+            return out
+        except Exception as e:
+            print(f"Error calling SSAFY GMS API (daily vision): {e}")
+            raise HTTPException(status_code=500, detail=f"LLM daily vision failed: {str(e)}")
+
     def analyze_htp(
         self,
         *,
