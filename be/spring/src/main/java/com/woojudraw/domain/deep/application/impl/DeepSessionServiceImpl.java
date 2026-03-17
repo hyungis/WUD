@@ -91,7 +91,8 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 
 		validateWho5Answers(request);
 
-		LocalDate weekStartDate = deepSession.getCreatedAt().toLocalDate();
+
+		LocalDate weekStartDate = getWeekStartDate(deepSession.getCreatedAt().toLocalDate());
 
 		DeepPsychAssessment assessment = DeepPsychAssessment.createWho5(
 				deepSession.getId(),
@@ -119,7 +120,8 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 
 		validateSpaneAnswers(request);
 
-		LocalDate weekStartDate = deepSession.getCreatedAt().toLocalDate();
+
+		LocalDate weekStartDate = getWeekStartDate(deepSession.getCreatedAt().toLocalDate());
 
 		DeepPsychAssessment assessment = DeepPsychAssessment.createSpane(
 			deepSession.getId(),
@@ -555,6 +557,10 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 			}
 		}
 		return sb.toString() + "ImageKey";
+	}
+
+	private LocalDate getWeekStartDate(LocalDate date) {
+		return date.with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.SUNDAY));
 	}
 
 }

@@ -250,8 +250,8 @@ public class DailyServiceImpl implements DailyService {
 		}
 
 		if (period == DailyListPeriod.WEEK) {
-			LocalDate start = anchor.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
-			LocalDate end = anchor.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY));
+			LocalDate start = anchor.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
+			LocalDate end = anchor.with(TemporalAdjusters.nextOrSame(DayOfWeek.SATURDAY));
 			return new DateRange(start, end);
 		}
 

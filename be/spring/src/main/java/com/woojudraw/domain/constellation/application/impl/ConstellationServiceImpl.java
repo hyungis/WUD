@@ -2,6 +2,7 @@ package com.woojudraw.domain.constellation.application.impl;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -174,7 +175,7 @@ public class ConstellationServiceImpl implements ConstellationService {
 	}
 
 	private LocalDate getIsoWeekStartDate(LocalDate date) {
-		return date.with(DayOfWeek.MONDAY);
+		return date.with(TemporalAdjusters.previousOrSame(DayOfWeek.SUNDAY));
 	}
 
 	private GetStarMapResp.StarItem toStarItem(Star star) {
