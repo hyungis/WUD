@@ -65,7 +65,7 @@ services:
       - RABBITMQ_PORT=5672
       - RABBITMQ_USER=${RABBITMQ_USER}
       - RABBITMQ_PASS=${RABBITMQ_PASS}
-      - DAILY_AI_USE_MOCK=true
+      - DAILY_AI_USE_MOCK=false
       - AI_RABBITMQ_EXCHANGE=wud.deep.ai.exchange
       - AI_RABBITMQ_REQUEST_QUEUE=wud.deep.ai.request.queue
       - AI_RABBITMQ_ROUTING_KEY=wud.deep.ai.request.routing-key

@@ -2,6 +2,8 @@ import os
 from typing import Any
 
 from app.models.schemas import DailyAiAnalyzeReq, DailyAiAnalyzeResp, DailyAiAnalysisData
+from app.services.s3_service import s3_service
+from app.services.llm_service import llm_service
 
 
 DAILY_TYPE_LABELS = {
@@ -22,8 +24,8 @@ def analyze_daily_request(request: DailyAiAnalyzeReq) -> DailyAiAnalyzeResp:
     print(f"[FastAPI] DailyType: {request.dailyType}")
 
     try:
-        result_summary = _generate_feedback(request)
-        raw = _build_raw_payload(request, result_summary)
+        result_summary, raw_extra = _generate_feedback(request)
+        raw = _build_raw_payload(request, result_summary, raw_extra=raw_extra)
 
         return DailyAiAnalyzeResp(
             dailyId=request.dailyId,
@@ -44,11 +46,46 @@ def analyze_daily_request(request: DailyAiAnalyzeReq) -> DailyAiAnalyzeResp:
         )
 
 
-def _generate_feedback(request: DailyAiAnalyzeReq) -> str:
+def _generate_feedback(request: DailyAiAnalyzeReq) -> tuple[str, dict[str, Any]]:
     if _use_mock_response():
-        return _generate_mock_feedback(request)
+        return _generate_mock_feedback(request), {"imageSource": {"type": "none"}}
 
-    raise NotImplementedError("Daily LLM feedback is not implemented yet. Enable DAILY_AI_USE_MOCK=true.")
+    image_source: dict[str, str] = {"type": "unknown"}
+    local_path: str | None = None
+    try:
+        # Prefer presigned URL to avoid large request bodies.
+        try:
+            presigned_url = s3_service.generate_presigned_url(request.s3ObjectKey, expires_in=600)
+            image_source = {"type": "presigned_url", "value": presigned_url}
+            feedback = llm_service.analyze_daily_inner_feedback(
+                daily_id=request.dailyId,
+                daily_type=request.dailyType,
+                emotion=request.emotion,
+                emotion_color=request.emotionColor,
+                content=request.content,
+                image_url=presigned_url,
+            )
+            return feedback, {"imageSource": image_source}
+        except Exception as url_exc:
+            print(f"[Daily Analyze] presigned url failed; fallback to download. dailyId={request.dailyId} err={url_exc}")
+
+        local_path = s3_service.download_image(request.s3ObjectKey)
+        image_source = {"type": "download_path", "value": local_path}
+        feedback = llm_service.analyze_daily_inner_feedback(
+            daily_id=request.dailyId,
+            daily_type=request.dailyType,
+            emotion=request.emotion,
+            emotion_color=request.emotionColor,
+            content=request.content,
+            image_path=local_path,
+        )
+        return feedback, {"imageSource": image_source}
+    finally:
+        if local_path and os.path.exists(local_path):
+            try:
+                os.remove(local_path)
+            except OSError:
+                pass
 
 
 def _generate_mock_feedback(request: DailyAiAnalyzeReq) -> str:
@@ -71,9 +108,14 @@ def _build_content_hint(content: str | None) -> str:
     return "말로 남기지 않은 마음도 그림만으로 충분히 전해져요."
 
 
-def _build_raw_payload(request: DailyAiAnalyzeReq, result_summary: str) -> dict[str, Any]:
+def _build_raw_payload(
+    request: DailyAiAnalyzeReq,
+    result_summary: str,
+    *,
+    raw_extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     daily_type = (request.dailyType or "").upper()
-    return {
+    payload: dict[str, Any] = {
         "mode": "mock" if _use_mock_response() else "llm",
         "version": "daily-feedback-v1",
         "dailyType": daily_type,
@@ -89,6 +131,9 @@ def _build_raw_payload(request: DailyAiAnalyzeReq, result_summary: str) -> dict[
         },
         "resultSummary": result_summary,
     }
+    if raw_extra:
+        payload.update(raw_extra)
+    return payload
 
 
 def _use_mock_response() -> bool:
