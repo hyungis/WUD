@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import Button from "../../components/shared/Button";
 import { useCanvasDrawing } from "./hooks/useCanvasDrawing";
 import type { ToolType } from "./hooks/useCanvasDrawing";
 import { DailyMandalaCanvas } from "./components/DailyMandalaCanvas";
@@ -31,11 +30,11 @@ function ToolBtn({
       disabled={disabled}
       onMouseDown={(e) => e.preventDefault()}
       title={title}
-      className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all duration-150 shrink-0 ${disabled
-        ? "opacity-30 cursor-not-allowed text-slate-500 bg-white/5"
+      className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-150 shrink-0 ${disabled
+        ? "opacity-30 cursor-not-allowed text-slate-500"
         : active
-          ? "bg-cyan-500 text-white shadow-lg shadow-cyan-500/30 scale-105"
-          : "bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white"
+          ? "bg-cyan-500/90 text-white shadow-md shadow-cyan-500/25 scale-105"
+          : "text-slate-300 hover:bg-white/10 hover:text-white"
         }`}
     >
       {children}
@@ -59,13 +58,9 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
   const [brushSize, setBrushSize] = useState(4);
   const [symmetry, setSymmetry] = useState(8);
   const [tool, setTool] = useState<ToolType>("brush");
-
-  // 팝업창 관리 상태 ("color" | "size" | "symmetry" | null)
   const [activePopup, setActivePopup] = useState<string | null>(null);
 
   const drawing = useCanvasDrawing({ paintColor, brushSize, tool, symmetry });
-
-  const strokeDensity = Math.min(100, Math.round((brushSize / 20) * 100));
 
   const handleClose = () => {
     if (onClose) { onClose(); return; }
@@ -83,202 +78,169 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
     navigate("/daily/complete");
   };
 
-  const togglePopup = (popupName: string) => {
-    setActivePopup(prev => prev === popupName ? null : popupName);
+  const togglePopup = (name: string) => setActivePopup(prev => prev === name ? null : name);
+
+  const exportAndComplete = () => {
+    const originalCanvas = drawing.canvasRef.current;
+    let drawingImage = null;
+    if (originalCanvas) {
+      const exportCanvas = document.createElement("canvas");
+      exportCanvas.width = 1024;
+      exportCanvas.height = 1024;
+      const exportCtx = exportCanvas.getContext("2d");
+      if (exportCtx) {
+        exportCtx.fillStyle = "#ffffff";
+        exportCtx.fillRect(0, 0, 1024, 1024);
+        exportCtx.drawImage(originalCanvas, 0, 0, 1024, 1024);
+        drawingImage = exportCanvas.toDataURL("image/png");
+      }
+    }
+    const createdAt = new Date().toISOString();
+    localStorage.setItem("pendingDailyRecord", JSON.stringify({
+      shellColor, coreColor: paintColor, objectType: "halo", objectColor: paintColor,
+      mandalaImage: drawingImage, createdAt,
+    }));
+    localStorage.setItem("dailyMoodColor", shellColor);
+    handleOpenComplete();
   };
 
   const content = (
     <div
-      className="flex flex-col h-[100dvh] w-full overflow-hidden bg-slate-950 p-4 md:p-6 gap-6 text-slate-100"
-      // 빈 공간 클릭 시 팝업 닫기
+      className="flex flex-col h-[100dvh] w-full overflow-hidden bg-slate-950 text-slate-100"
       onPointerDown={(e) => {
-        if ((e.target as HTMLElement).closest('.toolbar-area')) return;
+        if ((e.target as HTMLElement).closest('.toolbar-area, .toolbar-popup')) return;
         setActivePopup(null);
       }}
     >
-      {/* ─── 상단 헤더 영역 ─── */}
-      <header className="shrink-0 flex items-start justify-between z-10">
-        <div className="flex flex-col gap-1.5">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-100/75">
-            Daily Detail
-          </p>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-50 tracking-tight sm:text-3xl">만다라 디테일</h1>
-            <div className="mt-1 h-3 w-3 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.3)]" style={{ backgroundColor: shellColor }} />
-          </div>
-          <p className="text-sm text-slate-300/90">오늘의 감정을 채워보세요.</p>
+      {/* ─── 헤더 (컴팩트 1줄) ─── */}
+      <header className="shrink-0 flex items-center justify-between px-4 h-12 border-b border-white/[0.06] z-10">
+        <div className="flex items-center gap-2.5">
+          <button type="button" onClick={handleBackToContent}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          </button>
+          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: shellColor }} />
+          <span className="text-sm font-medium text-slate-300">만다라 그리기</span>
         </div>
         <div className="flex items-center gap-2">
-          <Button type="button" variant="secondary" onClick={handleBackToContent}>선택으로</Button>
           {isModal && (
-            <button type="button" onClick={handleClose} className="flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-white/5 text-sm text-slate-200 transition hover:bg-white/10">X</button>
+            <button type="button" onClick={handleClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition text-xs">✕</button>
           )}
-          <Button
-            type="button"
-            onClick={() => {
-              const originalCanvas = drawing.canvasRef.current;
-              let drawingImage = null;
-
-              if (originalCanvas) {
-                // 1. 전송용 1024x1024 가짜(메모리) 캔버스 생성
-                const exportCanvas = document.createElement("canvas");
-                exportCanvas.width = 1024;
-                exportCanvas.height = 1024;
-                const exportCtx = exportCanvas.getContext("2d");
-
-                if (exportCtx) {
-                  // 2. 배경을 흰색으로 깔아주기 (투명 배경 방지용)
-                  exportCtx.fillStyle = "#ffffff";
-                  exportCtx.fillRect(0, 0, 1024, 1024);
-
-                  // 3. 화면에 있는 그림을 1024 크기로 쫙 늘리거나 줄여서 복사해 그리기
-                  exportCtx.drawImage(originalCanvas, 0, 0, 1024, 1024);
-
-                  // 4. 복사된 1024 캔버스에서 Base64 이미지 뽑아내기
-                  drawingImage = exportCanvas.toDataURL("image/png");
-                }
-              }
-
-              const createdAt = new Date().toISOString();
-              localStorage.setItem("pendingDailyRecord", JSON.stringify({
-                shellColor,
-                coreColor: paintColor,
-                objectType: "halo",
-                objectColor: paintColor,
-                mandalaImage: drawingImage, // 여기엔 무조건 1024x1024 이미지가 들어감
-                createdAt,
-              }));
-              localStorage.setItem("dailyMoodColor", shellColor);
-              handleOpenComplete();
-            }}
-          >
-            완료하기
-          </Button>
+          <button type="button" onClick={exportAndComplete}
+            className="h-8 px-4 rounded-xl bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-500/20 hover:bg-cyan-400 transition-colors">
+            완료
+          </button>
         </div>
       </header>
 
-      {/* ─── 메인 작업 영역 ─── */}
-      <div className="flex flex-1 flex-row min-h-0 gap-6 w-full max-w-6xl mx-auto items-center justify-center relative">
+      {/* ─── 메인: 좌 툴바 + 중앙 캔버스 ─── */}
+      <div className="flex flex-1 min-h-0 relative">
 
-        {/* ─── 1열 단일 툴바 ─── */}
-        <div className="toolbar-area relative shrink-0 flex flex-col items-center h-fit gap-2 bg-slate-900/60 rounded-3xl p-3 border border-white/10 shadow-2xl backdrop-blur-md z-40">
+        {/* ─── 좌측 세로 툴바 ─── */}
+        <div className="toolbar-area shrink-0 flex flex-col items-center w-20 py-3 gap-1.5 bg-slate-900/50 border-r border-white/[0.06] z-40 overflow-visible">
 
-          {/* 도구 모음 */}
-          <div className="flex flex-col gap-2 border-b border-white/10 pb-3 w-full">
-            <ToolBtn active={tool === "brush"} onClick={() => { setTool("brush"); setActivePopup(null); }} title="브러시"><BrushIcon /></ToolBtn>
-            <ToolBtn active={tool === "fill"} onClick={() => { setTool("fill"); setActivePopup(null); }} title="채우기"><FillIcon /></ToolBtn>
-            <ToolBtn active={tool === "eraser"} onClick={() => { setTool("eraser"); setActivePopup(null); }} title="지우개"><EraserIcon /></ToolBtn>
+          {/* 도구 */}
+          <ToolBtn active={tool === "brush"} onClick={() => { setTool("brush"); setActivePopup(null); }} title="브러시"><BrushIcon /></ToolBtn>
+          <ToolBtn active={tool === "fill"} onClick={() => { setTool("fill"); setActivePopup(null); }} title="채우기"><FillIcon /></ToolBtn>
+          <ToolBtn active={tool === "eraser"} onClick={() => { setTool("eraser"); setActivePopup(null); }} title="지우개"><EraserIcon /></ToolBtn>
+
+          <div className="w-10 h-px bg-white/10 my-1.5" />
+
+          {/* 색상 */}
+          <div className="relative">
+            <ToolBtn active={activePopup === "color"} onClick={() => togglePopup("color")} title="색상">
+              <div className="h-5 w-5 rounded-full ring-2 ring-white/40" style={{ backgroundColor: paintColor }} />
+            </ToolBtn>
+            {activePopup === "color" && (
+              <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-[280px] bg-slate-900 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
+                onPointerDown={(e) => e.stopPropagation()}>
+                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-slate-900 border-l border-b border-white/15" />
+                <div className="grid grid-cols-6 gap-2.5 mb-3">
+                  {PALETTE.map((c) => (
+                    <button key={c} onClick={() => setPaintColor(c)}
+                      className={`h-9 w-9 rounded-full transition-all ${paintColor === c ? "scale-110 ring-2 ring-white ring-offset-2 ring-offset-slate-900" : "hover:scale-110 opacity-80 hover:opacity-100"}`}
+                      style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+                <label className="flex items-center justify-center w-full h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer text-xs text-slate-400 transition-colors">
+                  커스텀 색상
+                  <input type="color" value={paintColor} onChange={(e) => setPaintColor(e.target.value)} className="absolute opacity-0 w-0 h-0" />
+                </label>
+              </div>
+            )}
           </div>
 
-          {/* 옵션 모음 (팝업 트리거 버튼들) */}
-          <div className="flex flex-col gap-2 border-b border-white/10 py-3 w-full relative">
-
-            {/* 1. 색상 버튼 & 팝업 */}
-            <div className="relative w-full flex justify-center">
-              <ToolBtn active={activePopup === "color"} onClick={() => togglePopup("color")} title="색상 선택">
-                <div className="h-5 w-5 rounded-full ring-2 ring-white/50" style={{ backgroundColor: paintColor }} />
-              </ToolBtn>
-
-              {activePopup === "color" && (
-                <div className="absolute left-[calc(100%+16px)] top-1/2 -translate-y-1/2 w-[210px] bg-slate-900/95 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
-                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 border-y-8 border-y-transparent border-r-8 border-r-slate-900/95" />
-                  <span className="block text-xs font-bold text-slate-400 mb-3">팔레트</span>
-                  <div className="grid grid-cols-4 gap-2 mb-3">
-                    {PALETTE.map((color) => (
-                      <button
-                        key={color} onClick={() => setPaintColor(color)}
-                        className={`h-8 w-8 rounded-full transition-transform ${paintColor === color ? "scale-125 ring-2 ring-white ring-offset-2 ring-offset-slate-900" : "hover:scale-110"}`}
-                        style={{ backgroundColor: color }}
-                      />
-                    ))}
-                  </div>
-                  <label className="flex items-center justify-center w-full h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer text-xs text-slate-300 transition-colors">
-                    직접 선택하기
-                    <input type="color" value={paintColor} onChange={(e) => setPaintColor(e.target.value)} className="absolute opacity-0 w-0 h-0" />
-                  </label>
+          {/* 굵기 */}
+          <div className="relative">
+            <ToolBtn active={activePopup === "size"} onClick={() => togglePopup("size")} title="굵기">
+              <span className="inline-block rounded-full bg-current" style={{ width: Math.max(4, Math.min(brushSize + 2, 12)), height: Math.max(4, Math.min(brushSize + 2, 12)) }} />
+            </ToolBtn>
+            {activePopup === "size" && (
+              <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-56 bg-slate-900 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
+                onPointerDown={(e) => e.stopPropagation()}>
+                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-slate-900 border-l border-b border-white/15" />
+                <div className="flex justify-between items-center mb-2.5 text-xs text-slate-400">
+                  <span>굵기</span><span className="text-cyan-400 font-bold">{brushSize}px</span>
                 </div>
-              )}
-            </div>
+                <input type="range" min="1" max="30" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-full appearance-none cursor-pointer accent-cyan-400" />
+              </div>
+            )}
+          </div>
 
-            {/* 2. 굵기 버튼 & 팝업 */}
-            <div className="relative w-full flex justify-center">
-              <ToolBtn active={activePopup === "size"} onClick={() => togglePopup("size")} title="굵기 조절">
-                <div className="flex flex-col items-center gap-1">
-                  <span className="inline-block rounded-full bg-current" style={{ width: Math.min(brushSize + 2, 14), height: Math.min(brushSize + 2, 14) }} />
-                  <span className="text-[9px] font-bold">{brushSize}</span>
-                </div>
-              </ToolBtn>
-
-              {activePopup === "size" && (
-                <div className="absolute left-[calc(100%+16px)] top-1/2 -translate-y-1/2 w-64 bg-slate-900/95 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
-                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 border-y-8 border-y-transparent border-r-8 border-r-slate-900/95" />
-                  <div className="flex justify-between items-center mb-3 text-xs font-bold text-slate-400">
-                    <span>브러시 굵기</span>
-                    <span className="text-cyan-400">{brushSize}px</span>
-                  </div>
+          {/* 대칭 */}
+          <div className="relative">
+            <ToolBtn active={activePopup === "symmetry"} onClick={() => togglePopup("symmetry")} title="대칭">
+              <SymmetryIcon />
+            </ToolBtn>
+            {activePopup === "symmetry" && (
+              <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-56 bg-slate-900 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
+                onPointerDown={(e) => e.stopPropagation()}>
+                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-slate-900 border-l border-b border-white/15" />
+                <div className="flex justify-between items-center mb-2.5 text-xs text-slate-400">
+                  <span>대칭</span>
                   <input
-                    type="range" min="1" max="30" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))}
-                    className="w-full h-2 bg-slate-700 rounded-full appearance-none cursor-pointer accent-cyan-400"
+                    type="number" min="2" max="24" step="1"
+                    value={symmetry}
+                    onChange={(e) => {
+                      const v = Math.max(2, Math.min(24, Number(e.target.value) || 2));
+                      setSymmetry(v);
+                    }}
+                    className="w-12 h-6 rounded-md bg-slate-800 border border-white/10 text-center text-indigo-400 font-bold text-xs appearance-none outline-none focus:border-indigo-400"
                   />
                 </div>
-              )}
-            </div>
-
-            {/* 3. 대칭 버튼 & 팝업 */}
-            <div className="relative w-full flex justify-center">
-              <ToolBtn active={activePopup === "symmetry"} onClick={() => togglePopup("symmetry")} title="대칭선 조절">
-                <SymmetryIcon />
-              </ToolBtn>
-
-              {activePopup === "symmetry" && (
-                <div className="absolute left-[calc(100%+16px)] top-1/2 -translate-y-1/2 w-64 bg-slate-900/95 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95 duration-200">
-                  <div className="absolute -left-2 top-1/2 -translate-y-1/2 border-y-8 border-y-transparent border-r-8 border-r-slate-900/95" />
-                  <div className="flex justify-between items-center mb-3 text-xs font-bold text-slate-400">
-                    <span>대칭 개수</span>
-                    <span className="text-indigo-400">{symmetry}</span>
-                  </div>
-                  <input
-                    type="range" min="2" max="24" step="2" value={symmetry} onChange={(e) => setSymmetry(Number(e.target.value))}
-                    className="w-full h-2 bg-slate-700 rounded-full appearance-none cursor-pointer accent-indigo-400"
-                  />
-                  <div className="mt-3 flex justify-between px-1 text-[10px] text-slate-500 font-bold">
-                    <span>2</span><span>8</span><span>16</span><span>24</span>
-                  </div>
+                <input type="range" min="2" max="24" step="1" value={symmetry} onChange={(e) => setSymmetry(Number(e.target.value))}
+                  className="w-full h-2 bg-slate-700 rounded-full appearance-none cursor-pointer accent-indigo-400" />
+                <div className="mt-1.5 flex justify-between text-[10px] text-slate-600">
+                  <span>2</span><span>8</span><span>16</span><span>24</span>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
-          {/* 기록 모음 */}
-          <div className="flex flex-col gap-2 pt-1 w-full">
-            <ToolBtn disabled={!drawing.canUndo} onClick={drawing.handleUndo} title="뒤로 가기"><UndoIcon /></ToolBtn>
-            <ToolBtn disabled={!drawing.canRedo} onClick={drawing.handleRedo} title="앞으로 가기"><RedoIcon /></ToolBtn>
-            <ToolBtn onClick={() => { drawing.handleClearCanvas(); setActivePopup(null); }} title="전체 지우기"><TrashIcon /></ToolBtn>
-          </div>
+          <div className="w-10 h-px bg-white/10 my-1.5" />
+
+          {/* 실행취소 / 다시실행 / 전체삭제 */}
+          <ToolBtn disabled={!drawing.canUndo} onClick={drawing.handleUndo} title="실행취소"><UndoIcon /></ToolBtn>
+          <ToolBtn disabled={!drawing.canRedo} onClick={drawing.handleRedo} title="다시실행"><RedoIcon /></ToolBtn>
+          <ToolBtn onClick={() => { drawing.handleClearCanvas(); setActivePopup(null); }} title="전체 지우기"><TrashIcon /></ToolBtn>
         </div>
 
-        {/* ─── 우측 캔버스 영역 ─── */}
+        {/* ─── 캔버스 영역 ─── */}
         <div
-          className="flex flex-1 flex-col items-center justify-center min-w-0 h-full gap-4 relative z-0"
-          onPointerDown={(e) => {
-            // 캔버스 그리기 시작할 때 무조건 팝업 닫기
-            setActivePopup(null);
-          }}
+          className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden p-4 pb-20"
+          onPointerDown={() => setActivePopup(null)}
         >
-          {/* 캔버스 래퍼 */}
-          <div className="w-full max-w-[800px] aspect-square min-h-0 relative shadow-[0_24px_80px_rgba(0,0,0,0.5)] rounded-2xl overflow-hidden ring-1 ring-white/10">
+          {/*
+            캔버스: 부모 영역 내에서 최대 정사각형.
+            height 기준으로 맞추고 aspect-ratio로 width를 따라가게 함.
+          */}
+          <div
+            className="relative rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_16px_64px_rgba(0,0,0,0.5)]"
+            style={{ aspectRatio: '1/1', height: '90%', maxHeight: '90%', maxWidth: '90%' }}
+          >
             <DailyMandalaCanvas drawing={drawing} symmetry={symmetry} tool={tool} />
-          </div>
-
-          {/* 하단 상태바 */}
-          <div className="w-full max-w-[800px] shrink-0 rounded-2xl border border-cyan-100/15 bg-slate-900/55 px-5 py-3 backdrop-blur-md">
-            <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.28em] text-slate-400">
-              <span>Canvas Ready</span>
-              <span>대칭 {symmetry} / 굵기 {brushSize}px</span>
-            </div>
-            <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400 transition-all duration-200" style={{ width: `${strokeDensity}%` }} />
-            </div>
           </div>
         </div>
 
@@ -286,12 +248,12 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
     </div>
   );
 
-  if (!isModal) { return content; }
+  if (!isModal) return content;
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-4 text-slate-100">
       <button type="button" aria-label="모달 닫기" onClick={handleClose} className="absolute inset-0 h-full w-full cursor-default" />
-      <div className="relative z-10 w-full max-w-7xl h-[94vh] overflow-hidden rounded-3xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.6)]">
+      <div className="relative z-10 w-full max-w-6xl h-[94vh] overflow-hidden rounded-3xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.6)]">
         {content}
       </div>
     </div>
