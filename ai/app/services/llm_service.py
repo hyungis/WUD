@@ -208,6 +208,7 @@ class LLMService:
         image_paths: Dict[str, str] | None = None,
         image_urls: Dict[str, str] | None = None,
         prompt_guide_text: Optional[str] = None,
+        cv_features: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """
         HTP + WHO5 + YOLO 결과 + 원본 이미지(멀티모달)로 GPT-4o 분석을 요청하고
@@ -278,7 +279,12 @@ class LLMService:
             )
 
         # 멀티모달 user message content
-        def build_user_content(*, include_guide: bool, include_wellbeing_raw: bool) -> List[Dict[str, Any]]:
+        def build_user_content(
+            *,
+            include_guide: bool,
+            include_wellbeing_raw: bool,
+            cv_feats: Dict[str, Any] | None = None,
+        ) -> List[Dict[str, Any]]:
             wellbeing = {"scoreTotal": who5.get("scoreTotal")}
             if include_wellbeing_raw:
                 wellbeing["raw"] = who5.get("raw")
@@ -293,28 +299,34 @@ class LLMService:
                     {"type": "text", "text": "입력 데이터(구조화):"},
                     {"type": "text", "text": f"wellbeing_survey: {wellbeing}"},
                     {"type": "text", "text": f"YOLO: {yolo}"},
-                    {
-                        "type": "text",
-                        "text": (
-                            "입력된 이미지, YOLO 결과, WELL-BEING 정보를 함께 참고하여 "
-                            "HTP 해석 기록안을 작성하세요. "
-                            "반드시 그림에서 관찰 가능한 특징을 먼저 언급하고, 그 특징이 시사할 수 있는 정서적 경향, "
-                            "대처 방식, 관계 태도, 자기표현 특성을 조심스럽게 해석하세요. "
-                            "YOLO 결과는 보조 참고 정보이며, 실제 이미지와 다를 수 있으므로 반드시 이미지와 교차 검토해야 합니다. "
-                            "탐지되지 않은 요소를 곧바로 '없음'으로 단정하지 마세요. "
-                            "WHO-5 점수는 현재의 웰빙 상태를 이해하는 보조 정보로만 활용하세요. "
-                            "결과는 상담 문장이나 위로 편지가 아니라, 전문적인 분석 기록문 형태로 작성하세요. "
-                            "intro는 현재 정서적 기조와 전반적인 특성을 3~5문장으로 요약하고, "
-                            "coreInsights는 3~5개의 핵심 특징에 대해 각각 '관찰 + 해석' 구조로 작성하세요. "
-                            "strengths는 그림에서 드러난 자원과 강점을 근거 기반으로 정리하고, "
-                            "questions는 자기이해를 돕는 개방형 질문으로 구성하세요."
-                        ),
-                    },
                 ]
+            )
+            if cv_feats:
+                parts.append({"type": "text", "text": f"CV_FEATURES: {cv_feats}"})
+            parts.append(
+                {
+                    "type": "text",
+                    "text": (
+                        "입력된 이미지, YOLO 결과, WELL-BEING 정보를 함께 참고하여 HTP 해석 기록안을 작성하세요. "
+                        "반드시 그림에서 관찰 가능한 특징을 먼저 언급하고, 그 특징이 시사할 수 있는 정서적 경향, "
+                        "대처 방식, 관계 태도, 자기표현 특성을 조심스럽게 해석하세요. "
+                        "YOLO 결과는 보조 참고 정보이며, 실제 이미지와 다를 수 있으므로 반드시 이미지와 교차 검토해야 합니다. "
+                        "탐지되지 않은 요소를 곧바로 '없음'으로 단정하지 마세요. "
+                        "CV_FEATURES가 제공된 경우 '어떻게 그려졌는지' 정량 정보(위치, 크기, 비율 등)를 근거로 활용하세요. "
+                        "WHO-5 점수는 현재의 웰빙 상태를 이해하는 보조 정보로만 활용하세요. "
+                        "결과는 상담 문장이나 위로 편지가 아니라, 전문적인 분석 기록문 형태로 작성하세요. "
+                        "intro는 현재 정서적 기조와 전반적인 특성을 3~5문장으로 요약하고, "
+                        "coreInsights는 3~5개의 핵심 특징에 대해 각각 '관찰 + 해석' 구조로 작성하세요. "
+                        "strengths는 그림에서 드러난 자원과 강점을 근거 기반으로 정리하고, "
+                        "questions는 자기이해를 돕는 개방형 질문으로 구성하세요."
+                    ),
+                }
             )
             return parts
 
-        content: List[Dict[str, Any]] = build_user_content(include_guide=True, include_wellbeing_raw=True)
+        content: List[Dict[str, Any]] = build_user_content(
+            include_guide=True, include_wellbeing_raw=True, cv_feats=cv_features
+        )
 
         def attach_images(parts: List[Dict[str, Any]]) -> None:
             for key in ("house", "tree", "person"):
@@ -359,7 +371,9 @@ class LLMService:
             refusal = getattr(msg0, "refusal", None)
             if refusal:
                 print("[LLM] Refusal received. Retrying with simplified prompt.")
-                simplified = build_user_content(include_guide=False, include_wellbeing_raw=False)
+                simplified = build_user_content(
+                    include_guide=False, include_wellbeing_raw=False, cv_feats=cv_features
+                )
                 attach_images(simplified)
                 resp = request_once(simplified)
                 choice0 = resp.choices[0]
