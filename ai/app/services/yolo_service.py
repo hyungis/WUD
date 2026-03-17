@@ -46,25 +46,117 @@ class YoloService:
             
             # YOLO 결과 파싱 (모델에 따라 파싱 방식이 다를 수 있음. 기본 classification 모델 기준)
             for result in results:
-                if result.probs is not None:
-                    # Classification 결과
+                # 1) detection 결과 우선 처리
+                if result.boxes is not None and len(result.boxes) > 0:
+                    orig_shape = getattr(result, "orig_shape", None)
+                    if orig_shape is not None and len(orig_shape) >= 2:
+                        orig_h, orig_w = int(orig_shape[0]), int(orig_shape[1])
+                    else:
+                        orig_h, orig_w = 640, 640
+
+                    if orig_h <= 0:
+                        orig_h = 640
+                    if orig_w <= 0:
+                        orig_w = 640
+
+                    for box in result.boxes:
+                        try:
+                            cls_idx = (
+                                int(box.cls.item())
+                                if hasattr(box.cls, "item")
+                                else int(box.cls)
+                            )
+                            conf_score = (
+                                float(box.conf.item())
+                                if hasattr(box.conf, "item")
+                                else float(box.conf)
+                            )
+
+                            # Ultralytics box.xyxy는 보통 shape (1, 4)
+                            coords = box.xyxy[0].tolist()
+                            if coords is None or len(coords) != 4:
+                                classifications.append(
+                                    {
+                                        "class": result.names[cls_idx],
+                                        "confidence": conf_score,
+                                    }
+                                )
+                                continue
+
+                            x1, y1, x2, y2 = [float(v) for v in coords]
+                            w_box = max(0.0, x2 - x1)
+                            h_box = max(0.0, y2 - y1)
+                            cx = (x1 + x2) / 2.0
+                            cy = (y1 + y2) / 2.0
+
+                            classifications.append(
+                                {
+                                    "class": result.names[cls_idx],
+                                    "confidence": conf_score,
+                                    "bbox": [
+                                        round(x1, 2),
+                                        round(y1, 2),
+                                        round(x2, 2),
+                                        round(y2, 2),
+                                    ],
+                                    "xCenterRatio": round(cx / orig_w, 4),
+                                    "yCenterRatio": round(cy / orig_h, 4),
+                                    "widthRatio": round(w_box / orig_w, 4),
+                                    "heightRatio": round(h_box / orig_h, 4),
+                                    "areaRatio": round(
+                                        (w_box * h_box) / (orig_w * orig_h), 4
+                                    ),
+                                }
+                            )
+                        except Exception as box_e:
+                            print(f"[YOLO] bbox parse failed: {box_e}")
+                            try:
+                                fallback_cls_idx = (
+                                    int(box.cls.item())
+                                    if hasattr(box.cls, "item")
+                                    else int(box.cls)
+                                )
+                                fallback_conf = (
+                                    float(box.conf.item())
+                                    if hasattr(box.conf, "item")
+                                    else float(box.conf)
+                                )
+                                classifications.append(
+                                    {
+                                        "class": result.names[fallback_cls_idx],
+                                        "confidence": fallback_conf,
+                                    }
+                                )
+                            except Exception:
+                                classifications.append(
+                                    {
+                                        "class": "unknown",
+                                        "confidence": 0.0,
+                                    }
+                                )
+
+                # 2) classification 결과 처리
+                elif result.probs is not None:
                     top5_indices = result.probs.top5
                     top5_confidences = result.probs.top5conf
                     names = result.names
-                    
-                    for i, conf in zip(top5_indices, top5_confidences):
-                        classifications.append({
-                            "class": names[i],
-                            "confidence": float(conf)
-                        })
-                elif result.boxes is not None:
-                     # Object Detection 결과인 경우
-                     for box in result.boxes:
-                         classifications.append({
-                             "class": result.names[int(box.cls)],
-                             "confidence": float(box.conf)
-                         })
-            
+
+                    for i, conf_score in zip(top5_indices, top5_confidences):
+                        try:
+                            cls_idx = int(i.item()) if hasattr(i, "item") else int(i)
+                            score = (
+                                float(conf_score.item())
+                                if hasattr(conf_score, "item")
+                                else float(conf_score)
+                            )
+                            classifications.append(
+                                {
+                                    "class": names[cls_idx],
+                                    "confidence": score,
+                                }
+                            )
+                        except Exception as cls_e:
+                            print(f"[YOLO] classification parse failed: {cls_e}")
             return classifications
         except Exception as e:
             print(f"Error classifying image: {str(e)}")
