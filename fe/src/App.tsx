@@ -97,7 +97,7 @@ function App() {
         const response: any = await refreshApi.post("/auth/refresh");
         const payload = response?.data;
         const accessToken = payload?.data?.accessToken ?? payload?.accessToken;
-        
+
         if (accessToken) {
           setTokens(accessToken);
         } else {
