@@ -1,46 +1,30 @@
-// 그리기 엔진 / Logic
-import { useCallback, useEffect, useRef } from "react";
+// 드로잉 엔진
 
-/* ── Flood‑fill ── */
-function floodFill(
-  ctx: CanvasRenderingContext2D,
-  startX: number,
-  startY: number,
-  fillColor: string,
-  tolerance = 32,
-) {
+import { useCallback, useEffect, useRef, useState } from "react";
+
+/* ── Flood‑fill (기존과 동일) ── */
+function floodFill(ctx: CanvasRenderingContext2D, startX: number, startY: number, fillColor: string, tolerance = 32) {
+  // ... (기존 floodFill 코드 동일 - 생략 없이 그대로 유지하세요)
   const canvas = ctx.canvas;
   const w = canvas.width;
   const h = canvas.height;
   const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
-
-  // parse target color
   const tmp = document.createElement("canvas");
   tmp.width = tmp.height = 1;
   const tctx = tmp.getContext("2d")!;
   tctx.fillStyle = fillColor;
   tctx.fillRect(0, 0, 1, 1);
   const [fr, fg, fb, fa] = tctx.getImageData(0, 0, 1, 1).data;
-
   const sx = Math.round(startX);
   const sy = Math.round(startY);
   if (sx < 0 || sy < 0 || sx >= w || sy >= h) return;
-
   const idx = (sy * w + sx) * 4;
   const sr = data[idx], sg = data[idx + 1], sb = data[idx + 2], sa = data[idx + 3];
-
   if (sr === fr && sg === fg && sb === fb && sa === fa) return;
-
-  const match = (i: number) =>
-    Math.abs(data[i] - sr) <= tolerance &&
-    Math.abs(data[i + 1] - sg) <= tolerance &&
-    Math.abs(data[i + 2] - sb) <= tolerance &&
-    Math.abs(data[i + 3] - sa) <= tolerance;
-
+  const match = (i: number) => Math.abs(data[i] - sr) <= tolerance && Math.abs(data[i + 1] - sg) <= tolerance && Math.abs(data[i + 2] - sb) <= tolerance && Math.abs(data[i + 3] - sa) <= tolerance;
   const stack = [sx, sy];
   const visited = new Uint8Array(w * h);
-
   while (stack.length > 0) {
     const cy = stack.pop()!;
     const cx = stack.pop()!;
@@ -49,10 +33,7 @@ function floodFill(
     visited[pi] = 1;
     const ci = pi * 4;
     if (!match(ci)) continue;
-    data[ci] = fr;
-    data[ci + 1] = fg;
-    data[ci + 2] = fb;
-    data[ci + 3] = fa;
+    data[ci] = fr; data[ci + 1] = fg; data[ci + 2] = fb; data[ci + 3] = fa;
     if (cx > 0) stack.push(cx - 1, cy);
     if (cx < w - 1) stack.push(cx + 1, cy);
     if (cy > 0) stack.push(cx, cy - 1);
@@ -70,69 +51,89 @@ interface UseCanvasDrawingProps {
   symmetry?: number;
 }
 
-export function useCanvasDrawing({
-  paintColor,
-  brushSize,
-  tool,
-  symmetry = 1,
-}: UseCanvasDrawingProps) {
+export function useCanvasDrawing({ paintColor, brushSize, tool, symmetry = 1 }: UseCanvasDrawingProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const canvasSizeRef = useRef({ width: 0, height: 0 });
 
-  /* 🚨 캔버스 초기화 & 리사이즈 방어 로직 (ResizeObserver 적용) */
+  // 🚨 Undo / Redo 상태 관리
+  const historyRef = useRef<ImageData[]>([]);
+  const historyStepRef = useRef<number>(-1);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  // 현재 캔버스 상태를 역사(History)에 저장하는 함수
+  const saveHistory = useCallback(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx || canvas.width === 0) return;
+
+    const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    // 새로운 그림을 그리면 앞으로 가기(Redo) 기록은 삭제
+    historyRef.current = historyRef.current.slice(0, historyStepRef.current + 1);
+    historyRef.current.push(data);
+    historyStepRef.current += 1;
+
+    setCanUndo(historyStepRef.current > 0);
+    setCanRedo(historyStepRef.current < historyRef.current.length - 1);
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (historyStepRef.current > 0) {
+      historyStepRef.current -= 1;
+      const data = historyRef.current[historyStepRef.current];
+      canvasRef.current?.getContext("2d")?.putImageData(data, 0, 0);
+      setCanUndo(historyStepRef.current > 0);
+      setCanRedo(true);
+    }
+  }, []);
+
+  const handleRedo = useCallback(() => {
+    if (historyStepRef.current < historyRef.current.length - 1) {
+      historyStepRef.current += 1;
+      const data = historyRef.current[historyStepRef.current];
+      canvasRef.current?.getContext("2d")?.putImageData(data, 0, 0);
+      setCanUndo(true);
+      setCanRedo(historyStepRef.current < historyRef.current.length - 1);
+    }
+  }, []);
+
+  /* 캔버스 초기화 & 리사이즈 방어 */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const resizeCanvas = () => {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-
       const rect = canvas.getBoundingClientRect();
-      // CSS 레이아웃이 잡히기 전(0x0)이면 무시
       if (rect.width === 0 || rect.height === 0) return;
 
-      // 1. 기존 캔버스 그림 백업
       const tempCanvas = document.createElement("canvas");
       tempCanvas.width = canvas.width || 1;
       tempCanvas.height = canvas.height || 1;
       const tempCtx = tempCanvas.getContext("2d");
-      if (tempCtx && canvas.width > 0) {
-        tempCtx.drawImage(canvas, 0, 0);
-      }
+      if (tempCtx && canvas.width > 0) tempCtx.drawImage(canvas, 0, 0);
 
-      // 2. 캔버스 물리적 픽셀 크기 재설정
       const dpr = window.devicePixelRatio || 1;
       canvasSizeRef.current = { width: rect.width, height: rect.height };
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
-
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, rect.width, rect.height);
+      ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, rect.width, rect.height);
 
-      // 3. 백업해둔 그림 다시 그리기
-      ctx.drawImage(
-        tempCanvas,
-        0, 0, tempCanvas.width, tempCanvas.height,
-        0, 0, rect.width, rect.height
-      );
+      // 초기 로드 시 빈 화면을 첫 히스토리로 저장
+      if (historyRef.current.length === 0) saveHistory();
     };
-
-    // 창 크기 조절이나 레이아웃 변경 시 실시간 감지
-    const observer = new ResizeObserver(() => {
-      resizeCanvas();
-    });
+    const observer = new ResizeObserver(() => resizeCanvas());
     observer.observe(canvas);
-
     return () => observer.disconnect();
-  }, []); // 마운트 시 한 번만 등록
+  }, [saveHistory]);
 
-  /* 브러시 속성 업데이트 */
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
     if (!ctx) return;
@@ -140,7 +141,6 @@ export function useCanvasDrawing({
     ctx.strokeStyle = paintColor;
   }, [brushSize, paintColor]);
 
-  /* 마우스 좌표 가져오기 */
   const getPoint = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -152,17 +152,16 @@ export function useCanvasDrawing({
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!ctx || !canvas) return;
-
     if (tool === "fill") {
       const dpr = window.devicePixelRatio || 1;
       const point = getPoint(event);
       floodFill(ctx, point.x * dpr, point.y * dpr, paintColor);
+      saveHistory(); // 채우기 후 히스토리 저장
       return;
     }
-
     isDrawingRef.current = true;
     lastPointRef.current = getPoint(event);
-  }, [tool, paintColor, getPoint]);
+  }, [tool, paintColor, getPoint, saveHistory]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -208,9 +207,12 @@ export function useCanvasDrawing({
   }, [tool, symmetry, brushSize, paintColor, getPoint]);
 
   const handlePointerUp = useCallback(() => {
+    if (isDrawingRef.current) {
+      saveHistory(); // 선 긋기 완료 후 히스토리 저장
+    }
     isDrawingRef.current = false;
     lastPointRef.current = null;
-  }, []);
+  }, [saveHistory]);
 
   const handleClearCanvas = useCallback(() => {
     const canvas = canvasRef.current;
@@ -220,7 +222,8 @@ export function useCanvasDrawing({
     const rect = canvas.getBoundingClientRect();
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, rect.width, rect.height);
-  }, []);
+    saveHistory(); // 지우기 후 히스토리 저장
+  }, [saveHistory]);
 
   return {
     canvasRef,
@@ -229,5 +232,9 @@ export function useCanvasDrawing({
     handlePointerUp,
     handleClearCanvas,
     canvasSize: canvasSizeRef.current,
+    handleUndo,  // 밖으로 꺼내줌
+    handleRedo,  // 밖으로 꺼내줌
+    canUndo,     // 상태 UI용
+    canRedo,     // 상태 UI용
   };
 }
