@@ -67,7 +67,7 @@ public class ConstellationServiceImpl implements ConstellationService {
 			deepSession.getUserId(),
 			constellation,
 			deepSession.getId(),
-			AppTime.nowUtc()
+			AppTime.nowKst()
 		);
 
 		starRepository.save(deepStar);
@@ -99,7 +99,7 @@ public class ConstellationServiceImpl implements ConstellationService {
 			constellation,
 			daily.getId(),
 			daily.getEmotionColor(),
-			AppTime.nowUtc()
+			AppTime.nowKst()
 		);
 
 		starRepository.save(dailyStar);
@@ -189,7 +189,7 @@ public class ConstellationServiceImpl implements ConstellationService {
 			.constellationId(star.getConstellation().getId())
 			.weekStartDate(star.getConstellation().getWeekStartDate())
 			.weekEndDate(star.getConstellation().getWeekEndDate())
-			.createdAt(AppTime.kstFromUtc(star.getCreatedAt()))
+			.createdAt(star.getCreatedAt())
 			.build();
 	}
 

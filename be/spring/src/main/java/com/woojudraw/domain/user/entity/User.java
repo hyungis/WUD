@@ -1,6 +1,6 @@
 package com.woojudraw.domain.user.entity;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -38,17 +38,17 @@ public class User {
 	@Column(nullable = false, length = 50)
 	private String nickname;
 
-	private LocalDateTime lastLoginAt;
+	private OffsetDateTime lastLoginAt;
 
 	@Column(nullable = false)
-	private LocalDateTime createdAt;
+	private OffsetDateTime createdAt;
 
 	@PrePersist
 	public void prePersist() {
-		this.createdAt = AppTime.nowUtc();
+		this.createdAt = AppTime.nowKst();
 	}
 
 	public void updateLastLogin() {
-		this.lastLoginAt = AppTime.nowUtc();
+		this.lastLoginAt = AppTime.nowKst();
 	}
 }

@@ -5,7 +5,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -39,8 +39,8 @@ class ConstellationServiceImplTest {
 			.deepSessionId(99L)
 			.kind(StarKind.DEEP)
 			.color("#4FC3F7")
-			.createdAt(LocalDateTime.of(2026, 3, 12, 0, 15, 30))
-			.updatedAt(LocalDateTime.of(2026, 3, 12, 0, 15, 30))
+			.createdAt(OffsetDateTime.parse("2026-03-12T09:15:30+09:00"))
+			.updatedAt(OffsetDateTime.parse("2026-03-12T09:15:30+09:00"))
 			.build();
 
 		when(starRepository.findAllByUserIdWithConstellation(1L)).thenReturn(List.of(star));
