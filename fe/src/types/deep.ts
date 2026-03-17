@@ -12,6 +12,17 @@ export interface PsyTestResponse {
     scoreTotal: number;
 }
 
+export interface SpaneTestRequest {
+    answers: number[];
+}
+
+export interface SpaneTestResponse {
+    assessmentId: number;
+    scorePositive: number;
+    scoreNegative: number;
+    scoreBalance: number;
+}
+
 export interface DeepTestInfo {
     type: string;
     title: string;

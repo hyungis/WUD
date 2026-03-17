@@ -1,10 +1,9 @@
 // src/types/daily.ts
 export interface DailyCreateRequest {
-    dailyType: "EMOTION" | string;
+    dailyType: "MANDALA" | "COLORING" | "FREE" | string;
     entryDate: string; // "YYYY-MM-DD"
     content: string;
-    emotionValue: number;
-    emotionColor: string; // "#HexColor"
+    emotion: string;
     drawingImageId: number;
 }
 

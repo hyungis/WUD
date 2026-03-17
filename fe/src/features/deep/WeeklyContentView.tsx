@@ -152,13 +152,21 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp }: WeeklyConte
                     </section>
                 )}
 
-                <div className="mt-4 flex items-center justify-center gap-3">
+                <div className="mt-4 flex items-center justify-between gap-3">
+                    <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={handleClose}
+                        className="px-6 py-2.5"
+                    >
+                        이전 단계
+                    </Button>
                     <Button
                         type="button"
                         onClick={() => handleOpenByType("HTP")}
-                        className="liquid-btn liquid-btn--deep px-8 py-3 text-lg"
+                        className="liquid-btn liquid-btn--deep px-8 py-3"
                     >
-                        기본 검사 시작하기
+                        다음 단계
                     </Button>
                 </div>
             </div>

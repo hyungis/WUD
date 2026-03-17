@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Button from "../../components/shared/Button";
 import { dailyApi } from "../../api/daily";
 import { resultApi } from "../../api/result";
+import { imageApi } from "../../api/image";
 
 type PendingDailyRecord = {
   shellColor: string;
@@ -17,9 +18,10 @@ type DailyCompleteViewProps = {
   isModal?: boolean;
   onClose?: () => void;
   onBackToDetail?: () => void;
+  onSaved?: () => void;
 };
 
-function DailyCompleteView({ isModal = false, onClose, onBackToDetail }: DailyCompleteViewProps) {
+function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }: DailyCompleteViewProps) {
   const navigate = useNavigate();
   const [memo, setMemo] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,6 +46,111 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail }: DailyCo
   if (!record) {
     return null;
   }
+
+  const resolveEmotionLabel = () => {
+    const stored = localStorage.getItem("dailyMoodLabel");
+    if (stored) {
+      return stored;
+    }
+
+    const emotionByColor: Record<string, string> = {
+      "#FFD54F": "기쁨",
+      "#4FC3F7": "평온",
+      "#FF6FAE": "설렘",
+      "#66BB6A": "만족",
+      "#5C6BC0": "슬픔",
+      "#9575CD": "불안",
+      "#EF5350": "분노",
+      "#90A4AE": "지침",
+    };
+
+    return emotionByColor[(record.shellColor || "").toUpperCase()] || "평온";
+  };
+
+  const uploadDrawingAndCreateImage = async (dataUrl: string) => {
+    const blob = await (await fetch(dataUrl)).blob();
+    const bitmap = await createImageBitmap(blob);
+
+    const presignedRes = await imageApi.getPresignedUrl({
+      mimeType: blob.type || "image/png",
+      byteSize: blob.size,
+      width: bitmap.width,
+      height: bitmap.height,
+      purpose: "DAILY_DRAWING",
+    });
+    bitmap.close();
+
+    const upload = presignedRes.data?.upload;
+    const image = presignedRes.data?.image;
+    if (!upload || !image) {
+      throw new Error("이미지 업로드 준비 정보가 없습니다.");
+    }
+
+    const uploadRes = await fetch(upload.url, {
+      method: upload.method || "PUT",
+      headers: upload.headers || { "Content-Type": blob.type || "application/octet-stream" },
+      body: blob,
+    });
+
+    if (!uploadRes.ok) {
+      throw new Error("이미지 업로드에 실패했습니다.");
+    }
+
+    const createRes = await imageApi.registerImage({
+      imageKey: image.imageKey,
+      mimeType: blob.type || "image/png",
+      byteSize: blob.size,
+    });
+
+    const imageId = createRes.data?.imageId;
+    if (!imageId) {
+      throw new Error("이미지 등록에 실패했습니다.");
+    }
+
+    localStorage.setItem("dailyDrawingImageId", String(imageId));
+    return imageId;
+  };
+
+  const ensureDrawingImageId = async () => {
+    const cachedImageId = Number(localStorage.getItem("dailyDrawingImageId") || 0);
+    if (cachedImageId > 0) {
+      return cachedImageId;
+    }
+
+    if (!record.mandalaImage) {
+      throw new Error("그림 이미지가 없어 저장할 수 없습니다. 다시 그려주세요.");
+    }
+
+    return uploadDrawingAndCreateImage(record.mandalaImage);
+  };
+
+  const extractApiErrorCode = (error: unknown) => {
+    const maybe = error as { error?: { code?: string }; code?: string } | undefined;
+    return maybe?.error?.code ?? maybe?.code ?? null;
+  };
+
+  const updateExistingDailyForDate = async (entryDate: string) => {
+    const listRes = await dailyApi.getDailyList();
+    const list = (listRes.data ?? []) as Array<{ dailyId?: number; id?: number; entryDate?: string }>;
+    const found = list.find((item) => item.entryDate === entryDate);
+    const dailyId = Number(found?.dailyId ?? found?.id ?? 0);
+
+    if (!dailyId || Number.isNaN(dailyId)) {
+      throw new Error("기존 데일리 항목을 찾을 수 없습니다.");
+    }
+
+    await dailyApi.updateDaily(dailyId, {
+      content: memo.trim(),
+      emotion: resolveEmotionLabel(),
+    });
+
+    try {
+      const detailRes = await resultApi.getDailyResult(dailyId);
+      localStorage.setItem("latestDailyResult", JSON.stringify(detailRes.data));
+    } catch {
+      // 상세 조회 실패는 저장 처리 완료로 간주
+    }
+  };
 
   const persistLocalPlanet = () => {
     const nextPlanet = {
@@ -101,32 +208,46 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail }: DailyCo
     setIsSubmitting(true);
 
     try {
-      const moodValue = Number(localStorage.getItem("dailyMoodValue") || 3);
-      const drawingImageId = Number(localStorage.getItem("dailyDrawingImageId") || 0);
+      const drawingImageId = await ensureDrawingImageId();
       const entryDate = new Date(record.createdAt).toISOString().slice(0, 10);
 
-      if (drawingImageId > 0) {
-        const createRes = await dailyApi.createDaily({
-          dailyType: "EMOTION",
+      let createRes;
+      try {
+        createRes = await dailyApi.createDaily({
+          dailyType: "MANDALA",
           entryDate,
           content: memo.trim(),
-          emotionValue: Number.isFinite(moodValue) ? moodValue : 3,
-          emotionColor: record.shellColor,
+          emotion: resolveEmotionLabel(),
           drawingImageId,
         });
-
-        const dailyId = createRes.data?.dailyId;
-        if (dailyId) {
-          try {
-            const detailRes = await resultApi.getDailyResult(dailyId);
-            localStorage.setItem("latestDailyResult", JSON.stringify(detailRes.data));
-          } catch {
-            // 결과 조회 실패는 생성 실패로 보지 않고 진행
+      } catch (createError) {
+        const code = extractApiErrorCode(createError);
+        if (code === "D002") {
+          await updateExistingDailyForDate(entryDate);
+          persistLocalPlanet();
+          onSaved?.();
+          if (onClose) {
+            onClose();
+          } else {
+            navigate("/");
           }
+          return;
+        }
+        throw createError;
+      }
+
+      const dailyId = createRes.data?.dailyId;
+      if (dailyId) {
+        try {
+          const detailRes = await resultApi.getDailyResult(dailyId);
+          localStorage.setItem("latestDailyResult", JSON.stringify(detailRes.data));
+        } catch {
+          // 결과 조회 실패는 생성 실패로 보지 않고 진행
         }
       }
 
       persistLocalPlanet();
+      onSaved?.();
       if (onClose) {
         onClose();
       } else {
@@ -134,13 +255,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail }: DailyCo
       }
     } catch (error) {
       console.error("daily submit failed", error);
-      setSubmitError("API 저장에 실패해 로컬 저장으로 전환합니다.");
-      persistLocalPlanet();
-      if (onClose) {
-        onClose();
-      } else {
-        navigate("/");
-      }
+      setSubmitError("서버 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
     } finally {
       setIsSubmitting(false);
     }
@@ -154,7 +269,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail }: DailyCo
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.32em] text-cyan-100/75">Daily Complete</p>
           <h2 className="mt-2 text-2xl font-semibold text-slate-50 sm:text-3xl">오늘의 기록을 저장해요</h2>
-          <p className="mt-2 text-sm text-slate-300/90">기록을 남기면 우주에 새로운 데일리 행성이 생성됩니다.</p>
+          <p className="mt-2 text-sm text-slate-300/90">기록 저장 후 AI 분석이 완료되면 우주에 새로운 데일리 행성이 생성됩니다.</p>
         </div>
         {isModal && (
           <button
@@ -225,7 +340,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail }: DailyCo
               disabled={isSubmitting}
               onClick={handleSubmit}
             >
-              {isSubmitting ? "저장 중..." : "저장하고 닫기"}
+              {isSubmitting ? "저장 중..." : "저장"}
             </Button>
           </div>
         </section>
