@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -38,10 +40,16 @@ public class User {
 	@Column(nullable = false, length = 50)
 	private String nickname;
 
+	@Builder.Default
+	@Enumerated(EnumType.STRING)
+	private UserStatus status = UserStatus.ACTIVATE;
+
 	private LocalDateTime lastLoginAt;
 
 	@Column(nullable = false)
 	private LocalDateTime createdAt;
+
+	private LocalDateTime deletedAt;
 
 	@PrePersist
 	public void prePersist() {
