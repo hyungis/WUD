@@ -24,6 +24,11 @@ let pendingRequests: Array<(token: string) => void> = [];
 
 type RetryConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
+const isAuthEndpoint = (url?: string) => {
+    if (!url) return false;
+    return /\/auth\/(login|signup|logout|refresh)\b/.test(url);
+};
+
 // Request Interceptor: 토큰이 있다면 헤더에 추가
 api.interceptors.request.use(
     (config) => {
@@ -50,7 +55,7 @@ api.interceptors.response.use(
 
         if (response) {
             // 401 인증 에러 및 최초 시도일 경우
-            if (response.status === 401 && originalConfig && !originalConfig._retry) {
+            if (response.status === 401 && originalConfig && !originalConfig._retry && !isAuthEndpoint(originalConfig.url)) {
                 originalConfig._retry = true;
 
                 if (isRefreshing) {

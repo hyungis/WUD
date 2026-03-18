@@ -109,6 +109,19 @@ function HomePage() {
     });
   }, [fetchStarMap]);
 
+  // localStorage 캐시 없이도 새로고침 시 최신 상태를 유지하기 위해 주기적으로 서버에서 재조회한다.
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void fetchStarMap().catch((e) => {
+        console.error("periodic fetch star map fail:", e);
+      });
+    }, 8000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [fetchStarMap]);
+
   // 새로운 별이 생성되었을 때 자동 선택 및 애니메이션 처리
   useEffect(() => {
     if (newbornStarId) {
@@ -143,6 +156,7 @@ function HomePage() {
       .map((s) => ({
         id: s.id,
         targetId: s.targetId,
+        constellationId: s.constellationId,
         toneColor: s.color,
         createdAt: s.createdAt,
         weekKey: s.weekStartDate ? getWeekKey(new Date(s.weekStartDate)) : getWeekKey(new Date(s.createdAt)),

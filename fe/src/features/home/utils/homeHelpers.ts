@@ -13,6 +13,7 @@ export type DailyPlanet = {
 export type DeepStar = {
   id: string;
   targetId?: number;
+  constellationId?: number;
   toneColor: string;
   createdAt: string;
   weekKey?: string;

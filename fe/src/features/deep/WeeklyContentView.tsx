@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import Button from "../../components/shared/Button";
 import { deepApi } from "../../api/deep";
 import type { DeepTestGuide, DeepTestInfo } from "../../types/deep";
+import { useUiStore } from "../../store/uiStore";
+import { WEEKLY_DAILY_LIMIT_MESSAGE, hasTodayWeeklyEntryFromStars } from "../../utils/dailyLimit";
 
 const DEFAULT_FEATURES: DeepTestInfo[] = [
     { type: "HTP", title: "HTP", description: "집, 나무, 사람으로 내면을 관찰하세요.", available: true },
@@ -29,6 +31,8 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp }: WeeklyConte
     const [guide, setGuide] = useState<DeepTestGuide | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isCheckingDailyLimit, setIsCheckingDailyLimit] = useState(false);
+    const fetchStarMap = useUiStore((state) => state.fetchStarMap);
 
     useEffect(() => {
         let mounted = true;
@@ -86,6 +90,23 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp }: WeeklyConte
         navigate(routeByType(type));
     };
 
+    const handleOpenByTypeWithLimit = async (type: string) => {
+        if (isCheckingDailyLimit) return;
+
+        setIsCheckingDailyLimit(true);
+        try {
+            await fetchStarMap();
+            const stars = useUiStore.getState().stars;
+            if (hasTodayWeeklyEntryFromStars(stars)) {
+                window.alert(WEEKLY_DAILY_LIMIT_MESSAGE);
+                return;
+            }
+            handleOpenByType(type);
+        } finally {
+            setIsCheckingDailyLimit(false);
+        }
+    };
+
     const content = (
         <div className="relative overflow-hidden rounded-[30px] border border-cyan-200/20 bg-slate-950/80 p-6 text-slate-100 shadow-[0_24px_90px_rgba(2,6,23,0.55)] ring-1 ring-cyan-100/10 sm:p-8">
             <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(125,211,252,0.16),transparent_52%)]" />
@@ -118,7 +139,7 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp }: WeeklyConte
                         <button
                             key={task.type}
                             disabled={!task.available}
-                            onClick={() => task.available && handleOpenByType(task.type)}
+                            onClick={() => task.available && void handleOpenByTypeWithLimit(task.type)}
                             className={`group flex flex-col items-start rounded-2xl border-2 px-6 py-7 text-left shadow-lg transition-all duration-150 focus:outline-none ${task.available
                                 ? "border-cyan-100/20 bg-slate-900/55 backdrop-blur-md hover:scale-[1.02] hover:border-cyan-300/60 hover:shadow-cyan-500/20"
                                 : "cursor-not-allowed border-white/10 bg-white/5 text-slate-500 opacity-60"
@@ -163,10 +184,11 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp }: WeeklyConte
                     </Button>
                     <Button
                         type="button"
-                        onClick={() => handleOpenByType("HTP")}
+                        onClick={() => void handleOpenByTypeWithLimit("HTP")}
+                        disabled={isCheckingDailyLimit}
                         className="liquid-btn liquid-btn--deep px-8 py-3"
                     >
-                        다음 단계
+                        {isCheckingDailyLimit ? "확인 중..." : "다음 단계"}
                     </Button>
                 </div>
             </div>

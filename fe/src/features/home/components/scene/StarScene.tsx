@@ -672,7 +672,13 @@ export function StarScene({
 
   const timelineItems = useMemo(() => {
     const deepItems = deepStars.map((star) => ({
-      id: star.id, targetId: (star as any).targetId, createdAt: star.createdAt, kind: "deep" as const, toneColor: star.toneColor, weekKey: star.weekKey || getWeekKey(new Date(star.createdAt))
+      id: star.id,
+      targetId: (star as any).targetId,
+      constellationId: star.constellationId,
+      createdAt: star.createdAt,
+      kind: "deep" as const,
+      toneColor: star.toneColor,
+      weekKey: star.weekKey || getWeekKey(new Date(star.createdAt)),
     }));
     const dailyItems = dailyPlanets.map((planet) => ({
       id: planet.id, targetId: (planet as any).targetId, createdAt: planet.createdAt, kind: "daily" as const, planet, weekKey: getWeekKey(new Date(planet.createdAt))
@@ -760,27 +766,41 @@ export function StarScene({
 
   const positionMap = useMemo(() => new Map(timelinePositions.map((i) => [i.id, i.position])), [timelinePositions]);
 
+  const getDeepLineGroupKey = (item: { constellationId?: number; weekKey?: string }) => {
+    if (typeof item.constellationId === "number" && !Number.isNaN(item.constellationId)) {
+      return `constellation-${item.constellationId}`;
+    }
+    if (item.weekKey) {
+      return `week-${item.weekKey}`;
+    }
+    return null;
+  };
+
   const constellationLines = useMemo(() => {
     const groups = new Map<string, typeof timelineItems>();
-    timelineItems.forEach(item => {
-      if (!item.weekKey) return;
-      if (!groups.has(item.weekKey)) groups.set(item.weekKey, []);
-      groups.get(item.weekKey)!.push(item);
+
+    // 심층별끼리만 별자리 선을 생성한다.
+    timelineItems.forEach((item) => {
+      if (item.kind !== "deep") return;
+
+      const groupKey = getDeepLineGroupKey(item);
+      if (!groupKey) return;
+
+      if (!groups.has(groupKey)) groups.set(groupKey, []);
+      groups.get(groupKey)!.push(item);
     });
 
     const lines: { weekKey: string, pts: Vector3[] }[] = [];
-    groups.forEach((items, weekKey) => {
-      const hasDeep = items.some(i => i.kind === "deep");
-      if (hasDeep) {
-        const sorted = [...items].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-        const pts = sorted
-          .map(i => positionMap.get(i.id))
-          .filter(Boolean)
-          .map(pos => new Vector3(...(pos as [number, number, number])));
+    groups.forEach((items, groupKey) => {
+      const sorted = [...items].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      const pts = sorted
+        .map((i) => positionMap.get(i.id))
+        .filter(Boolean)
+        .map((pos) => new Vector3(...(pos as [number, number, number])));
 
-        if (pts.length > 1) lines.push({ weekKey, pts });
-      }
+      if (pts.length > 1) lines.push({ weekKey: groupKey, pts });
     });
+
     return lines;
   }, [timelineItems, positionMap]);
 
@@ -790,14 +810,22 @@ export function StarScene({
     return match ? new Vector3(...match) : null;
   }, [positionMap, selectedStarId, mypageStar]);
 
-  const hoveredWeekKey = useMemo(() => {
+  const hoveredLineGroupKey = useMemo(() => {
     if (!hoveredStarId || hoveredStarId === mypageStar.id) return null;
     const hoveredItem = timelineItems.find(item => item.id === hoveredStarId);
-    return hoveredItem ? hoveredItem.weekKey : null;
+    if (!hoveredItem || hoveredItem.kind !== "deep") return null;
+    return getDeepLineGroupKey(hoveredItem);
   }, [hoveredStarId, timelineItems, mypageStar.id]);
 
+  const selectedLineGroupKey = useMemo(() => {
+    if (!selectedStarId || selectedStarId === mypageStar.id) return null;
+    const selectedItem = timelineItems.find((item) => item.id === selectedStarId);
+    if (!selectedItem || selectedItem.kind !== "deep") return null;
+    return getDeepLineGroupKey(selectedItem);
+  }, [selectedStarId, timelineItems, mypageStar.id]);
+
   // 클릭된 별 또는 호버된 별의 weekKey 중 하나라도 일치하면 별자리 강조
-  const highlightedWeekKey = hoveredWeekKey || selectedWeekKey || null;
+  const highlightedWeekKey = hoveredLineGroupKey || selectedLineGroupKey || (selectedWeekKey ? `week-${selectedWeekKey}` : null);
 
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
 

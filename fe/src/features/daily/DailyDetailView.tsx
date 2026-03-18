@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCanvasDrawing } from "../../hooks/useCanvasDrawing";
 import type { ToolType } from "../../hooks/useCanvasDrawing";
 import { DailyMandalaCanvas } from "./components/DailyMandalaCanvas";
+import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntry } from "../../utils/dailyLimit";
 
 /* ── constants ── */
 const PALETTE = [
@@ -61,6 +62,31 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
   const [activePopup, setActivePopup] = useState<string | null>(null);
 
   const drawing = useCanvasDrawing({ paintColor, brushSize, tool, symmetry });
+
+  useEffect(() => {
+    let alive = true;
+
+    const guardByDailyLimit = async () => {
+      try {
+        const existsToday = await hasTodayDailyEntry();
+        if (!alive || !existsToday) return;
+
+        window.alert(DAILY_LIMIT_MESSAGE);
+        if (onClose) {
+          onClose();
+          return;
+        }
+        navigate("/", { replace: true });
+      } catch {
+        // 조회 실패 시에는 상세 화면 사용을 허용
+      }
+    };
+
+    void guardByDailyLimit();
+    return () => {
+      alive = false;
+    };
+  }, [navigate, onClose]);
 
   const handleClose = () => {
     if (onClose) { onClose(); return; }
