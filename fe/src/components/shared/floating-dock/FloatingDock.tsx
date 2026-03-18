@@ -111,7 +111,7 @@ export default function FloatingDock() {
                         </span>
                         <div className="leading-tight hidden sm:block">
                             <p className="text-xs font-semibold text-slate-100">{displayName}</p>
-                            <p className="text-[10px] text-slate-400">마이페이지</p>
+                            <p className="text-[10px] text-slate-400">MY PAGE</p>
                         </div>
                     </button>
                 </div>
