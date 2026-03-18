@@ -446,7 +446,7 @@ function ViewModeTracker({ controlsRef, onModeChange, zoomThreshold, minDistance
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportPanelOpen }: any) {
+function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportPanelOpen, newbornStarId }: any) {
   const { camera } = useThree();
   const isTransitioningRef = useRef(false);
   const progressRef = useRef(0);
@@ -471,11 +471,13 @@ function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportP
         : focusPosition.clone();
 
       // 최초 마운트 시 자동 포커스는 건너뜀 (초기 카메라 위치 유지)
-      if (wasNull && isFirstMount.current) {
+      const isNewborn = focusKey.includes("temp-") || (newbornStarId && focusKey.startsWith(newbornStarId));
+      if (wasNull && isFirstMount.current && !isNewborn) {
         isFirstMount.current = false;
         toTargetRef.current.copy(baseTarget);
         return;
       }
+      isFirstMount.current = false;
 
       const currentTarget = controlsRef.current.target.clone();
       let viewDir = camera.position.clone().sub(currentTarget).normalize();
@@ -962,6 +964,7 @@ export function StarScene({
           controlsRef={controlsRef}
           countRatio={countRatio}
           reportPanelOpen={isReportOpen}
+          newbornStarId={newbornStarId}
         />
 
         <OrbitControls

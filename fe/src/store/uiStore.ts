@@ -142,7 +142,23 @@ export const useUiStore = create<UiState>((set) => ({
         const remainingTemps = tempStars.filter(
           (ts) => !fetchedStars.some((fs) => fs.targetId === ts.targetId && fs.kind === ts.kind)
         );
-        return { stars: [...remainingTemps, ...fetchedStars] };
+
+        // 🚨 [수정] newbornStarId 동기화: 만약 제거될 임시 별이 newbornStarId였다면, 새 별의 ID로 교체해줌
+        let nextNewbornId = state.newbornStarId;
+        if (state.newbornStarId && state.newbornStarId.startsWith("temp-")) {
+          const matchedTemp = tempStars.find(ts => ts.id === state.newbornStarId);
+          if (matchedTemp) {
+            const matchedFetched = fetchedStars.find(fs => fs.targetId === matchedTemp.targetId && fs.kind === matchedTemp.kind);
+            if (matchedFetched) {
+              nextNewbornId = matchedFetched.id;
+            }
+          }
+        }
+
+        return { 
+          stars: [...remainingTemps, ...fetchedStars],
+          newbornStarId: nextNewbornId
+        };
       });
     } catch (e) {
       console.error("fetchStarMap fail:", e);
