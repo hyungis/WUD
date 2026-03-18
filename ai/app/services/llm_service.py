@@ -436,4 +436,248 @@ class LLMService:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"LLM response parsing failed: {str(e)}")
 
+    # ------------------------------------------------------------------
+    # PERSON_IN_RAIN / STAR_WAVE  (LLM-only, single image)
+    # ------------------------------------------------------------------
+
+    _SINGLE_IMAGE_OUTPUT_SCHEMA = '''출력 JSON 스키마 (반드시 준수):
+{
+  "intro": "현재 정서적 기조와 전반적 특성을 요약한 문단 (3~5문장)",
+  "coreInsights": [
+    "1. [관찰된 그림 특징]이 [가능한 심리적 의미]를 시사합니다.",
+    "2. ...",
+    "3. ...",
+    "4. ..."
+  ],
+  "strengths": ["강점 1", "강점 2", "강점 3"],
+  "questions": ["질문 1", "질문 2", "질문 3", "질문 4", "질문 5"],
+  "raw": {
+    "wellbeing": {
+      "who5ScoreTotal": N,
+      "spanePositive": N,
+      "spaneNegative": N,
+      "spaneBalance": N,
+      "note": "WHO-5·SPANE과 그림 단서를 함께 고려한 짧은 메모"
+    }
+  }
+}'''
+
+    def _analyze_single_image(
+        self,
+        *,
+        session_id: int,
+        who5: Dict[str, Any],
+        spane: Dict[str, Any] | None,
+        image_url: str | None,
+        image_path: str | None,
+        developer_prompt: str,
+        user_instruction: str,
+        guide_text: str,
+        log_label: str,
+    ) -> Dict[str, Any]:
+        """PERSON_IN_RAIN / STAR_WAVE 공통 LLM 호출 로직."""
+        import json
+
+        client = self._get_client()
+        model_name = (settings.gms_model or "").strip() or "gpt-4o"
+
+        wellbeing: Dict[str, Any] = {"scoreTotal": who5.get("scoreTotal"), "raw": who5.get("raw")}
+        spane_survey: Dict[str, Any] | None = None
+        if spane:
+            spane_survey = {
+                "scorePositive": spane.get("scorePositive"),
+                "scoreNegative": spane.get("scoreNegative"),
+                "scoreBalance": spane.get("scoreBalance"),
+                "raw": spane.get("raw"),
+            }
+
+        parts: List[Dict[str, Any]] = [
+            {"type": "text", "text": f"sessionId: {session_id}"},
+        ]
+
+        if guide_text:
+            parts.append({
+                "type": "text",
+                "text": (
+                    f"[참고자료]\n{guide_text}\n\n"
+                    "[작성 지침]\n"
+                    "- 참고자료를 활용하되, 해석은 반드시 현재 그림에서 관찰되는 시각적 단서와 연결할 것.\n"
+                    "- 참고자료의 의미를 기계적으로 적용하지 말고, 실제 이미지를 관찰해 판단할 것.\n"
+                    "- 관찰 가능한 특징을 먼저 서술하고, 그 다음 가능한 심리적 의미를 연결할 것.\n"
+                    "- 해석은 '가능성', '시사점', '경향' 수준에서 표현하고 단정하지 말 것.\n"
+                    "- 진단명, 병리적 라벨, 임상적 확정 표현은 금지.\n"
+                    "- 부정적 측면만 강조하지 말고, 현재의 강점·회복 자원·지지 기반도 함께 제시할 것.\n"
+                    "- WHO-5와 SPANE 점수는 보조 맥락으로만 활용하고, 점수만으로 해석을 끌고 가지 말 것.\n"
+                    "- 'intro'는 현재 정서적 기조와 전반적 특성을 3~5문장으로 요약할 것.\n"
+                    "- 'coreInsights'는 그림의 두드러진 특징 3~5가지를 '관찰 + 해석' 구조로 작성할 것.\n"
+                    "- 'questions'는 자기이해를 돕는 개방형 질문으로 구성할 것.\n"
+                    "- coreInsights 각 항목은 1~2문장 이내로, 첫 문장은 관찰, 두 번째 문장은 해석으로 배치할 것.\n"
+                    "- 반드시 JSON 객체 하나만 출력할 것.\n\n"
+                    + self._SINGLE_IMAGE_OUTPUT_SCHEMA
+                ),
+            })
+
+        parts.extend([
+            {"type": "text", "text": "입력 데이터(구조화):"},
+            {"type": "text", "text": f"WHO5_survey: {wellbeing}"},
+        ])
+        if spane_survey:
+            parts.append({"type": "text", "text": f"SPANE_survey: {spane_survey}"})
+
+        parts.append({"type": "text", "text": user_instruction})
+
+        if image_url:
+            parts.append({"type": "text", "text": "drawing image (url):"})
+            parts.append({"type": "image_url", "image_url": {"url": image_url}})
+        elif image_path:
+            data_url = self._file_to_data_url(image_path)
+            parts.append({"type": "text", "text": "drawing image:"})
+            parts.append({"type": "image_url", "image_url": {"url": data_url}})
+
+        def request_once(user_content: List[Dict[str, Any]]):
+            return client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "developer", "content": developer_prompt},
+                    {"role": "user", "content": user_content},
+                ],
+                temperature=0.3,
+                max_tokens=3000,
+                response_format={"type": "json_object"},
+            )
+
+        try:
+            print(f"Requesting SSAFY GMS(OpenAI SDK) for {log_label} analysis...")
+            resp = request_once(parts)
+
+            choice0 = resp.choices[0]
+            msg0 = choice0.message
+            content_text = msg0.content or ""
+            refusal = getattr(msg0, "refusal", None)
+
+            if refusal:
+                print(f"[LLM] Refusal received for {log_label}. Retrying without guide.")
+                no_guide_parts = [p for p in parts if "[참고자료]" not in (p.get("text") or "")]
+                resp = request_once(no_guide_parts)
+                choice0 = resp.choices[0]
+                msg0 = choice0.message
+                content_text = msg0.content or ""
+
+            if not content_text.strip():
+                print(f"[LLM] Empty content returned for {log_label}.")
+                raise ValueError("Empty LLM content")
+
+            try:
+                return json.loads(content_text)
+            except Exception:
+                print(f"[LLM] JSON parse failed for {log_label}. Raw (truncated):")
+                print((content_text or "")[:800])
+                start = content_text.find("{")
+                end = content_text.rfind("}")
+                if start != -1 and end != -1 and end > start:
+                    return json.loads(content_text[start : end + 1])
+                raise
+        except Exception as e:
+            print(f"Error calling SSAFY GMS API ({log_label}): {e}")
+            raise HTTPException(status_code=500, detail=f"LLM {log_label} analysis failed: {str(e)}")
+
+    def analyze_person_in_rain(
+        self,
+        *,
+        session_id: int,
+        who5: Dict[str, Any],
+        spane: Dict[str, Any] | None = None,
+        image_url: str | None = None,
+        image_path: str | None = None,
+        prompt_guide_text: str = "",
+    ) -> Dict[str, Any]:
+        """빗속의 사람 그림검사 분석 (이미지 1장, LLM only)."""
+        developer_prompt = (
+            "당신은 투사적 그림검사 중 '빗속의 사람(Person-In-The-Rain)' 검사 전문 분석가입니다. "
+            "피검사자가 그린 그림의 구체적 요소(예: 비의 양과 방향, 우산의 유무와 크기, 사람의 자세와 표정 등)를 바탕으로, "
+            "그 이면에 숨겨진 피검사자의 스트레스 인식, 대처 방식, 정서 상태를 깊이 있게 연결하여 설명해 주세요. "
+            "단순히 '비가 많습니다'라고 끝내지 말고, '비가 촘촘하게 그려진 것을 보니 현재 체감하는 스트레스가 상당할 수 있으며, "
+            "그럼에도 사람이 정면을 향해 서 있는 모습에서 상황에 직면하려는 내면의 힘이 느껴집니다'처럼 "
+            "반드시 **[그림에 대한 묘사 + 내면 심리 해석]**이 세트로 이어지도록 작성해야 합니다. "
+            "비는 외부 스트레스를, 사람은 자아를, 보호 수단(우산 등)은 대처 자원을 상징합니다. "
+            "진단명이나 병리적 단어(우울증, 편집증 등)는 절대 사용하지 말고, "
+            "다소 어두운 내적 갈등이나 취약함이 발견되더라도 깊이 공감하고 어루만지는 언어를 사용합니다. "
+            "마무리는 항상 피검사자가 가진 특별한 강점과 잠재력에 대한 확신을 심어주어 큰 감동과 위로를 받도록 하세요. "
+            "WHO-5는 전반적인 심리적 웰빙 수준을, SPANE는 최근 긍정·부정 정서 경험의 균형을 나타냅니다. "
+            "두 설문은 그림 해석의 보조 맥락으로만 활용하고, 점수만으로 해석을 주도하지 마세요. "
+            "반드시 JSON 하나만 출력합니다."
+        )
+        user_instruction = (
+            "입력된 이미지와 WHO-5·SPANE 설문 정보를 함께 참고하여 '빗속의 사람' 해석 기록안을 작성하세요. "
+            "반드시 그림에서 관찰 가능한 특징을 먼저 언급하고, 그 특징이 시사할 수 있는 "
+            "스트레스 인식 수준, 대처 자원과 방식, 정서적 회복력, 자기상(self-image)을 조심스럽게 해석하세요. "
+            "WHO-5 점수는 전반적 웰빙 수준을, SPANE 점수는 최근 긍정·부정 정서 경험의 균형을 이해하는 보조 정보로 활용하세요. "
+            "결과는 전문적인 분석 기록문 형태로 작성하세요. "
+            "intro는 현재 정서적 기조와 스트레스 대처 양식을 3~5문장으로 요약하고, "
+            "coreInsights는 3~5개의 핵심 특징에 대해 각각 '관찰 + 해석' 구조로 작성하세요. "
+            "strengths는 그림에서 드러난 자원과 강점을 근거 기반으로 정리하고, "
+            "questions는 자기이해를 돕는 개방형 질문으로 구성하세요."
+        )
+        return self._analyze_single_image(
+            session_id=session_id,
+            who5=who5,
+            spane=spane,
+            image_url=image_url,
+            image_path=image_path,
+            developer_prompt=developer_prompt,
+            user_instruction=user_instruction,
+            guide_text=prompt_guide_text,
+            log_label="PERSON_IN_RAIN",
+        )
+
+    def analyze_star_wave(
+        self,
+        *,
+        session_id: int,
+        who5: Dict[str, Any],
+        spane: Dict[str, Any] | None = None,
+        image_url: str | None = None,
+        image_path: str | None = None,
+        prompt_guide_text: str = "",
+    ) -> Dict[str, Any]:
+        """별-파도 그림검사 분석 (이미지 1장, LLM only)."""
+        developer_prompt = (
+            "당신은 투사적 그림검사 중 '별-파도(Star-Wave Test)' 검사 전문 분석가입니다. "
+            "피검사자가 그린 그림의 구체적 요소(예: 별의 크기·개수·배치, 파도의 높이·패턴·리듬, 별과 파도 사이 공간 등)를 바탕으로, "
+            "그 이면에 숨겨진 피검사자의 내면 상태, 정서적 리듬, 의식과 무의식의 균형을 깊이 있게 연결하여 설명해 주세요. "
+            "단순히 '파도가 높습니다'라고 끝내지 말고, '파도가 높고 역동적으로 그려진 것을 보니 현재 감정의 에너지가 활발하며, "
+            "내면에서 다양한 감정이 솟구치고 있을 수 있습니다'처럼 "
+            "반드시 **[그림에 대한 묘사 + 내면 심리 해석]**이 세트로 이어지도록 작성해야 합니다. "
+            "별은 이상·희망·의식 세계를, 파도는 감정·무의식·내면의 움직임을 상징합니다. "
+            "상부 공간(별)과 하부 공간(파도)의 에너지 분배와 균형이 해석의 핵심입니다. "
+            "진단명이나 병리적 단어(우울증, 편집증 등)는 절대 사용하지 말고, "
+            "다소 어두운 내적 갈등이나 불균형이 발견되더라도 깊이 공감하고 어루만지는 언어를 사용합니다. "
+            "마무리는 항상 피검사자가 가진 특별한 강점과 잠재력에 대한 확신을 심어주어 큰 감동과 위로를 받도록 하세요. "
+            "WHO-5는 전반적인 심리적 웰빙 수준을, SPANE는 최근 긍정·부정 정서 경험의 균형을 나타냅니다. "
+            "두 설문은 그림 해석의 보조 맥락으로만 활용하고, 점수만으로 해석을 주도하지 마세요. "
+            "반드시 JSON 하나만 출력합니다."
+        )
+        user_instruction = (
+            "입력된 이미지와 WHO-5·SPANE 설문 정보를 함께 참고하여 '별-파도 검사' 해석 기록안을 작성하세요. "
+            "반드시 그림에서 관찰 가능한 특징을 먼저 언급하고, 그 특징이 시사할 수 있는 "
+            "내면의 정서적 리듬, 이상과 감정의 균형, 에너지 상태, 의식과 무의식의 관계를 조심스럽게 해석하세요. "
+            "WHO-5 점수는 전반적 웰빙 수준을, SPANE 점수는 최근 긍정·부정 정서 경험의 균형을 이해하는 보조 정보로 활용하세요. "
+            "결과는 전문적인 분석 기록문 형태로 작성하세요. "
+            "intro는 현재 정서적 기조와 내면 리듬의 특성을 3~5문장으로 요약하고, "
+            "coreInsights는 3~5개의 핵심 특징에 대해 각각 '관찰 + 해석' 구조로 작성하세요. "
+            "strengths는 그림에서 드러난 자원과 강점을 근거 기반으로 정리하고, "
+            "questions는 자기이해를 돕는 개방형 질문으로 구성하세요."
+        )
+        return self._analyze_single_image(
+            session_id=session_id,
+            who5=who5,
+            spane=spane,
+            image_url=image_url,
+            image_path=image_path,
+            developer_prompt=developer_prompt,
+            user_instruction=user_instruction,
+            guide_text=prompt_guide_text,
+            log_label="STAR_WAVE",
+        )
+
 llm_service = LLMService()
