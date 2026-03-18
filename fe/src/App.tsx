@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import LoginPage from "./features/auth/LoginPage";
 import DailyDetailView from "./features/daily/DailyDetailView";
 import DailyContentView from "./features/daily/DailyContentView";
@@ -78,28 +78,41 @@ function DashboardGate() {
 }
 
 import refreshApi from "./api/refreshApi";
+import { fetchMe } from "./services/auth";
 
 function App() {
   const location = useLocation();
-  const { isAuthenticated, setTokens, clearAuth } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
   const [isInitializing, setIsInitializing] = useState(true);
+  const initCalledRef = useRef(false);
 
   useEffect(() => {
+    // StrictMode 더블 마운트에서 두 번째 실행 방지
+    // (동시에 /auth/refresh 두 번 호출 시 백엔드가 첫 요청에서 토큰 교체 → 두 번째 요청 실패)
+    if (initCalledRef.current) return;
+    initCalledRef.current = true;
+
     const initAuth = async () => {
-      // 이미 엑세스 토큰이 있다면 (메모리 상태 유지) 굳이 재발급 안 해도 됨.
-      if (isAuthenticated) {
+      const { isAuthenticated: authed, setTokens, clearAuth } = useAuthStore.getState();
+
+      if (authed) {
         setIsInitializing(false);
         return;
       }
 
       try {
-        // HTTP-only 쿠키를 이용해 엑세스 토큰 재발급 시도
         const response: any = await refreshApi.post("/auth/refresh");
         const payload = response?.data;
         const accessToken = payload?.data?.accessToken ?? payload?.accessToken;
 
         if (accessToken) {
           setTokens(accessToken);
+          // 토큰 복원 후 유저 프로필도 함께 로드
+          try {
+            await fetchMe();
+          } catch (e) {
+            console.error("[initAuth] fetchMe failed:", e);
+          }
         } else {
           clearAuth();
         }
@@ -112,7 +125,7 @@ function App() {
     };
 
     initAuth();
-  }, [isAuthenticated, setTokens, clearAuth]);
+  }, []);
 
   // 인증 상태 확인 중에는 로딩 표시
   if (isInitializing) {
