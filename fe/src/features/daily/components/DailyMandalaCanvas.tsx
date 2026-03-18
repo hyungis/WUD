@@ -1,6 +1,6 @@
-import { DrawingCanvas } from "./DrawingCanvas";
-import { useCanvasDrawing } from "../hooks/useCanvasDrawing";
-import type { ToolType } from "../hooks/useCanvasDrawing";
+import { DrawingCanvas } from "../../../components/shared/DrawingCanvas";
+import { useCanvasDrawing } from "../../../hooks/useCanvasDrawing";
+import type { ToolType } from "../../../hooks/useCanvasDrawing";
 
 interface DailyMandalaCanvasProps {
   drawing: ReturnType<typeof useCanvasDrawing>;
@@ -18,7 +18,7 @@ export function DailyMandalaCanvas({
 
   return (
     <div
-      className="mandala-surface mandala-surface-white w-full max-w-md aspect-square mx-auto overflow-hidden rounded-2xl shadow-lg ring-1 ring-white/10"
+      className="w-full h-full overflow-hidden rounded-2xl"
       style={{ position: "relative", zIndex: 30, isolation: "isolate" }}
     >
       <DrawingCanvas

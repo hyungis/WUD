@@ -170,14 +170,14 @@ function DailyContentInner({ onClose }: { onClose: () => void }) {
                 ))}
               </section>
 
-              <div className="mt-8 flex gap-3">
-                <Button variant="secondary" onClick={() => setStep(0)}>감정 다시 선택</Button>
+              <div className="mt-8 flex w-full items-center justify-between gap-3">
+                <Button variant="secondary" onClick={() => setStep(0)}>이전 단계</Button>
                 <Button
                   type="button"
                   onClick={handleOpenDailyDetail}
                   className="liquid-btn liquid-btn--daily min-w-[150px] px-8 py-3"
                 >
-                  시작하기
+                  다음 단계
                 </Button>
               </div>
             </>

@@ -3,6 +3,7 @@ from app.services.s3_service import s3_service
 from app.services.yolo_service import YoloService
 from app.services.llm_service import llm_service
 from app.services.htp_guide_service import htp_guide_service
+from app.services.cv_feature_service import extract_features as cv_extract_features
 import os
 from pathlib import Path
 
@@ -44,17 +45,25 @@ def analyze_deep_session_request(request: AiAnalyzeReq) -> AiAnalyzeResp:
         base_dir = Path(__file__).resolve().parents[2]  # .../ai/app
         yolo_models_dir = (base_dir / "yolo_models").resolve()
         model_paths = {
-            "house": str(yolo_models_dir / "house.pt"),
-            "tree": str(yolo_models_dir / "tree.pt"),
-            "person": str(yolo_models_dir / "person.pt"),
+            "house": str(yolo_models_dir / "house_640.pt"),
+            "tree": str(yolo_models_dir / "tree_640.pt"),
+            "person": str(yolo_models_dir / "person_640.pt"),
         }
 
         yolo_raw: dict[str, object] = {}
         yolo_summary: dict[str, object] = {}
+        cv_features: dict[str, object] = {}
         for key in ("house", "tree", "person"):
             det = YoloService.classify_image(image_paths[key], model_paths[key])
             yolo_raw[key] = det
             yolo_summary[key] = YoloService.summarize_detections(det)
+            try:
+                cv_features[key] = cv_extract_features(
+                    image_paths[key], list(det), image_type=key
+                )
+            except Exception as cv_err:
+                print(f"[Deep Analyze] CV feature extract failed for {key}: {cv_err}")
+                cv_features[key] = {}
 
         # 3) LLM multimodal call (image + text)
         who5_payload = {
@@ -83,6 +92,7 @@ def analyze_deep_session_request(request: AiAnalyzeReq) -> AiAnalyzeResp:
             image_paths=image_paths,
             image_urls=image_urls,
             prompt_guide_text=guide_text,
+            cv_features=cv_features if cv_features else None,
         )
 
         # Normalize LLM output to backend-expected shape.
@@ -121,6 +131,9 @@ def analyze_deep_session_request(request: AiAnalyzeReq) -> AiAnalyzeResp:
                 raw["intro"] = intro
             if core_insights:
                 raw["coreInsights"] = core_insights
+            # 보조 CV 결과를 raw에 포함 (테스트/디버깅 및 프론트 활용용)
+            if cv_features:
+                raw["cvFeatures"] = cv_features
 
         # Fallback mapping when model returned a different JSON schema
         if not result_summary:

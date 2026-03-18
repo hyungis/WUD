@@ -1,29 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../../components/shared/Button";
+import { useCanvasDrawing } from "../../hooks/useCanvasDrawing";
+import type { ToolType } from "../../hooks/useCanvasDrawing";
 import { deepApi } from "../../api/deep";
 import { imageApi } from "../../api/image";
 import type { DeepDetailResponse } from "../../types/deep";
 import HTPResultView from "./components/HTPResultView";
+import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
 
 type HtpStep = "house" | "tree" | "person";
 type HtpPhase = "survey" | "draw" | "result";
 
+/* ── constants ── */
 const PALETTE = [
-  "#111827",
-  "#374151",
-  "#6B7280",
-  "#F97316",
-  "#F59E0B",
-  "#10B981",
-  "#06B6D4",
-  "#3B82F6",
-  "#6366F1",
-  "#8B5CF6",
-  "#EC4899",
-  "#F43F5E",
+  "#111827", "#374151", "#6B7280", "#F97316", "#F59E0B", "#10B981",
+  "#06B6D4", "#3B82F6", "#6366F1", "#8B5CF6", "#EC4899", "#F43F5E",
 ];
-const BRUSH_PRESETS = [2, 4, 6, 8, 12];
 const WHO5_QUESTIONS = [
   "지난 2주 동안 기분이 밝고 명랑했다.",
   "지난 2주 동안 마음이 차분하고 안정적이었다.",
@@ -31,109 +24,9 @@ const WHO5_QUESTIONS = [
   "지난 2주 동안 상쾌하게 잠에서 깼다.",
   "지난 2주 동안 일상생활이 흥미로웠다.",
 ];
+const DEFAULT_SPANE_ANSWERS = [3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3];
 const POLLING_INTERVAL_MS = 4000;
 const POLLING_MAX_TRIES = 30;
-
-type ToolType = "brush" | "fill" | "eraser";
-
-function floodFill(
-  ctx: CanvasRenderingContext2D,
-  startX: number,
-  startY: number,
-  fillColor: string,
-  tolerance = 32,
-) {
-  const canvas = ctx.canvas;
-  const w = canvas.width;
-  const h = canvas.height;
-  const imageData = ctx.getImageData(0, 0, w, h);
-  const data = imageData.data;
-
-  const tmp = document.createElement("canvas");
-  tmp.width = tmp.height = 1;
-  const tctx = tmp.getContext("2d")!;
-  tctx.fillStyle = fillColor;
-  tctx.fillRect(0, 0, 1, 1);
-  const [fr, fg, fb, fa] = tctx.getImageData(0, 0, 1, 1).data;
-
-  const sx = Math.round(startX);
-  const sy = Math.round(startY);
-  if (sx < 0 || sy < 0 || sx >= w || sy >= h) return;
-
-  const idx = (sy * w + sx) * 4;
-  const sr = data[idx], sg = data[idx + 1], sb = data[idx + 2], sa = data[idx + 3];
-  if (sr === fr && sg === fg && sb === fb && sa === fa) return;
-
-  const match = (i: number) =>
-    Math.abs(data[i] - sr) <= tolerance &&
-    Math.abs(data[i + 1] - sg) <= tolerance &&
-    Math.abs(data[i + 2] - sb) <= tolerance &&
-    Math.abs(data[i + 3] - sa) <= tolerance;
-
-  const stack = [sx, sy];
-  const visited = new Uint8Array(w * h);
-
-  while (stack.length > 0) {
-    const cy = stack.pop()!;
-    const cx = stack.pop()!;
-    const pi = cy * w + cx;
-    if (visited[pi]) continue;
-    visited[pi] = 1;
-    const ci = pi * 4;
-    if (!match(ci)) continue;
-    data[ci] = fr;
-    data[ci + 1] = fg;
-    data[ci + 2] = fb;
-    data[ci + 3] = fa;
-    if (cx > 0) stack.push(cx - 1, cy);
-    if (cx < w - 1) stack.push(cx + 1, cy);
-    if (cy > 0) stack.push(cx, cy - 1);
-    if (cy < h - 1) stack.push(cx, cy + 1);
-  }
-  ctx.putImageData(imageData, 0, 0);
-}
-
-const BrushIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-    <path d="M12 19l7-7 3 3-7 7-3-3z" /><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" /><path d="M2 2l7.586 7.586" />
-  </svg>
-);
-const FillIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-    <path d="M2.5 2.5l19 19" /><path d="M12 2v6.5L17.5 14" /><path d="M19 19c1.5 0 3-1.5 3-3s-3-5-3-5-3 3-3 5 1.5 3 3 3z" />
-    <path d="M2 22l4-4" /><path d="M7.5 13.5L2 19" />
-  </svg>
-);
-const EraserIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-    <path d="M7 21h10" /><path d="M5.5 12.5L12 6l6 6-4.5 4.5a2.12 2.12 0 01-3 0l-5-5z" />
-  </svg>
-);
-const TrashIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-    <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-  </svg>
-);
-
-function ToolBtn({
-  active, onClick, children, title,
-}: { active?: boolean; onClick: () => void; children: React.ReactNode; title?: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      onMouseDown={(e) => e.preventDefault()}
-      tabIndex={-1}
-      title={title}
-      className={`flex items-center justify-center rounded-lg px-2.5 py-2 text-xs transition-all duration-150 ${active
-        ? "bg-indigo-500/30 text-indigo-200 ring-1 ring-indigo-400/50 shadow-[0_0_10px_rgba(99,102,241,0.25)]"
-        : "bg-white/5 text-slate-400 hover:bg-white/10 hover:text-slate-200"
-        }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 type StepConfig = {
   key: HtpStep;
@@ -142,40 +35,61 @@ type StepConfig = {
 };
 
 const STEPS: StepConfig[] = [
-  {
-    key: "house",
-    title: "집",
-    description: "지금 떠오르는 집의 분위기를 편하게 그려보세요.",
-  },
-  {
-    key: "tree",
-    title: "나무",
-    description: "당신의 에너지가 느껴지는 나무를 그려보세요.",
-  },
-  {
-    key: "person",
-    title: "사람",
-    description: "지금의 나를 떠올리며 사람을 그려보세요.",
-  },
+  { key: "house", title: "집", description: "지금 떠오르는 집의 분위기를 편하게 그려보세요." },
+  { key: "tree", title: "나무", description: "당신의 에너지가 느껴지는 나무를 그려보세요." },
+  { key: "person", title: "사람", description: "지금의 나를 떠올리며 사람을 그려보세요." },
 ];
 
+/* ── tiny SVG icons ── */
+const BrushIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 19l7-7 3 3-7 7-3-3z" /><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" /><path d="M2 2l7.586 7.586" /></svg>;
+const FillIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M2.5 2.5l19 19" /><path d="M12 2v6.5L17.5 14" /><path d="M19 19c1.5 0 3-1.5 3-3s-3-5-3-5-3 3-3 5 1.5 3 3 3z" /><path d="M2 22l4-4" /><path d="M7.5 13.5L2 19" /></svg>;
+const EraserIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M7 21h10" /><path d="M5.5 12.5L12 6l6 6-4.5 4.5a2.12 2.12 0 01-3 0l-5-5z" /></svg>;
+const TrashIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>;
+const UndoIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13" /></svg>;
+const RedoIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3l3 2.7" /></svg>;
+
+/* ── toolbar pill button ── */
+function ToolBtn({
+  active, disabled, onClick, children, title,
+}: { active?: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode; title?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      onMouseDown={(e) => e.preventDefault()}
+      title={title}
+      className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-150 shrink-0 ${disabled
+        ? "opacity-30 cursor-not-allowed text-slate-500"
+        : active
+          ? "bg-indigo-500 text-white shadow-md shadow-indigo-500/25 scale-105"
+          : "text-slate-300 hover:bg-white/10 hover:text-white"
+        }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ── main page ── */
 type WeeklyHtpViewProps = {
   isModal?: boolean;
   onClose?: () => void;
   onBackToWeeklyContent?: () => void;
+  onSaved?: () => void;
 };
 
-function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent }: WeeklyHtpViewProps) {
+function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSaved }: WeeklyHtpViewProps) {
   const navigate = useNavigate();
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const isDrawingRef = useRef(false);
-  const lastPointRef = useRef<{ x: number; y: number } | null>(null);
+
   const [stepIndex, setStepIndex] = useState(0);
   const [phase, setPhase] = useState<HtpPhase>("survey");
+
   const [paintColor, setPaintColor] = useState(PALETTE[0]);
   const [brushSize, setBrushSize] = useState(4);
   const [tool, setTool] = useState<ToolType>("brush");
-  const [strokeCount, setStrokeCount] = useState(0);
+  const [activePopup, setActivePopup] = useState<string | null>(null);
+
   const [totalStrokes, setTotalStrokes] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -185,138 +99,96 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent }: Week
 
   const currentStep = STEPS[stepIndex];
 
+  // HTP는 대칭이 필요 없으므로 symmetry: 1 강제 고정
+  const drawing = useCanvasDrawing({ paintColor, brushSize, tool, symmetry: 1 });
+
+  // 단계 변경 시 그림 불러오기 + 해상도 동기화 로직
   useEffect(() => {
-    const resizeCanvas = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
+    if (phase !== "draw") return;
+
+    const canvas = drawing.canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    // 🚨 수동 화소 강제 동기화 (ResizeObserver가 작동하기 전에도 물리 픽셀을 CSS 사이즈와 일치시킴)
+    if (canvas.width !== rect.width * dpr && rect.width > 0) {
       canvas.width = rect.width * dpr;
       canvas.height = rect.height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, rect.width, rect.height);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-
-      const savedDrawing = stepDrawings[currentStep.key];
-      if (savedDrawing) {
-        const img = new Image();
-        img.onload = () => {
-          ctx.clearRect(0, 0, rect.width, rect.height);
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, rect.width, rect.height);
-          ctx.drawImage(img, 0, 0, rect.width, rect.height);
-        };
-        img.src = savedDrawing;
-      }
-    };
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-    return () => window.removeEventListener("resize", resizeCanvas);
-  }, [currentStep.key, phase, stepDrawings]);
-
-  useEffect(() => {
-    const ctx = canvasRef.current?.getContext("2d");
-    if (!ctx) return;
-    ctx.lineWidth = brushSize;
-    ctx.strokeStyle = paintColor;
-  }, [brushSize, paintColor]);
-
-  const getPoint = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
-  }, []);
-
-  const handlePointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!ctx || !canvas) return;
-
-    if (tool === "fill") {
-      const dpr = window.devicePixelRatio || 1;
-      const point = getPoint(event);
-      floodFill(ctx, point.x * dpr, point.y * dpr, paintColor);
-      return;
     }
 
-    isDrawingRef.current = true;
-    lastPointRef.current = getPoint(event);
-  }, [tool, paintColor, getPoint]);
-
-  const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!ctx || !isDrawingRef.current) return;
-    const point = getPoint(event);
-    const lastPoint = lastPointRef.current;
-    if (!lastPoint) {
-      lastPointRef.current = point;
-      return;
-    }
-
-    if (tool === "eraser") {
-      ctx.save();
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.lineWidth = brushSize * 2;
-      ctx.beginPath();
-      ctx.moveTo(lastPoint.x, lastPoint.y);
-      ctx.lineTo(point.x, point.y);
-      ctx.stroke();
-      ctx.restore();
-    } else {
-      ctx.lineWidth = brushSize;
-      ctx.strokeStyle = paintColor;
-      ctx.beginPath();
-      ctx.moveTo(lastPoint.x, lastPoint.y);
-      ctx.lineTo(point.x, point.y);
-      ctx.stroke();
-    }
-    setStrokeCount((count) => count + 1);
-    setTotalStrokes((count) => count + 1);
-    lastPointRef.current = point;
-  }, [tool, brushSize, paintColor, getPoint]);
-
-  const handlePointerUp = useCallback(() => {
-    isDrawingRef.current = false;
-    lastPointRef.current = null;
-  }, []);
-
-  const handleClearCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!ctx || !canvas) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const rect = canvas.getBoundingClientRect();
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, rect.width, rect.height);
-    setStrokeCount(0);
-  }, []);
 
-  const canvasCursor = tool === "fill" ? "crosshair" : tool === "eraser" ? "cell" : "default";
-
-  const persistCurrentStepDrawing = useCallback(() => {
-    const dataUrl = canvasRef.current?.toDataURL("image/png");
-    if (!dataUrl) {
-      return;
+    const savedDrawing = stepDrawings[currentStep.key];
+    if (savedDrawing) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        if (typeof (drawing as any).resetHistory === 'function') (drawing as any).resetHistory();
+      };
+      img.src = savedDrawing;
+    } else {
+      if (typeof (drawing as any).resetHistory === 'function') (drawing as any).resetHistory();
     }
-    setStepDrawings((current) => ({
-      ...current,
-      [currentStep.key]: dataUrl,
-    }));
-  }, [currentStep.key]);
+  }, [stepIndex, phase, currentStep.key]);
 
-  const uploadDrawingAndCreateImage = useCallback(async (dataUrl: string) => {
+  const togglePopup = (name: string) => setActivePopup(prev => prev === name ? null : name);
+
+  const handleClose = () => {
+    if (onClose) { onClose(); return; }
+    if (window.history.length > 1) { navigate(-1); return; }
+    navigate("/");
+  };
+
+  const handleBackToWeeklyContent = () => {
+    if (onBackToWeeklyContent) { onBackToWeeklyContent(); return; }
+    navigate("/deep/content");
+  };
+
+  // 1024x1024 해상도 고정 변환 및 저장
+  const persistCurrentStepDrawing = () => {
+    const originalCanvas = drawing.canvasRef.current;
+    if (!originalCanvas) return null;
+
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = 1024;
+    exportCanvas.height = 1024;
+    const exportCtx = exportCanvas.getContext("2d");
+
+    if (exportCtx) {
+      exportCtx.fillStyle = "#ffffff";
+      exportCtx.fillRect(0, 0, 1024, 1024);
+      exportCtx.drawImage(originalCanvas, 0, 0, 1024, 1024);
+      const dataUrl = exportCanvas.toDataURL("image/png");
+      setStepDrawings((prev) => ({ ...prev, [currentStep.key]: dataUrl }));
+      return dataUrl;
+    }
+    return null;
+  };
+
+  const handlePrevStep = () => {
+    persistCurrentStepDrawing();
+    setStepIndex((c) => c - 1);
+  };
+
+  const handleNextStep = () => {
+    persistCurrentStepDrawing();
+    if (stepIndex < STEPS.length - 1) {
+      setStepIndex((c) => c + 1);
+    } else {
+      handleSave();
+    }
+  };
+
+  const uploadDrawingAndCreateImage = async (dataUrl: string) => {
     const blob = await (await fetch(dataUrl)).blob();
     const bitmap = await createImageBitmap(blob);
-
     const presignedRes = await imageApi.getPresignedUrl({
       mimeType: blob.type || "image/png",
       byteSize: blob.size,
@@ -328,19 +200,14 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent }: Week
 
     const upload = presignedRes.data?.upload;
     const image = presignedRes.data?.image;
-    if (!upload || !image) {
-      throw new Error("이미지 업로드 준비 정보가 없습니다.");
-    }
+    if (!upload || !image) throw new Error("이미지 업로드 준비 정보가 없습니다.");
 
     const uploadRes = await fetch(upload.url, {
       method: upload.method || "PUT",
       headers: upload.headers || { "Content-Type": blob.type || "application/octet-stream" },
       body: blob,
     });
-
-    if (!uploadRes.ok) {
-      throw new Error("이미지 업로드에 실패했습니다.");
-    }
+    if (!uploadRes.ok) throw new Error("이미지 업로드에 실패했습니다.");
 
     const createRes = await imageApi.registerImage({
       imageKey: image.imageKey,
@@ -349,66 +216,33 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent }: Week
     });
 
     const imageId = createRes.data?.imageId;
-    if (!imageId) {
-      throw new Error("이미지 등록에 실패했습니다.");
-    }
-
+    if (!imageId) throw new Error("이미지 등록에 실패했습니다.");
     return imageId;
-  }, []);
+  };
 
   const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
-  const waitUntilAnalysisDone = useCallback(async (sessionId: number) => {
+  const waitUntilAnalysisDone = async (sessionId: number) => {
     for (let attempt = 0; attempt < POLLING_MAX_TRIES; attempt += 1) {
       const statusRes = await deepApi.getAnalysisStatus(sessionId);
       const status = statusRes.data?.status;
       localStorage.setItem("latestDeepStatus", status || "ANALYZING");
 
-      if (status === "DONE") {
-        return "DONE" as const;
-      }
-      if (status === "FAILED") {
-        return "FAILED" as const;
-      }
-
+      if (status === "DONE") return "DONE" as const;
+      if (status === "FAILED") return "FAILED" as const;
       await sleep(POLLING_INTERVAL_MS);
     }
-
     return "TIMEOUT" as const;
-  }, []);
-
-  const handleNext = () => {
-    persistCurrentStepDrawing();
-    if (stepIndex < STEPS.length - 1) {
-      setStepIndex((current) => current + 1);
-      return;
-    }
-    handleSave();
   };
 
   const handleSave = async () => {
-    if (isSaving) {
-      return;
-    }
+    if (isSaving) return;
     setSaveError(null);
-    const getWeekKey = (date: Date) => {
-      const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-      const day = target.getUTCDay() || 7;
-      target.setUTCDate(target.getUTCDate() + 4 - day);
-      const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
-      const weekNo = Math.ceil((((target.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-      return `${target.getUTCFullYear()}-W${weekNo}`;
-    };
-    const getWeekLabel = (date: Date) => {
-      const month = date.getMonth() + 1;
-      const weekOfMonth = Math.ceil((date.getDate() + new Date(date.getFullYear(), date.getMonth(), 1).getDay()) / 7);
-      return `${month}월 ${weekOfMonth}주`;
-    };
-    persistCurrentStepDrawing();
 
+    const finalDataUrl = persistCurrentStepDrawing();
     const drawings = {
       ...stepDrawings,
-      [currentStep.key]: canvasRef.current?.toDataURL("image/png") || stepDrawings[currentStep.key],
+      [currentStep.key]: finalDataUrl || stepDrawings[currentStep.key],
     };
 
     if (!drawings.house || !drawings.tree || !drawings.person) {
@@ -424,8 +258,18 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent }: Week
     setIsSaving(true);
     const toneLabel = totalStrokes > 180 ? "활력" : totalStrokes > 80 ? "안정" : "여백";
     const toneColor = totalStrokes > 180 ? "#F59E0B" : totalStrokes > 80 ? "#38BDF8" : "#94A3B8";
+
+    const getWeekKey = (date: Date) => {
+      const target = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const day = target.getUTCDay() || 7;
+      target.setUTCDate(target.getUTCDate() + 4 - day);
+      const yearStart = new Date(Date.UTC(target.getUTCFullYear(), 0, 1));
+      const weekNo = Math.ceil((((target.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+      return `${target.getUTCFullYear()}-W${weekNo}`;
+    };
+    const getWeekLabel = (date: Date) => `${date.getMonth() + 1}월 ${Math.ceil((date.getDate() + new Date(date.getFullYear(), date.getMonth(), 1).getDay()) / 7)}주`;
+
     const createdAt = new Date();
-    const drawingImage = canvasRef.current?.toDataURL("image/png") ?? null;
     const nextStar = {
       id: `star-${Date.now()}`,
       createdAt: createdAt.toISOString(),
@@ -434,169 +278,135 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent }: Week
       tone: toneLabel,
       toneColor,
       strokes: totalStrokes,
-      drawingImage,
+      drawingImage: drawings.house,
     };
+
     const storedStars = localStorage.getItem("deepStars");
     const parsedStars = storedStars ? (JSON.parse(storedStars) as typeof nextStar[]) : [];
-    const nextStars = [nextStar, ...parsedStars].slice(0, 24);
-    localStorage.setItem("deepStars", JSON.stringify(nextStars));
+    localStorage.setItem("deepStars", JSON.stringify([nextStar, ...parsedStars].slice(0, 24)));
     localStorage.setItem("htpToneColor", toneColor);
     localStorage.setItem("htpCompleted", "true");
-    localStorage.setItem("pendingHtpRecord", JSON.stringify({
-      weekKey: nextStar.weekKey,
-      label: nextStar.label,
-      tone: nextStar.tone,
-      toneColor: nextStar.toneColor,
-      strokes: nextStar.strokes,
-      drawingImage,
-      createdAt: nextStar.createdAt,
-    }));
+    localStorage.setItem("pendingHtpRecord", JSON.stringify({ ...nextStar }));
 
     try {
-      const houseImageId = await uploadDrawingAndCreateImage(drawings.house);
-      const treeImageId = await uploadDrawingAndCreateImage(drawings.tree);
-      const personImageId = await uploadDrawingAndCreateImage(drawings.person);
+      const houseImageId = await uploadDrawingAndCreateImage(drawings.house!);
+      const treeImageId = await uploadDrawingAndCreateImage(drawings.tree!);
+      const personImageId = await uploadDrawingAndCreateImage(drawings.person!);
 
       const sessionRes = await deepApi.createSession();
       const sessionId = sessionRes.data?.sessionId;
-      if (sessionId) {
-        localStorage.setItem("latestDeepSessionId", String(sessionId));
+      if (!sessionId) {
+        throw new Error("세션 생성에 실패했습니다.");
+      }
 
-        await deepApi.submitWho5Assessment(sessionId, {
-          answers: who5Answers,
-        });
+      localStorage.setItem("latestDeepSessionId", String(sessionId));
+      await deepApi.submitWho5Assessment(sessionId, { answers: who5Answers });
+      await deepApi.submitSpaneAssessment(sessionId, { answers: DEFAULT_SPANE_ANSWERS });
+      await deepApi.submitSubmissions(sessionId, { houseImageId, treeImageId, personImageId });
 
-        await deepApi.submitSubmissions(sessionId, {
-          houseImageId,
-          treeImageId,
-          personImageId,
-        });
+      if (isModal && onClose) {
+        setIsSaving(false);
+        onSaved?.();
+        onClose();
+        return;
+      }
 
-        const pollingResult = await waitUntilAnalysisDone(sessionId);
-        if (pollingResult === "DONE") {
-          const resultRes = await deepApi.getDeepResult(sessionId);
-          if (resultRes.success && resultRes.data) {
-            setLatestResult(resultRes.data);
-            const resultSummary = resultRes.data.aiResult.resultSummary || resultRes.data.aiResult.result || "";
-            localStorage.setItem("latestDeepResultSummary", resultSummary);
-            localStorage.setItem("latestDeepResult", JSON.stringify(resultRes.data));
-            setIsSaving(false);
-            setPhase("result");
-            return;
-          }
-        } else if (pollingResult === "FAILED") {
-          setSaveError("AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
-        } else {
-          setSaveError("분석이 지연되고 있습니다. 잠시 후 결과 화면에서 다시 확인해주세요.");
+      const pollingResult = await waitUntilAnalysisDone(sessionId);
+      if (pollingResult === "DONE") {
+        const resultRes = await deepApi.getDeepResult(sessionId);
+        if (resultRes.success && resultRes.data) {
+          setLatestResult(resultRes.data);
+          localStorage.setItem("latestDeepResultSummary", resultRes.data.aiResult.resultSummary || resultRes.data.aiResult.result || "");
+          localStorage.setItem("latestDeepResult", JSON.stringify(resultRes.data));
+          setIsSaving(false);
+          setPhase("result");
+          return;
         }
+      } else if (pollingResult === "FAILED") {
+        setSaveError("AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+      } else {
+        setSaveError("분석이 지연되고 있습니다. 잠시 후 결과 화면에서 다시 확인해주세요.");
       }
     } catch (error) {
       console.error("deep submit failed", error);
-      setSaveError("위클리 API 저장에 실패해 로컬 저장 결과로 이동합니다.");
+      setSaveError("위클리 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
     }
     setIsSaving(false);
-    window.setTimeout(() => {
-      navigate("/", { replace: true });
-    }, 1400);
   };
 
-
-
-  const progressLabel = useMemo(() => `${stepIndex + 1} / ${STEPS.length}`, [stepIndex]);
-  const progressPercent = phase === "result" ? 100 : ((stepIndex + 1) / STEPS.length) * 100;
-  const strokeDensity = Math.min(100, Math.round((brushSize / 12) * 100));
-
-  const handleClose = () => {
-    if (onClose) {
-      onClose();
-      return;
-    }
-
-    if (window.history.length > 1) {
-      navigate(-1);
-      return;
-    }
-
-    navigate("/");
-  };
-
-  const handleBackToWeeklyContent = () => {
-    if (onBackToWeeklyContent) {
-      onBackToWeeklyContent();
-      return;
-    }
-
-    navigate("/deep/content");
-  };
+  const canvasCursor = tool === "fill" ? "crosshair" : tool === "eraser" ? "cell" : "default";
 
   const content = (
-    <div className="relative h-[100dvh] overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 text-slate-100">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(125,211,252,0.14),transparent_58%)]" />
+    <div
+      className="flex flex-col h-[100dvh] w-full overflow-hidden bg-slate-950 text-slate-100 relative"
+      onPointerDown={(e) => {
+        if ((e.target as HTMLElement).closest('.toolbar-area, .toolbar-popup')) return;
+        setActivePopup(null);
+      }}
+    >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.15),transparent_58%)]" />
 
-      <div className="relative z-10 mx-auto flex h-full w-full max-w-none min-h-0 flex-col gap-4 px-3 py-4 sm:px-6 sm:py-6">
-        <header className="shrink-0">
-          <div className="flex items-start justify-between gap-4 text-center sm:text-left">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.35em] text-cyan-100/75">
-                HTP Session
-              </p>
-              <h1 className="mt-3 text-2xl font-semibold text-slate-100 [font-family:'Manrope',sans-serif]">
-                위클리 HTP 기록
-              </h1>
-              <p className="mt-2 text-sm text-slate-300">
-                참고용 결과를 위한 검사이며, 진단이 아닙니다.
-              </p>
-            </div>
-            {isModal && (
-              <button
-                type="button"
-                onClick={handleClose}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/20 bg-white/5 text-sm text-slate-200 transition hover:bg-white/10"
-                aria-label="닫기"
-              >
-                X
+      {/* ─── 헤더 (컴팩트 1줄) ─── */}
+      <header className="shrink-0 flex items-center justify-between px-4 h-12 border-b border-white/[0.06] z-10 bg-slate-900/30 backdrop-blur-sm">
+        <div className="flex items-center gap-2.5">
+          <button type="button" onClick={handleBackToWeeklyContent}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
+          </button>
+          <span className="text-sm font-medium text-slate-300">위클리 HTP 검사</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {phase === "draw" && (
+            <>
+              {stepIndex > 0 && (
+                <button type="button" onClick={handlePrevStep} className="h-8 px-4 rounded-xl bg-white/5 text-slate-300 text-xs font-semibold hover:bg-white/10 transition-colors">
+                  뒤로
+                </button>
+              )}
+              <button type="button" onClick={handleNextStep}
+                className="h-8 px-4 rounded-xl bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-500/20 hover:bg-indigo-400 transition-colors">
+                {stepIndex === STEPS.length - 1 ? "저장" : "다음"}
               </button>
-            )}
-          </div>
-        </header>
+            </>
+          )}
+          {isModal && (
+            <button
+              type="button"
+              onClick={handleClose}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition text-xs"
+              aria-label="닫기"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </header>
 
-        <section className="htp-card flex-1 min-h-0 overflow-hidden">
-          {phase === "survey" ? (
-            <div className="h-full min-h-0 space-y-8 overflow-y-auto text-center custom-scrollbar pr-1">
+      {/* ─── 메인 영역 ─── */}
+      <div className="flex flex-1 min-h-0 relative z-10">
+
+        {/* 🚨 1. 설문 단계 */}
+        {phase === "survey" && (
+          <div className="h-full w-full min-h-0 overflow-y-auto custom-scrollbar p-6 flex justify-center">
+            <div className="w-full max-w-xl text-center space-y-8 pb-12">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-300">
-                  Pre-Assessment
-                </p>
-                <h2 className="mt-4 text-3xl font-semibold text-slate-100">
-                  위클리 검사 전 설문
-                </h2>
-                <p className="mt-3 text-sm text-slate-300">
-                  최근 2주간의 기분을 솔직하게 선택해 주세요.
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-indigo-300">Pre-Assessment</p>
+                <h2 className="mt-4 text-3xl font-semibold text-slate-100">위클리 검사 전 설문</h2>
+                <p className="mt-3 text-sm text-slate-300">최근 2주간의 기분을 솔직하게 선택해 주세요.</p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+              <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-5 text-left backdrop-blur-sm">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">WHO-5 (0-5)</p>
                 <div className="mt-4 space-y-3">
                   {WHO5_QUESTIONS.map((question, index) => (
                     <div key={question} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
                       <p className="text-sm text-slate-200">{index + 1}. {question}</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
+                      <div className="mt-3 flex flex-wrap gap-2">
                         {[0, 1, 2, 3, 4, 5].map((score) => (
                           <button
-                            key={`${question}-${score}`}
-                            type="button"
-                            onClick={() => {
-                              setWho5Answers((current) => {
-                                const next = [...current];
-                                next[index] = score;
-                                return next;
-                              });
-                            }}
-                            className={`rounded-lg px-3 py-1.5 text-xs transition ${who5Answers[index] === score
-                              ? "bg-emerald-500/30 text-emerald-100 ring-1 ring-emerald-300/40"
-                              : "bg-white/5 text-slate-300 hover:bg-white/10"
-                              }`}
+                            key={`${question}-${score}`} type="button"
+                            onClick={() => setWho5Answers((curr) => { const next = [...curr]; next[index] = score; return next; })}
+                            className={`rounded-lg px-4 py-2 text-xs transition font-medium ${who5Answers[index] === score ? "bg-indigo-500 text-white shadow-lg" : "bg-white/5 text-slate-300 hover:bg-white/10"}`}
                           >
                             {score}
                           </button>
@@ -606,196 +416,123 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent }: Week
                   ))}
                 </div>
               </div>
-
-              <div className="flex items-center justify-center gap-3">
-                <Button type="button" variant="secondary" onClick={handleBackToWeeklyContent}>
-                  이전 단계
-                </Button>
-                <Button type="button" onClick={() => setPhase("draw")}>
-                  검사 시작하기
-                </Button>
+              <div className="flex w-full items-center justify-end">
+                <Button type="button" className="liquid-btn liquid-btn--deep px-6 py-2.5" onClick={() => setPhase("draw")}>다음 단계</Button>
               </div>
             </div>
-          ) : phase === "draw" ? (
-            <div className="flex h-full min-h-0 flex-col gap-3">
-              <div className="shrink-0 flex flex-col gap-3 rounded-2xl border border-white/10 bg-white/[0.03] px-4 py-3 backdrop-blur-sm">
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="min-w-[170px]">
-                    <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">Step {progressLabel}</p>
-                    <h2 className="mt-1 text-lg font-semibold text-slate-100">{currentStep.title} 그리기</h2>
-                  </div>
+          </div>
+        )}
 
-                  <div className="flex items-center gap-1.5">
-                    <span className="mr-1 text-[11px] font-medium uppercase tracking-widest text-slate-500">도구</span>
-                    <ToolBtn active={tool === "brush"} onClick={() => setTool("brush")} title="브러시">
-                      <BrushIcon />
-                    </ToolBtn>
-                    <ToolBtn active={tool === "fill"} onClick={() => setTool("fill")} title="채우기">
-                      <FillIcon />
-                    </ToolBtn>
-                    <ToolBtn active={tool === "eraser"} onClick={() => setTool("eraser")} title="지우개">
-                      <EraserIcon />
-                    </ToolBtn>
-                  </div>
+        {/* 🚨 2. 그리기 단계 (CSS hidden을 사용하여 렌더링 타이밍 버그 해결) */}
+        <div className={`w-full h-full flex flex-row ${phase === "draw" ? "flex" : "hidden"}`}>
 
-                  <div className="h-6 w-px bg-white/10" />
+          {/* 좌측 세로 툴바 */}
+          <div className="toolbar-area shrink-0 flex flex-col items-center w-20 py-3 gap-1.5 bg-slate-900/50 border-r border-white/[0.06] z-40 overflow-visible backdrop-blur-md">
+            <ToolBtn active={tool === "brush"} onClick={() => { setTool("brush"); setActivePopup(null); }} title="브러시"><BrushIcon /></ToolBtn>
+            <ToolBtn active={tool === "fill"} onClick={() => { setTool("fill"); setActivePopup(null); }} title="채우기"><FillIcon /></ToolBtn>
+            <ToolBtn active={tool === "eraser"} onClick={() => { setTool("eraser"); setActivePopup(null); }} title="지우개"><EraserIcon /></ToolBtn>
 
-                  <div className="flex items-center gap-1.5">
-                    <span className="mr-1 text-[11px] font-medium uppercase tracking-widest text-slate-500">굵기</span>
-                    {BRUSH_PRESETS.map((value) => (
-                      <ToolBtn key={value} active={brushSize === value} onClick={() => setBrushSize(value)}>
-                        <span className="flex items-center gap-1">
-                          <span
-                            className="inline-block rounded-full bg-current"
-                            style={{ width: Math.min(value + 2, 14), height: Math.min(value + 2, 14) }}
-                          />
-                          <span className="text-[10px]">{value}</span>
-                        </span>
-                      </ToolBtn>
+            <div className="w-10 h-px bg-white/10 my-1.5" />
+
+            {/* 색상 */}
+            <div className="relative">
+              <ToolBtn active={activePopup === "color"} onClick={() => togglePopup("color")} title="색상">
+                <div className="h-5 w-5 rounded-full ring-2 ring-white/40" style={{ backgroundColor: paintColor }} />
+              </ToolBtn>
+              {activePopup === "color" && (
+                <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-[280px] bg-slate-900 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50" onPointerDown={(e) => e.stopPropagation()}>
+                  <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-slate-900 border-l border-b border-white/15" />
+                  <div className="grid grid-cols-6 gap-2.5 mb-3">
+                    {PALETTE.map((c) => (
+                      <button key={c} onClick={() => setPaintColor(c)} className={`h-9 w-9 rounded-full transition-all ${paintColor === c ? "scale-110 ring-2 ring-white ring-offset-2 ring-offset-slate-900" : "hover:scale-110 opacity-80 hover:opacity-100"}`} style={{ backgroundColor: c }} />
                     ))}
                   </div>
+                  <label className="flex items-center justify-center w-full h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer text-xs text-slate-400 transition-colors">
+                    커스텀 색상
+                    <input type="color" value={paintColor} onChange={(e) => setPaintColor(e.target.value)} className="absolute opacity-0 w-0 h-0" />
+                  </label>
                 </div>
-
-                <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className="mr-1 text-[11px] font-medium uppercase tracking-widest text-slate-500">색상</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {PALETTE.map((color) => (
-                        <button
-                          key={color}
-                          type="button"
-                          onClick={() => setPaintColor(color)}
-                          onMouseDown={(event) => event.preventDefault()}
-                          tabIndex={-1}
-                          className={`h-6 w-6 rounded-full border-2 transition-all duration-150 ${paintColor === color
-                            ? "scale-110 border-white shadow-[0_0_10px_rgba(255,255,255,0.4)]"
-                            : "border-transparent hover:scale-105 hover:border-white/30"
-                            }`}
-                          style={{ backgroundColor: color }}
-                          aria-label={`${color} 선택`}
-                        />
-                      ))}
-                      <input
-                        type="color"
-                        value={paintColor}
-                        onChange={(event) => setPaintColor(event.target.value)}
-                        className="h-6 w-6 cursor-pointer rounded-full border-2 border-dashed border-white/20 bg-transparent transition hover:border-white/40"
-                        aria-label="직접 색상 선택"
-                        title="직접 색상 선택"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="ml-auto flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleClearCanvas}
-                      onMouseDown={(event) => event.preventDefault()}
-                      tabIndex={-1}
-                      className="flex items-center gap-1.5 rounded-lg bg-white/5 px-3 py-2 text-xs text-slate-400 transition hover:bg-red-500/15 hover:text-red-300"
-                      title="전체 지우기"
-                    >
-                      <TrashIcon />
-                      지우기
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mandala-surface mandala-surface-white relative z-30 flex-1 min-h-0 overflow-hidden" style={{ isolation: "isolate" }}>
-                <canvas
-                  ref={canvasRef}
-                  className="daily-canvas h-full w-full touch-none"
-                  style={{ cursor: canvasCursor, backgroundColor: "#ffffff" }}
-                  onPointerDown={handlePointerDown}
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerUp}
-                  onPointerLeave={handlePointerUp}
-                />
-              </div>
-
-              <div className="shrink-0 flex flex-wrap items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                <p className="flex-1 text-xs text-slate-300">{currentStep.description} · 현재 선의 수 {strokeCount}</p>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => {
-                    if (stepIndex === 0) {
-                      setPhase("survey");
-                      return;
-                    }
-                    setStepIndex((current) => current - 1);
-                  }}
-                >
-                  이전
-                </Button>
-                <Button type="button" onClick={handleNext}>{stepIndex === STEPS.length - 1 ? "완료" : "다음"}</Button>
-              </div>
+              )}
             </div>
-          ) : (
-            <HTPResultView 
-              result={latestResult || {
-                sessionId: 0,
-                deepType: "HTP",
-                status: "DONE",
-                submissions: [],
-                questions: [],
-                aiResult: { 
-                  result: "분석 데이터를 불러올 수 없습니다.",
-                  raw: {}
-                },
-                psychAssessments: []
-              }}
-              onRestart={() => setPhase("draw")}
-              onComplete={() => {
-                if (onClose) {
-                  onClose();
-                  return;
-                }
-                navigate("/", { replace: true });
-              }}
-              saveError={saveError}
-            />
-          )}
-        </section>
 
-        <div className="shrink-0 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 backdrop-blur-sm">
-          <div className="mb-2 flex items-center justify-between text-[11px] uppercase tracking-[0.28em] text-slate-400">
-            <span>Progress</span>
-            <span>{phase === "result" ? "완료" : `굵기 ${brushSize}px`}</span>
+            {/* 굵기 */}
+            <div className="relative">
+              <ToolBtn active={activePopup === "size"} onClick={() => togglePopup("size")} title="굵기">
+                <span className="inline-block rounded-full bg-current" style={{ width: Math.max(4, Math.min(brushSize + 2, 12)), height: Math.max(4, Math.min(brushSize + 2, 12)) }} />
+              </ToolBtn>
+              {activePopup === "size" && (
+                <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-56 bg-slate-900 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50" onPointerDown={(e) => e.stopPropagation()}>
+                  <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-slate-900 border-l border-b border-white/15" />
+                  <div className="flex justify-between items-center mb-2.5 text-xs text-slate-400">
+                    <span>굵기</span><span className="text-indigo-400 font-bold">{brushSize}px</span>
+                  </div>
+                  <input type="range" min="1" max="30" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="w-full h-2 bg-slate-700 rounded-full appearance-none cursor-pointer accent-indigo-400" />
+                </div>
+              )}
+            </div>
+
+            <div className="w-10 h-px bg-white/10 my-1.5" />
+
+            {/* 실행취소 / 다시실행 / 전체삭제 */}
+            <ToolBtn disabled={!drawing.canUndo} onClick={drawing.handleUndo} title="실행취소"><UndoIcon /></ToolBtn>
+            <ToolBtn disabled={!drawing.canRedo} onClick={drawing.handleRedo} title="다시실행"><RedoIcon /></ToolBtn>
+            <ToolBtn onClick={() => { drawing.handleClearCanvas(); setActivePopup(null); }} title="전체 지우기"><TrashIcon /></ToolBtn>
           </div>
-          <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
-            <div
-              className={`h-full rounded-full transition-all duration-300 ${phase === "result" ? "bg-gradient-to-r from-sky-400 to-indigo-400" : "bg-gradient-to-r from-emerald-400 to-cyan-400"}`}
-              style={{ width: `${phase === "result" ? progressPercent : (phase === "survey" ? 0 : strokeDensity)}%` }}
-            />
+
+          {/* 캔버스 영역 */}
+          <div className="flex-1 flex flex-col items-center justify-center min-w-0 min-h-0 overflow-hidden p-4 relative" onPointerDown={() => setActivePopup(null)}>
+
+            {/* 가이드 메시지 */}
+            <div className="absolute top-4 z-10 bg-slate-900/80 backdrop-blur-md border border-white/10 px-5 py-2.5 rounded-full shadow-xl pointer-events-none text-center">
+              <p className="text-xs font-bold text-indigo-300 mb-0.5">Step {stepIndex + 1}. {currentStep.title}</p>
+              <p className="text-sm text-slate-200">{currentStep.description}</p>
+            </div>
+
+            {/* 캔버스 래퍼 - 🚨 max-w 제거 및 유연한 높이/너비 적용 */}
+            <div className="relative w-full max-w-[min(90vw,700px)] aspect-square rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_16px_64px_rgba(0,0,0,0.5)] bg-white shrink-0 mt-8 mx-auto">
+              <DrawingCanvas
+                canvasRef={drawing.canvasRef}
+                cursor={canvasCursor}
+                onPointerDown={(e) => {
+                  drawing.handlePointerDown(e);
+                  setTotalStrokes(s => s + 1);
+                }}
+                onPointerMove={drawing.handlePointerMove}
+                onPointerUp={drawing.handlePointerUp}
+              />
+            </div>
           </div>
         </div>
+
+        {/* 🚨 3. 결과 단계 */}
+        {phase === "result" && (
+          <div className="w-full h-full">
+            <HTPResultView
+              result={latestResult!}
+              onRestart={() => setPhase("draw")}
+              onComplete={() => { if (onClose) onClose(); else navigate("/", { replace: true }); }}
+              saveError={saveError}
+            />
+          </div>
+        )}
+
       </div>
+
       {isSaving && (
-        <div className="htp-save-overlay" aria-live="polite">
-          <div className="htp-save-star" aria-hidden="true" />
-          <p className="text-sm uppercase tracking-[0.35em] text-slate-200">
-            위클리 기록을 저장 중이에요
-          </p>
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-500 border-t-transparent mb-4" />
+          <p className="text-sm uppercase tracking-[0.35em] text-slate-200">위클리 기록을 저장 중이에요</p>
         </div>
       )}
     </div>
   );
 
-  if (!isModal) {
-    return content;
-  }
+  if (!isModal) return content;
 
   return (
-    <div className="fixed inset-0 z-[92] flex items-center justify-center bg-black/35 px-4 py-4 text-slate-100">
-      <button
-        type="button"
-        aria-label="모달 닫기"
-        onClick={handleClose}
-        className="absolute inset-0 h-full w-full cursor-default"
-      />
-      <div className="relative z-10 h-[92vh] w-full max-w-6xl overflow-hidden rounded-3xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.42)] ring-1 ring-white/10">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-4 text-slate-100">
+      <button type="button" aria-label="모달 닫기" onClick={handleClose} className="absolute inset-0 h-full w-full cursor-default" />
+      <div className="relative z-10 w-full max-w-6xl h-[94vh] overflow-hidden rounded-3xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.6)]">
         {content}
       </div>
     </div>

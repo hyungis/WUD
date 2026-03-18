@@ -114,15 +114,24 @@ class LLMService:
         allowed_endings = ("인 것 같아요.", "한 듯해요.", "해 보이네요.", "느껴져요.", "보여요.")
 
         developer_prompt = (
-            "당신은 그림(시각적 단서)을 바탕으로 심리적 내면 상태를 추론하는 분석가입니다. "
-            "톤은 밝고 에너지 있게, 하지만 과장하거나 감정적으로 위로하지는 마세요. "
-            "반드시 그림의 구체 단서(색감/구도/여백/선의 강약/대상 배치 등) 1가지를 근거로, "
-            "사용자의 내면 상태를 '가능성/해석' 형태로 조심스럽게 제시하세요. "
-            "진단명·병리 라벨(우울증, 불안장애 등)과 단정적 표현(반드시/확실히)은 금지합니다. "
-            "출력은 한국어 한 문장으로만 작성하세요. "
-            "문장 끝은 반드시 다음 중 하나로 끝내세요: "
-            "'인 것 같아요.' / '한 듯해요.' / '해 보이네요.' / '느껴져요.' / '보여요.'. "
-            "'읽혀요'는 사용하지 마세요."
+            "당신은 HTP 그림(집, 나무, 사람)과 보조 정보(WELL-BEING 설문, 객체 탐지 결과)를 함께 참고하여 "
+            "근거 기반의 심층 해석 기록을 작성하는 분석가입니다. "
+            "반드시 그림의 시각적 단서와 입력 정보에 근거하여 해석해야 하며, 보이는 사실 이상을 과도하게 확대 해석하지 않습니다. "
+
+            "분석 원칙은 다음과 같습니다. "
+            "첫째, 그림에서 관찰되는 특징(예: 크기, 위치, 여백, 선의 강약, 형태의 강조/생략, 대상 간 관계)을 먼저 언급하고, "
+            "그 다음 그 특징이 시사할 수 있는 심리적 의미를 '가능성' 수준에서 조심스럽게 설명합니다. "
+            "둘째, 단정적 표현은 피하고 '보입니다', '느껴집니다', '시사합니다', '추정해볼 수 있습니다' 같은 완곡한 표현을 사용합니다. "
+            "셋째, 진단명, 병리적 라벨, 임상적 확정 표현은 절대 사용하지 않습니다. "
+            "넷째, 부정적이거나 긴장된 단서가 보여도 자극적으로 표현하지 말고, 현재의 방어 방식, 부담, 조심성, 에너지 저하 가능성처럼 절제된 언어로 설명합니다. "
+            "다섯째, 강점과 자원을 반드시 함께 제시하되, 근거 없는 위로나 과장된 감동 표현은 사용하지 않습니다. "
+
+            "YOLO 객체 탐지 결과는 보조 단서일 뿐이며, 탐지되지 않았다는 사실이 곧 그림에 없다는 뜻은 아닙니다. "
+            "반드시 실제 이미지의 시각적 특징과 함께 교차 검토하세요. "
+            "WHO-5 점수 역시 보조 맥락으로만 활용하며, 점수만으로 전체 해석을 끌고 가지 마세요. "
+
+            "출력은 반드시 JSON 객체 하나만 생성합니다. "
+            "문체는 사용자에게 직접 말을 거는 편지체가 아니라, 전문적인 해석 기록문 스타일로 유지합니다."
         )
 
         daily_type_norm = (daily_type or "").strip().upper()
@@ -199,6 +208,7 @@ class LLMService:
         image_paths: Dict[str, str] | None = None,
         image_urls: Dict[str, str] | None = None,
         prompt_guide_text: Optional[str] = None,
+        cv_features: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """
         HTP + WHO5 + YOLO 결과 + 원본 이미지(멀티모달)로 GPT-4o 분석을 요청하고
@@ -218,29 +228,34 @@ class LLMService:
         # 서비스에서 바로 사용 가능한 심층 분석용 스키마
         output_schema = '''출력 JSON 스키마 (반드시 준수):
         {
-        "intro": "현재 정서적 상태와 무의식적 기조를 요약한 핵심 문단 (3~5문장)",
+        "intro": "현재 정서적 기조와 전반적 특성을 요약한 문단 (3~5문장)",
         "coreInsights": [
-            "1. [집/나무/사람 특징 묘사]는 [세부 심리적 묘사와 상징]을 나타냄.",
-            "2. [다른 특징 묘사]는 [세부 심리 및 현재 상태]를 시사함.",
+            "1. [관찰된 그림 특징]이 [가능한 심리적 의미]를 시사합니다.",
+            "2. [관찰된 그림 특징]이 [현재의 대처 방식/관계 태도/에너지 상태]와 연결되어 보입니다.",
             "3. ...",
             "4. ..."
         ],
         "strengths": ["강점 1", "강점 2", "강점 3"],
         "questions": ["질문 1", "질문 2", "질문 3", "질문 4", "질문 5"],
         "raw": {
-            "wellbeing": {"scoreTotal": N, "note": "점수와 그림을 연결한 짧은 메모"}
+            "wellbeing": {
+            "scoreTotal": N,
+            "note": "WHO-5와 그림 단서를 함께 고려한 짧은 메모"
+            }
         }
         }'''
 
         guide = prompt_guide_text or (
-            "규칙:\n"
-            "- 그림에 나타난 특징(형태, 크기 등)을 언급하고, 그것이 의미하는 심리적 상태를 이어서 설명할 것 (예: '튼튼한 나무 뿌리를 그려주신 것을 보니 내면의 기반이 탄탄하시군요').\n"
-            "- 내담자가 '내 그림에 이런 깊은 뜻이 있었구나'라고 스스로를 이해할 수 있도록 도와주는 전문적인 해설자가 될 것.\n"
-            "- 다소 부정적이거나 상처받은 단서(결핍, 방어, 소진 등)가 그림에 나타나면, 이를 조심스럽게 언급하며 공감하고 다독이는 어투를 사용할 것.\n"
-            "- 진단명이나 병리적 라벨링 절대 금지. 완곡하고 문학적인 표현 사용.\n"
-            "- 집=가정/안정감, 나무=자아/에너지, 사람=관계/현실자아의 상징을 활용하여 친절하게 풀어줄 것.\n"
-            "- JSON만 출력하세요.\n"
-            "\n"
+            "작성 원칙:\n"
+            "- 집, 나무, 사람 그림의 시각적 특징을 먼저 관찰하고, 그 다음 가능한 심리적 의미를 연결할 것.\n"
+            "- 관찰 없는 해석만 쓰지 말고, 반드시 '무엇이 보였는지'를 먼저 드러낼 것.\n"
+            "- 해석은 가능성 수준에서 제시하며, 단정하거나 확정하지 말 것.\n"
+            "- 진단명, 병리 라벨, 자극적인 표현은 금지.\n"
+            "- 긍정적 단서와 긴장/부담 단서를 균형 있게 함께 다룰 것.\n"
+            "- 강점은 반드시 그림 속 근거와 연결하여 제시할 것.\n"
+            "- YOLO 탐지 결과는 보조 참고용이며, 탐지 실패를 곧 부재로 단정하지 말 것.\n"
+            "- WHO-5 점수는 현재 상태를 이해하는 참고 정보이며, 그림 해석 전체를 대신하지 않음.\n"
+            "- 출력은 반드시 JSON 객체 하나만 작성할 것.\n\n"
             + output_schema
         )
 
@@ -249,17 +264,27 @@ class LLMService:
                 "[참고자료]\n"
                 f"{prompt_guide_text}\n\n"
                 "[작성 지침]\n"
-                "- 참고자료를 활용하되, 진단·병리 라벨은 사용하지 않고 완곡하게 표현한다.\n"
-                "- 긍정과 강점을 먼저 언급하고, 그 다음에 심층 해석을 이어간다.\n"
-                "- 'intro'는 현재 내담자의 정서적 기조를 통찰력 있게 짚어내는 문단으로 작성한다.\n"
-                "- 'coreInsights'는 그림의 두드러진 특징 3~5가지를 뽑아 그 심리적/무의식적 의미를 1~2문장으로 압축하여 배열한다.\n"
-                "- questions는 '나의 내면을 더 알아가는' 질문으로 구성한다.\n"
-                "- 반드시 JSON만 출력한다.\n\n"
+                "- 참고자료를 활용하되, 해석은 반드시 현재 그림에서 관찰되는 시각적 단서와 연결할 것.\n"
+                "- 참고자료의 의미를 기계적으로 적용하지 말고, 실제 이미지와 YOLO 결과를 함께 검토해 판단할 것.\n"
+                "- 관찰 가능한 특징을 먼저 서술하고, 그 다음 가능한 심리적 의미를 연결할 것.\n"
+                "- 해석은 '가능성', '시사점', '경향' 수준에서 표현하고 단정하지 말 것.\n"
+                "- 진단명, 병리적 라벨, 임상적 확정 표현은 금지.\n"
+                "- 부정적 측면만 강조하지 말고, 현재의 강점·회복 자원·지지 기반도 함께 제시할 것.\n"
+                "- 'intro'는 현재 정서적 기조와 전반적 대처 양식을 요약하는 문단으로 작성할 것.\n"
+                "- 'coreInsights'는 그림의 두드러진 특징 3~5가지를 골라, 각 항목마다 '관찰 + 해석' 구조로 작성할 것.\n"
+                "- 'questions'는 자기이해를 돕는 개방형 질문으로 구성할 것.\n"
+                "- 반드시 JSON 객체 하나만 출력할 것.\n\n"
+                "- coreInsights 각 항목은 1~2문장 이내로 작성하고, 첫 문장에는 관찰, 두 번째 문장에는 해석을 배치할 것.\n"
                 + output_schema
             )
 
         # 멀티모달 user message content
-        def build_user_content(*, include_guide: bool, include_wellbeing_raw: bool) -> List[Dict[str, Any]]:
+        def build_user_content(
+            *,
+            include_guide: bool,
+            include_wellbeing_raw: bool,
+            cv_feats: Dict[str, Any] | None = None,
+        ) -> List[Dict[str, Any]]:
             wellbeing = {"scoreTotal": who5.get("scoreTotal")}
             if include_wellbeing_raw:
                 wellbeing["raw"] = who5.get("raw")
@@ -274,21 +299,34 @@ class LLMService:
                     {"type": "text", "text": "입력 데이터(구조화):"},
                     {"type": "text", "text": f"wellbeing_survey: {wellbeing}"},
                     {"type": "text", "text": f"YOLO: {yolo}"},
-                    {
-                        "type": "text",
-                        "text": (
-                            "입력된 이미지 분석 결과와 HTP 가이드를 바탕으로, 그림 단서와 피검사자의 심리를 깊이 있게 연결하는 통찰력 있는 리포트를 작성하세요. "
-                            "결과물은 질문자에게 직접 건네는 편지나 조언 단위가 아닌, **전문적인 심리 분석 기록안** 형태로 작성하세요. "
-                            "intro 부분에는 '현재 정서적으로 ... 반영되어 있습니다.' 같이 내담자의 현재 무의식, 갈등 상황, 스트레스, 그리고 강점을 통찰력 있게 서술하세요. "
-                            "coreInsights 배열에는 그림에서 나타나는 구체적인 형태(예: 선명한 선, 창문 부재, 잎이 없는 나무 등)를 먼저 언급하고, 그것이 상징하는 심리적 기제나 현실 대처 방식을 명확하게 설명하세요. 총 3~5개의 핵심 인사이트를 도출해야 합니다. "
-                            "마지막으로 WHO-5 웰빙 점수와 종합하여 전체 흐름을 일관성 있게 맞추세요."
-                        ),
-                    },
                 ]
+            )
+            if cv_feats:
+                parts.append({"type": "text", "text": f"CV_FEATURES: {cv_feats}"})
+            parts.append(
+                {
+                    "type": "text",
+                    "text": (
+                        "입력된 이미지, YOLO 결과, WELL-BEING 정보를 함께 참고하여 HTP 해석 기록안을 작성하세요. "
+                        "반드시 그림에서 관찰 가능한 특징을 먼저 언급하고, 그 특징이 시사할 수 있는 정서적 경향, "
+                        "대처 방식, 관계 태도, 자기표현 특성을 조심스럽게 해석하세요. "
+                        "YOLO 결과는 보조 참고 정보이며, 실제 이미지와 다를 수 있으므로 반드시 이미지와 교차 검토해야 합니다. "
+                        "탐지되지 않은 요소를 곧바로 '없음'으로 단정하지 마세요. "
+                        "CV_FEATURES가 제공된 경우 '어떻게 그려졌는지' 정량 정보(위치, 크기, 비율 등)를 근거로 활용하세요. "
+                        "WHO-5 점수는 현재의 웰빙 상태를 이해하는 보조 정보로만 활용하세요. "
+                        "결과는 상담 문장이나 위로 편지가 아니라, 전문적인 분석 기록문 형태로 작성하세요. "
+                        "intro는 현재 정서적 기조와 전반적인 특성을 3~5문장으로 요약하고, "
+                        "coreInsights는 3~5개의 핵심 특징에 대해 각각 '관찰 + 해석' 구조로 작성하세요. "
+                        "strengths는 그림에서 드러난 자원과 강점을 근거 기반으로 정리하고, "
+                        "questions는 자기이해를 돕는 개방형 질문으로 구성하세요."
+                    ),
+                }
             )
             return parts
 
-        content: List[Dict[str, Any]] = build_user_content(include_guide=True, include_wellbeing_raw=True)
+        content: List[Dict[str, Any]] = build_user_content(
+            include_guide=True, include_wellbeing_raw=True, cv_feats=cv_features
+        )
 
         def attach_images(parts: List[Dict[str, Any]]) -> None:
             for key in ("house", "tree", "person"):
@@ -333,7 +371,9 @@ class LLMService:
             refusal = getattr(msg0, "refusal", None)
             if refusal:
                 print("[LLM] Refusal received. Retrying with simplified prompt.")
-                simplified = build_user_content(include_guide=False, include_wellbeing_raw=False)
+                simplified = build_user_content(
+                    include_guide=False, include_wellbeing_raw=False, cv_feats=cv_features
+                )
                 attach_images(simplified)
                 resp = request_once(simplified)
                 choice0 = resp.choices[0]

@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 /* ── Flood‑fill (기존과 동일) ── */
 function floodFill(ctx: CanvasRenderingContext2D, startX: number, startY: number, fillColor: string, tolerance = 32) {
-  // ... (기존 floodFill 코드 동일 - 생략 없이 그대로 유지하세요)
   const canvas = ctx.canvas;
   const w = canvas.width;
   const h = canvas.height;
@@ -69,14 +68,35 @@ export function useCanvasDrawing({ paintColor, brushSize, tool, symmetry = 1 }: 
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx || canvas.width === 0) return;
 
-    const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    // 새로운 그림을 그리면 앞으로 가기(Redo) 기록은 삭제
-    historyRef.current = historyRef.current.slice(0, historyStepRef.current + 1);
-    historyRef.current.push(data);
-    historyStepRef.current += 1;
+    try {
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      // 새로운 그림을 그리면 앞으로 가기(Redo) 기록은 삭제
+      historyRef.current = historyRef.current.slice(0, historyStepRef.current + 1);
+      historyRef.current.push(data);
+      historyStepRef.current += 1;
 
-    setCanUndo(historyStepRef.current > 0);
-    setCanRedo(historyStepRef.current < historyRef.current.length - 1);
+      setCanUndo(historyStepRef.current > 0);
+      setCanRedo(historyStepRef.current < historyRef.current.length - 1);
+    } catch (e) {
+      console.warn("Failed to save history:", e);
+    }
+  }, []);
+
+  // 외부(useEffect 등)에서 캔버스를 수동으로 업데이트한 후 호출하는 초기화 함수
+  const resetHistory = useCallback(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx || canvas.width === 0) return;
+
+    try {
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      historyRef.current = [data];
+      historyStepRef.current = 0;
+      setCanUndo(false);
+      setCanRedo(false);
+    } catch (e) {
+      console.warn("Failed to reset history:", e);
+    }
   }, []);
 
   const handleUndo = useCallback(() => {
@@ -234,6 +254,8 @@ export function useCanvasDrawing({ paintColor, brushSize, tool, symmetry = 1 }: 
     canvasSize: canvasSizeRef.current,
     handleUndo,  // 밖으로 꺼내줌
     handleRedo,  // 밖으로 꺼내줌
+    resetHistory, // 히스토리 리셋용 (단계 전환 등)
+    saveHistory,  // 수동 저장용 (이미지 로드 후 등)
     canUndo,     // 상태 UI용
     canRedo,     // 상태 UI용
   };
