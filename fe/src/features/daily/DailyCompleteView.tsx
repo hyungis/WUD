@@ -248,8 +248,8 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
         throw createError;
       }
 
-      const dailyId = createRes?.data?.dailyId;
-      if (dailyId) {
+      const dailyId = Number((createRes?.data as any)?.dailyId ?? (createRes?.data as any)?.id ?? 0);
+      if (dailyId > 0) {
         try {
           const detailRes = await resultApi.getDailyResult(dailyId);
           localStorage.setItem("latestDailyResult", JSON.stringify(detailRes.data));
