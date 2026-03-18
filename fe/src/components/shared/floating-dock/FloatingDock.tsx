@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore";
-import { useUiStore } from "../../../store/uiStore";
+import { useUiStore, selectHasDeepStarThisWeek } from "../../../store/uiStore";
 import { logout } from "../../../services/auth";
-import { starApi } from "../../../api/star";
 
 export default function FloatingDock() {
     const location = useLocation();
@@ -36,39 +35,7 @@ export default function FloatingDock() {
         }
     };
 
-    const getCurrentWeekStartDate = () => {
-        const now = new Date();
-        const localMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const day = localMidnight.getDay();
-        localMidnight.setDate(localMidnight.getDate() - day);
-
-        const yyyy = localMidnight.getFullYear();
-        const mm = String(localMidnight.getMonth() + 1).padStart(2, "0");
-        const dd = String(localMidnight.getDate()).padStart(2, "0");
-        return `${yyyy}-${mm}-${dd}`;
-    };
-
-    const hasDeepStarThisWeek = async () => {
-        const res = await starApi.getStarMap();
-        if (!res.success) {
-            return false;
-        }
-
-        const payload = res.data as any;
-        const rawStars = Array.isArray(payload?.stars)
-            ? payload.stars
-            : Array.isArray(payload)
-                ? payload
-                : [];
-
-        const weekStart = getCurrentWeekStartDate();
-        return rawStars.some((star: any) => {
-            const kind = String(star.kind ?? star.starKind ?? "").toUpperCase();
-            const deep = kind === "DEEP" || kind === "HTP" || kind.includes("DEEP");
-            const starWeekStart = String(star.weekStartDate ?? star.week_start_date ?? "").slice(0, 10);
-            return deep && starWeekStart === weekStart;
-        });
-    };
+    const hasWeeklyStar = useUiStore(selectHasDeepStarThisWeek);
 
     const handleWeeklyClick = async () => {
         if (isCheckingWeekly) {
@@ -77,8 +44,7 @@ export default function FloatingDock() {
 
         setIsCheckingWeekly(true);
         try {
-            const exists = await hasDeepStarThisWeek();
-            if (exists) {
+            if (hasWeeklyStar) {
                 window.alert("이번 주 위클리 별은 이미 생성되었어요. 다음 주에 새 별이 생성됩니다.");
                 return;
             }

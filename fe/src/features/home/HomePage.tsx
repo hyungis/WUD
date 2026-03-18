@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { starApi } from "../../api/star";
 import { dailyApi } from "../../api/daily";
 import { deepApi } from "../../api/deep";
-
 import type { DailyPlanet, DeepStar } from "./utils/homeHelpers";
-import { getWeekKey, colorFromId, normalizeDeepReportText } from "./utils/homeHelpers";
+import { getWeekKey, normalizeDeepReportText } from "./utils/homeHelpers";
 import { StarScene } from "./components/scene/StarScene";
 import { useUiStore } from "../../store/uiStore";
 
@@ -17,26 +15,6 @@ import DailyCompleteView from "../daily/DailyCompleteView";
 import WeeklyContentView from "../deep/WeeklyContentView";
 import WeeklyHtpView from "../deep/WeeklyHtpView";
 
-type HomeStar = {
-  id: string;
-  targetId?: number;
-  constellationId?: number;
-  kind: "DAILY" | "DEEP";
-  createdAt: string;
-  weekStartDate?: string;
-  color: string;
-};
-
-type TimelineItem = {
-  id: string;
-  kind: string;
-  color: string;
-  label: string;
-  weekKey: string;
-  createdAt: string;
-  original: HomeStar;
-};
-
 // ==========================================
 // 5. 메인 페이지 (UI)
 // ==========================================
@@ -48,7 +26,12 @@ function HomePage() {
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
-  const [selectedStarId, setSelectedStarId] = useState<string | null>(null);
+  const stars = useUiStore((state) => state.stars);
+  const fetchStarMap = useUiStore((state) => state.fetchStarMap);
+  const selectedStarId = useUiStore((state) => state.selectedStarId);
+  const setSelectedStarId = useUiStore((state) => state.setSelectedStarId);
+  const newbornStarId = useUiStore((state) => state.newbornStarId);
+  const setNewbornStarId = useUiStore((state) => state.setNewbornStarId);
   const [selectedWeekKey, setSelectedWeekKey] = useState<string | null>(null);
   const [hoveredPlanet, setHoveredPlanet] = useState<{ id: string; x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
@@ -107,13 +90,8 @@ function HomePage() {
     label: "나의 중심",
   }), []);
 
-  const [stars, setStars] = useState<HomeStar[]>([]);
-  const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
-
-  const applyStarsToState = (fetchedStars: HomeStar[]) => {
-    setStars(fetchedStars);
-
-    const grouped = fetchedStars.map((s) => ({
+  const timelineItems = useMemo(() => {
+    return stars.map((s) => ({
       id: s.id,
       kind: (s.kind || "daily").toLowerCase(),
       color: s.color,
@@ -122,79 +100,27 @@ function HomePage() {
       createdAt: s.createdAt,
       original: s,
     }));
-    setTimelineItems(grouped);
-  };
-
-  const fetchStars = async () => {
-    const res = await starApi.getStarMap();
-    if (!res.success) {
-      throw new Error("star map API returned success=false");
-    }
-
-    const payload = res.data as any;
-    const rawStars = Array.isArray(payload?.stars)
-      ? payload.stars
-      : Array.isArray(payload)
-        ? payload
-        : Array.isArray((payload as any)?.data?.stars)
-          ? (payload as any).data.stars
-          : [];
-
-    const fetchedStars: HomeStar[] = rawStars.map((s: any) => {
-      const id = String(s.starId ?? s.id ?? s.targetId ?? "");
-      const kindRaw = String(s.kind ?? s.starKind ?? s.type ?? "DAILY").toUpperCase();
-      const kind = (kindRaw === "DEEP" || kindRaw === "HTP" || kindRaw.includes("DEEP") ? "DEEP" : "DAILY") as "DAILY" | "DEEP";
-      const createdAtRaw = s.createdAt ?? s.created_at ?? s.timestamp ?? s.weekStartDate;
-      const createdAt = createdAtRaw ? String(createdAtRaw) : new Date().toISOString();
-      const weekStartDate = s.weekStartDate ?? s.week_start_date;
-      const targetId = typeof s.targetId === "number" ? s.targetId : Number(s.targetId);
-      const constellationId = typeof s.constellationId === "number" ? s.constellationId : Number(s.constellationId);
-      return {
-        id,
-        targetId: Number.isNaN(targetId) ? undefined : targetId,
-        constellationId: Number.isNaN(constellationId) ? undefined : constellationId,
-        kind,
-        createdAt,
-        weekStartDate,
-        color: s.starColor || colorFromId(id, kind),
-      } as HomeStar;
-    }).filter((s: HomeStar) => s.id);
-
-    applyStarsToState(fetchedStars);
-  };
-
-  const refreshStarsAfterDailySave = () => {
-    // Daily star is created when AI result is consumed, so refresh a few times.
-    const delays = [0, 4000, 9000, 15000];
-    delays.forEach((delay) => {
-      window.setTimeout(() => {
-        void fetchStars().catch((e) => {
-          console.error("refresh star map fail:", e);
-        });
-      }, delay);
-    });
-  };
-
-  const refreshStarsAfterWeeklySave = () => {
-    // Weekly star is created asynchronously after AI processing, so keep longer retries.
-    const delays = [0, 4000, 9000, 15000, 25000];
-    delays.forEach((delay) => {
-      window.setTimeout(() => {
-        void fetchStars().catch((e) => {
-          console.error("refresh weekly star map fail:", e);
-        });
-      }, delay);
-    });
-  };
+  }, [stars]);
 
   // 컴포넌트 로드 시 지도(별) 조회
   useEffect(() => {
-    void fetchStars().catch((e) => {
+    void fetchStarMap().catch((e) => {
       console.error("fetch star map fail:", e);
-      setStars([]);
-      setTimelineItems([]);
     });
-  }, []);
+  }, [fetchStarMap]);
+
+  // 새로운 별이 생성되었을 때 자동 선택 및 애니메이션 처리
+  useEffect(() => {
+    if (newbornStarId) {
+      setSelectedStarId(newbornStarId);
+      
+      // 애니메이션이 어느 정도 진행된 후(예: 4초) newborn 상태 해제
+      const timer = setTimeout(() => {
+        setNewbornStarId(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [newbornStarId, setSelectedStarId, setNewbornStarId]);
 
   const dailyPlanets = useMemo(
     () => stars
@@ -206,7 +132,8 @@ function HomePage() {
         core: s.color,
         memo: "",
         createdAt: s.createdAt,
-      })) as (DailyPlanet & { targetId?: number; aiSummary?: string })[],
+        isTemporary: s.isTemporary,
+      })),
     [stars],
   );
 
@@ -219,8 +146,9 @@ function HomePage() {
         toneColor: s.color,
         createdAt: s.createdAt,
         weekKey: s.weekStartDate ? getWeekKey(new Date(s.weekStartDate)) : getWeekKey(new Date(s.createdAt)),
-        label: "위클리 별",
-      })) as (DeepStar & { targetId?: number; aiSummary?: string; questions?: string[] })[],
+        label: s.isTemporary ? "분석 중..." : "위클리 별",
+        isTemporary: s.isTemporary,
+      })),
     [stars],
   );
 
@@ -305,7 +233,7 @@ function HomePage() {
     if (!selectedStarId && mypageStar) {
       setSelectedStarId(mypageStar.id);
     }
-  }, [selectedStarId, mypageStar]);
+  }, [selectedStarId, mypageStar, setSelectedStarId]);
 
   // selectedStarId가 변경될 때 해당 아이템의 weekKey를 찾아 selectedWeekKey 업데이트
   useEffect(() => {
@@ -321,25 +249,33 @@ function HomePage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-black text-slate-100 animate-[fadeIn_0.6s_ease-out]">
-      <StarScene
-        dailyPlanets={dailyPlanets} deepStars={deepStars} mypageStar={mypageStar}
-        isReportOpen={isSidePanelOpen}
-        onViewModeChange={setViewMode} onStarSelect={setSelectedStarId}
-        hoveredStarId={hoveredPlanet?.id || null}
-        selectedWeekKey={selectedWeekKey}
-        onStarClick={() => setIsMyUniverseOpen(true)}
-        onDeepStarClick={(star) => void openDeepReport(star as any)}
-        onPlanetClick={(p) => void openDailyReport(p as any)}
-        onStarHover={(d) => {
-          if (d.id) {
-            if (hoverClearTimerRef.current) window.clearTimeout(hoverClearTimerRef.current);
-            setHoveredPlanet({ id: d.id, x: d.x!, y: d.y! });
-          } else {
-            hoverClearTimerRef.current = window.setTimeout(() => { if (!isTooltipHoverRef.current) setHoveredPlanet(null); }, 200);
-          }
-        }}
-        selectedStarId={selectedStarId}
-      />
+      <div className="absolute inset-0 z-0">
+        <StarScene
+          dailyPlanets={dailyPlanets}
+          deepStars={deepStars}
+          mypageStar={mypageStar}
+          onStarClick={() => setIsMyUniverseOpen(true)}
+          onDeepStarClick={(star) => void openDeepReport(star as any)}
+          onPlanetClick={(p) => void openDailyReport(p as any)}
+          onStarSelect={setSelectedStarId}
+          selectedStarId={selectedStarId}
+          hoveredStarId={hoveredPlanet?.id || null}
+          selectedWeekKey={selectedWeekKey}
+          onStarHover={(d) => {
+            if (d.id) {
+              if (hoverClearTimerRef.current) window.clearTimeout(hoverClearTimerRef.current);
+              setHoveredPlanet({ id: d.id, x: d.x ?? 0, y: d.y ?? 0 });
+            } else {
+              hoverClearTimerRef.current = window.setTimeout(() => {
+                if (!isTooltipHoverRef.current) setHoveredPlanet(null);
+              }, 200);
+            }
+          }}
+          onViewModeChange={setViewMode}
+          isReportOpen={isSidePanelOpen}
+          newbornStarId={newbornStarId}
+        />
+      </div>
 
       {!isMacro && hoveredPlanetMeta && hoveredPlanet && (
         <div
@@ -350,8 +286,8 @@ function HomePage() {
         >
           <div className="flex items-center justify-between font-medium">
             <span className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: hoveredPlanetMeta.color }} />
-              {hoveredPlanetMeta.label}
+              <span className={`h-2 w-2 rounded-full ${hoveredPlanetMeta.original.isTemporary ? "animate-pulse" : ""}`} style={{ backgroundColor: hoveredPlanetMeta.color }} />
+              {hoveredPlanetMeta.original.isTemporary ? "분석 중..." : hoveredPlanetMeta.label}
             </span>
           </div>
         </div>
@@ -423,7 +359,7 @@ function HomePage() {
         <DailyCompleteView
           isModal
           onClose={() => setDailyCompleteModalOpen(false)}
-          onSaved={refreshStarsAfterDailySave}
+          onSaved={() => {}} // Store에서 직접 처리하므로 비워둠 (혹은 refreshStarsAfterSave는 호출부에서 함)
           onBackToDetail={() => {
             setDailyCompleteModalOpen(false);
             setDailyDetailModalOpen(true);
@@ -446,7 +382,7 @@ function HomePage() {
         <WeeklyHtpView
           isModal
           onClose={() => setWeeklyHtpModalOpen(false)}
-          onSaved={refreshStarsAfterWeeklySave}
+          onSaved={() => {}}
           onBackToWeeklyContent={() => {
             setWeeklyHtpModalOpen(false);
             setWeeklyContentModalOpen(true);

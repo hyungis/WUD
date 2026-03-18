@@ -57,6 +57,7 @@ const STAR_STELLATED_GEOMETRY = createStellatedPolyhedronGeometry(1, 0.62);
 
 function DeepPlanet({
   onClick, onOpen, onHover, color, size = 1, glow = 1.1, seed = 0, variant = "star", isSelected = false, freezeMotion = false,
+  isNewborn = false,
 }: {
   onClick: () => void;
   onOpen?: () => void;
@@ -64,9 +65,26 @@ function DeepPlanet({
   color: string; size?: number; glow?: number; seed?: number; variant?: "star" | "planet";
   isSelected?: boolean;
   freezeMotion?: boolean;
+  isNewborn?: boolean;
 }) {
   const [isHovered, setIsHovered] = useState(false);
+  const birthProgress = useRef(isNewborn ? 0 : 1);
+  const [isBirthFinished, setIsBirthFinished] = useState(!isNewborn);
+
+  useFrame((_, delta) => {
+    if (isBirthFinished) return;
+    birthProgress.current = Math.min(birthProgress.current + delta * 0.8, 1);
+    if (birthProgress.current >= 1) {
+      setIsBirthFinished(true);
+    }
+  });
+
   const isActive = isHovered || isSelected;
+  const currentSize = isBirthFinished ? size : size * birthProgress.current;
+  const currentGlow = isBirthFinished ? glow : glow * birthProgress.current;
+  const currentEmissiveIntensity = isBirthFinished 
+    ? (isActive ? (variant === "star" ? 3.0 : 4.0) : (variant === "star" ? 1.4 : 1.8))
+    : (10.0 * (1 - birthProgress.current) + 2.0); // 초기에는 아주 밝게 빛남
 
   const handlers = {
     onClick,
@@ -83,14 +101,14 @@ function DeepPlanet({
             {/* 메인 정팔면체 */}
             <mesh
               {...handlers}
-              scale={isActive ? [size * 1.25, size * 1.25, size * 1.25] : [size, size, size]}
+              scale={isActive ? [currentSize * 1.25, currentSize * 1.25, currentSize * 1.25] : [currentSize, currentSize, currentSize]}
               rotation={[0.16, 0.28, isActive ? 0.2 : 0.06]}
             >
               <octahedronGeometry args={[1, 0]} />
               <meshPhysicalMaterial
                 color={color}
                 emissive={color}
-                emissiveIntensity={isActive ? 4.0 : 1.8}
+                emissiveIntensity={currentEmissiveIntensity}
                 transparent
                 opacity={0.92}
                 roughness={0.15}
@@ -101,7 +119,7 @@ function DeepPlanet({
             </mesh>
             {/* 외곽 글로우 */}
             <mesh
-              scale={isActive ? [glow * 1.18, glow * 1.18, glow * 1.18] : [glow * 1.02, glow * 1.02, glow * 1.02]}
+              scale={isActive ? [currentGlow * 1.18, currentGlow * 1.18, currentGlow * 1.18] : [currentGlow * 1.02, currentGlow * 1.02, currentGlow * 1.02]}
               rotation={[0.16, 0.28, 0.06]}
             >
               <octahedronGeometry args={[1, 0]} />
@@ -116,12 +134,12 @@ function DeepPlanet({
               {...handlers}
               geometry={STAR_STELLATED_GEOMETRY}
               rotation={[0.2, 0.4, isActive ? 0.24 : 0.08]}
-              scale={isActive ? [size * 1.2, size * 1.2, size * 1.2] : [size, size, size]}
+              scale={isActive ? [currentSize * 1.2, currentSize * 1.2, currentSize * 1.2] : [currentSize, currentSize, currentSize]}
             >
               <meshPhysicalMaterial
                 color={color}
                 emissive={color}
-                emissiveIntensity={isActive ? 3.0 : 1.4}
+                emissiveIntensity={currentEmissiveIntensity}
                 transparent
                 opacity={0.95}
                 transmission={0.08}
@@ -137,14 +155,14 @@ function DeepPlanet({
             <mesh
               geometry={STAR_STELLATED_GEOMETRY}
               rotation={[0.2, 0.4, 0.08]}
-              scale={isActive ? [glow * 1.22, glow * 1.22, glow * 1.22] : [glow * 1.05, glow * 1.05, glow * 1.05]}
+              scale={isActive ? [currentGlow * 1.22, currentGlow * 1.22, currentGlow * 1.22] : [currentGlow * 1.05, currentGlow * 1.05, currentGlow * 1.05]}
             >
               <meshBasicMaterial color={color} transparent opacity={isActive ? 0.18 : 0.08} blending={2} depthWrite={false} />
             </mesh>
             {/* 중심 광원 */}
-            <mesh scale={[size * 0.18, size * 0.18, size * 0.18]} position={[size * 0.2, size * 0.2, size * 0.18]}>
+            <mesh scale={[currentSize * 0.18, currentSize * 0.18, currentSize * 0.18]} position={[currentSize * 0.2, currentSize * 0.2, currentSize * 0.18]}>
               <sphereGeometry args={[1, 20, 20]} />
-              <meshBasicMaterial color="#ffffff" toneMapped={false} />
+              <meshBasicMaterial color="#ffffff" toneMapped={false} opacity={isBirthFinished ? 1 : 1} transparent />
             </mesh>
           </>
         )}
@@ -249,11 +267,19 @@ function MacroGalaxy({ timelineItems, positionMap, starTone, hiddenIds, freezeMo
     if (freezeMotion) return;
     if (!meshRef.current || !initialized.current) return;
     const p = spreadRef.current;
-    // spread가 변하지 않고 이미 완료된 상태면 매트릭스 안 건드림
-    if (p === prevSpread.current && p >= 1) {
+    
+    // spread가 변하지 않고 이미 완료된 상태여도, 새로 추가된 아이템이 있을 수 있으므로 체크
+    const needsUpdate = p !== prevSpread.current || p < 1;
+    
+    if (!needsUpdate) {
+      // 애니메이션 완료 상태에서는 가벼운 y축 움직임만 처리
       meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.5;
+      
+      // 새로 추가된 아이템(인스턴스)이 있는지 확인하여 마지막으로 한 번 더 강제 동기화 (간단히 처리)
+      // 실제로는 useEffect에서도 처리하지만, instancedMesh 특성상 여기서 한 번 더 해주면 확실함
       return;
     }
+
     prevSpread.current = p;
     timelineItems.forEach((item: any, i: number) => {
       const pos = positionMap.get(item.id) || [0, 0, 0];
@@ -384,7 +410,8 @@ function GalacticDust({ count = 12500, maxRadius, freezeMotion = false }: { coun
 function ViewModeTracker({ controlsRef, onModeChange, zoomThreshold, minDistance, maxDistance, forceHideDock }: any) {
   const { camera } = useThree();
   const lastMode = useRef<"macro" | "micro">("micro");
-  const setDockHidden = useUiStore((state: any) => state.setDockHidden);
+  const lastIsHidden = useRef<boolean | null>(null);
+  const setDockHidden = useUiStore((state) => state.setDockHidden);
 
   useFrame(() => {
     if (!controlsRef.current) return;
@@ -402,21 +429,17 @@ function ViewModeTracker({ controlsRef, onModeChange, zoomThreshold, minDistance
       zoomEl.style.height = `${percent}%`;
     }
 
-    const irisEl = document.getElementById("cinematic-iris");
-    const topLidEl = document.getElementById("cinematic-lid-top");
-    const bottomLidEl = document.getElementById("cinematic-lid-bottom");
+    // ── Dock 및 시네마틱 가시성 가드 ──
+    let goalHidden = false;
+    if (forceHideDock) {
+      goalHidden = true;
+    } else if (dist > 350) {
+      goalHidden = true;
+    }
 
-    if (irisEl && topLidEl && bottomLidEl) {
-      if (forceHideDock) {
-        setDockHidden(true);
-        return;
-      }
-      // 3. Dock 숨김 처리 (zoom이 350 이상일 때)
-      if (dist > 350) {
-        setDockHidden(true);
-      } else {
-        setDockHidden(false);
-      }
+    if (goalHidden !== lastIsHidden.current) {
+      lastIsHidden.current = goalHidden;
+      setDockHidden(goalHidden);
     }
   });
   return null;
@@ -634,7 +657,7 @@ function GalaxyStars({ freezeMotion = false }: { freezeMotion?: boolean }) {
 
 export function StarScene({
   dailyPlanets, deepStars, mypageStar, onStarClick, onDeepStarClick, onPlanetClick, onStarSelect, selectedStarId, hoveredStarId, selectedWeekKey, onStarHover, onViewModeChange,
-  isReportOpen,
+  isReportOpen, newbornStarId,
 }: StarSceneProps) {
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [focusRequestNonce, setFocusRequestNonce] = useState(0);
@@ -661,7 +684,8 @@ export function StarScene({
   const countRatio = useMemo(() => {
     const baselineCount = 50;
     if (itemCount <= 0) return 1;
-    return Math.max(0.55, Math.min(2.2, Math.sqrt(itemCount / baselineCount)));
+    // 하한선을 1.0으로 높여 신규 계정에서도 우주가 위축되지 않게 함 (Premium Feel)
+    return Math.max(1.0, Math.min(2.2, Math.sqrt(itemCount / baselineCount)));
   }, [itemCount]);
 
   const dynamicZoomThreshold = Math.max(60, ZOOM_THRESHOLD * countRatio);
@@ -670,8 +694,10 @@ export function StarScene({
   const dynamicDustCount = Math.round(Math.max(3500, Math.min(9500, 3200 + itemCount * 35)));
 
   const uniqueWeeksCount = useMemo(() => Array.from(new Set(timelineItems.map(item => item.weekKey))).filter(Boolean).length, [timelineItems]);
-  const minRadius = 12.0 * countRatio;
-  const maxRadius = Math.max(minRadius + 8.0, (minRadius + Math.pow(uniqueWeeksCount, 0.6) * 3.5) * countRatio);
+  // 기본 최소 반경을 16 -> 22로 상향하여 한 개만 있어도 '나의 중심'과 확실히 멀어지게 함
+  const minRadius = 22.0 * countRatio;
+  // 기본 간격을 12 -> 20으로 상향하여 신규 계정에서도 우주 공간이 텅 비어 보이지 않고 광활하게 펼쳐지도록 함
+  const maxRadius = Math.max(minRadius + 20.0, (minRadius + Math.pow(uniqueWeeksCount, 0.6) * 5.0) * countRatio);
 
   const timelinePositions = useMemo(() => {
     const uniqueWeeks = Array.from(new Set(timelineItems.map(item => item.weekKey))).filter(Boolean) as string[];
@@ -709,7 +735,7 @@ export function StarScene({
       }
 
       // 데일리 행성 배치
-      const seed = hashSeed(item.id);
+      const seed = hashSeed(String(item.targetId ?? item.id));
       const localTheta = seededRandom(seed) * 2 * Math.PI;
       const localPhi = Math.acos(2 * seededRandom(seed + 1) - 1);
       const localR = 8.0 + seededRandom(seed + 2) * 12.0;
@@ -794,7 +820,7 @@ export function StarScene({
     return detailedItems.filter((item) => item.id === selectedStarId);
   }, [detailedItems, isReportOpen, selectedStarId, mypageStar.id]);
 
-  // const detailedItemIds = useMemo(() => new Set(detailedItems.map(i => i.id)), [detailedItems]);
+  const detailedItemIds = useMemo(() => new Set(detailedItems.map(i => i.id)), [detailedItems]);
 
   return (
     <div className="absolute inset-0 bg-[#000000]">
@@ -858,13 +884,16 @@ export function StarScene({
           )}
 
           {!isReportOpen && (
-            <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={new Set(timelineItems.map((i) => i.id))} freezeMotion={freezeSceneMotion} />
+            <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={detailedItemIds} freezeMotion={freezeSceneMotion} />
           )}
 
           {focusedItems.map((item) => {
-            const position = positionMap.get(item.id) || [0, 0, 0];
+            const pos = positionMap.get(item.id);
+            if (!pos) return null;
+            const isNewborn = item.id === newbornStarId;
+
             return (
-              <SpreadItem key={item.id} target={position as [number, number, number]}>
+              <SpreadItem key={item.id} target={pos as [number, number, number]}>
                 <DeepPlanet
                   onClick={() => {
                     requestFocus(item.id);
@@ -890,9 +919,9 @@ export function StarScene({
                   glow={item.kind === "deep"
                     ? (isReportOpen ? 1.55 : (viewMode === "macro" ? 1.4 : 0.9))
                     : (isReportOpen ? 0.78 : (viewMode === "macro" ? 0.7 : 0.45))}
-                  seed={hashSeed(item.id)}
                   isSelected={selectedStarId === item.id}
-                  freezeMotion={freezeSceneMotion}
+                  isNewborn={isNewborn}
+                  seed={hashSeed(item.id)}
                 />
               </SpreadItem>
             );

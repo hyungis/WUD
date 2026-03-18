@@ -8,6 +8,7 @@ import { imageApi } from "../../api/image";
 import type { DeepDetailResponse } from "../../types/deep";
 import HTPResultView from "./components/HTPResultView";
 import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
+import { useUiStore } from "../../store/uiStore";
 
 type HtpStep = "house" | "tree" | "person";
 type HtpPhase = "survey" | "draw" | "result";
@@ -81,6 +82,8 @@ type WeeklyHtpViewProps = {
 
 function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSaved }: WeeklyHtpViewProps) {
   const navigate = useNavigate();
+  const addTemporaryStar = useUiStore((state) => state.addTemporaryStar);
+  const refreshStarsAfterSave = useUiStore((state) => state.refreshStarsAfterSave);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [phase, setPhase] = useState<HtpPhase>("survey");
@@ -303,6 +306,14 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
       await deepApi.submitWho5Assessment(sessionId, { answers: who5Answers });
       await deepApi.submitSpaneAssessment(sessionId, { answers: DEFAULT_SPANE_ANSWERS });
       await deepApi.submitSubmissions(sessionId, { houseImageId, treeImageId, personImageId });
+
+      addTemporaryStar({
+        kind: "DEEP",
+        createdAt: new Date().toISOString(),
+        color: toneColor,
+        targetId: sessionId,
+      });
+      refreshStarsAfterSave(sessionId, "DEEP");
 
       if (isModal && onClose) {
         setIsSaving(false);
