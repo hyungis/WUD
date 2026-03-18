@@ -1,6 +1,6 @@
 package com.woojudraw.domain.user.entity;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -44,20 +44,20 @@ public class User {
 	@Enumerated(EnumType.STRING)
 	private UserStatus status = UserStatus.ACTIVATE;
 
-	private LocalDateTime lastLoginAt;
+	private OffsetDateTime lastLoginAt;
 
 	@Column(nullable = false)
-	private LocalDateTime createdAt;
+	private OffsetDateTime createdAt;
 
-	private LocalDateTime deletedAt;
+	private OffsetDateTime deletedAt;
 
 	@PrePersist
 	public void prePersist() {
-		this.createdAt = AppTime.nowUtc();
+		this.createdAt = AppTime.nowKst();
 	}
 
 	public void updateLastLogin() {
-		this.lastLoginAt = AppTime.nowUtc();
+		this.lastLoginAt = AppTime.nowKst();
 	}
 
 	public void updateNickname(String nickname){
@@ -72,6 +72,6 @@ public class User {
 
 	public void withdraw(){
 		this.status = UserStatus.DELETED;
-		this.deletedAt = AppTime.nowUtc();
+		this.deletedAt = AppTime.nowKst();
 	}
 }

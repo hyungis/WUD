@@ -1,6 +1,6 @@
 package com.woojudraw.domain.constellation.entity;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import jakarta.persistence.*;
 import lombok.*;
@@ -37,16 +37,16 @@ public class Star {
 	private String color;
 
 	@Column(name = "created_at", nullable = false)
-	private LocalDateTime createdAt;
+	private OffsetDateTime createdAt;
 
 	@Column(name = "updated_at", nullable = false)
-	private LocalDateTime updatedAt;
+	private OffsetDateTime updatedAt;
 
 	public static Star createDeepStar(
 		Long userId,
 		Constellation constellation,
 		Long deepSessionId,
-		LocalDateTime now
+		OffsetDateTime now
 	) {
 		return Star.builder()
 			.userId(userId)
@@ -65,7 +65,7 @@ public class Star {
 		Constellation constellation,
 		Long dailyEntryId,
 		String color,
-		LocalDateTime now
+		OffsetDateTime now
 	) {
 		return Star.builder()
 			.userId(userId)

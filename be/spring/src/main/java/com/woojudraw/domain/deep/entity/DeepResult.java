@@ -1,6 +1,6 @@
 package com.woojudraw.domain.deep.entity;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -35,14 +35,14 @@ public class DeepResult{
 	private String raw;
 
 	@Column(name = "created_at", nullable = false)
-	private LocalDateTime createdAt;
+	private OffsetDateTime createdAt;
 
 	@Builder
 	private DeepResult(
 		Long deepSessionId,
 		String result,
 		String raw,
-		LocalDateTime createdAt
+		OffsetDateTime createdAt
 	) {
 		this.deepSessionId = deepSessionId;
 		this.result = result;
@@ -55,7 +55,7 @@ public class DeepResult{
 			.deepSessionId(deepSessionId)
 			.result(result)
 			.raw(raw)
-			.createdAt(AppTime.nowUtc())
+			.createdAt(AppTime.nowKst())
 			.build();
 	}
 

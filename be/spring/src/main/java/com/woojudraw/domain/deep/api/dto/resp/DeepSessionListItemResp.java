@@ -1,6 +1,5 @@
 package com.woojudraw.domain.deep.api.dto.resp;
 
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 
 import com.woojudraw.domain.deep.entity.DeepStatus;

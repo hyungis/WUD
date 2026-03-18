@@ -137,7 +137,8 @@ class DailyFlowIntegrationTest {
 		assertThat(stars.get(0).getKind()).isEqualTo(StarKind.DAILY);
 		assertThat(stars.get(0).getDailyEntryId()).isEqualTo(dailyId);
 		assertThat(stars.get(0).getColor()).isEqualTo("#FFD54F");
-		assertThat(stars.get(0).getConstellation().getWeekStartDate()).isEqualTo(LocalDate.now().with(java.time.DayOfWeek.MONDAY));
+		assertThat(stars.get(0).getConstellation().getWeekStartDate())
+			.isEqualTo(LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.SUNDAY)));
 	}
 
 	@Test
