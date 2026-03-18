@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -38,10 +40,16 @@ public class User {
 	@Column(nullable = false, length = 50)
 	private String nickname;
 
+	@Builder.Default
+	@Enumerated(EnumType.STRING)
+	private UserStatus status = UserStatus.ACTIVATE;
+
 	private LocalDateTime lastLoginAt;
 
 	@Column(nullable = false)
 	private LocalDateTime createdAt;
+
+	private LocalDateTime deletedAt;
 
 	@PrePersist
 	public void prePersist() {
@@ -50,5 +58,20 @@ public class User {
 
 	public void updateLastLogin() {
 		this.lastLoginAt = AppTime.nowUtc();
+	}
+
+	public void updateNickname(String nickname){
+		if(nickname != null && !nickname.isBlank()){
+			this.nickname = nickname;
+		}
+	}
+
+	public void updatePassword(String encodePassword){
+		this.password = encodePassword;
+	}
+
+	public void withdraw(){
+		this.status = UserStatus.DELETED;
+		this.deletedAt = AppTime.nowUtc();
 	}
 }
