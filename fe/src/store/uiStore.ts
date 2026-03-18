@@ -181,7 +181,11 @@ export const useUiStore = create<UiState>((set) => ({
       const found = currentStars.find(s => s.targetId == newTargetId && s.kind === kind);
 
       if (found || attempts >= maxAttempts) {
-        set({ isPolling: false });
+        if (found) {
+          set({ isPolling: false, newbornStarId: found.id });
+        } else {
+          set({ isPolling: false });
+        }
         return;
       }
 

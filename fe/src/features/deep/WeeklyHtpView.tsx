@@ -9,6 +9,7 @@ import type { DeepDetailResponse } from "../../types/deep";
 import HTPResultView from "./components/HTPResultView";
 import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
 import { useUiStore } from "../../store/uiStore";
+import { WEEKLY_DAILY_LIMIT_MESSAGE, hasTodayWeeklyEntryFromStars } from "../../utils/dailyLimit";
 
 type HtpStep = "house" | "tree" | "person";
 type HtpPhase = "survey" | "draw" | "result";
@@ -84,6 +85,7 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
   const navigate = useNavigate();
   const addTemporaryStar = useUiStore((state) => state.addTemporaryStar);
   const refreshStarsAfterSave = useUiStore((state) => state.refreshStarsAfterSave);
+  const fetchStarMap = useUiStore((state) => state.fetchStarMap);
 
   const [stepIndex, setStepIndex] = useState(0);
   const [phase, setPhase] = useState<HtpPhase>("survey");
@@ -104,6 +106,33 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
 
   // HTP는 대칭이 필요 없으므로 symmetry: 1 강제 고정
   const drawing = useCanvasDrawing({ paintColor, brushSize, tool, symmetry: 1 });
+
+  // 직접 라우트 접근(/deep/htp)까지 포함해 위클리는 1일 1회만 진입 가능하게 제한
+  useEffect(() => {
+    let alive = true;
+
+    const guardWeeklyDailyLimit = async () => {
+      try {
+        await fetchStarMap();
+        const stars = useUiStore.getState().stars;
+        if (!alive || !hasTodayWeeklyEntryFromStars(stars)) return;
+
+        window.alert(WEEKLY_DAILY_LIMIT_MESSAGE);
+        if (onClose) {
+          onClose();
+          return;
+        }
+        navigate("/", { replace: true });
+      } catch {
+        // 조회 실패 시에는 사용을 허용해 기능 차단을 피한다.
+      }
+    };
+
+    void guardWeeklyDailyLimit();
+    return () => {
+      alive = false;
+    };
+  }, [fetchStarMap, navigate, onClose]);
 
   // 단계 변경 시 그림 불러오기 + 해상도 동기화 로직
   useEffect(() => {
