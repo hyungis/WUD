@@ -36,8 +36,8 @@ public class UserServiceImpl implements UserService {
 			.email(user.getEmail())
 			.nickname(user.getNickname())
 			.status(user.getStatus())
-			.joinedAt(AppTime.kstFromUtc(user.getCreatedAt()))
-			.lastLoginAt(user.getLastLoginAt() != null ? AppTime.kstFromUtc(user.getLastLoginAt()) : null)
+			.joinedAt(user.getCreatedAt())
+			.lastLoginAt(user.getLastLoginAt())
 			.build();
 	}
 
