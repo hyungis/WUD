@@ -22,17 +22,12 @@ class SpaneData(BaseModel):
     scoreBalance: int
     raw: Dict[str, int]
 
-class HtpImages(BaseModel):
-    houseImageKey: str
-    treeImageKey: str
-    personImageKey: str
-
 class AiAnalyzeReq(BaseModel):
     sessionId: int
     deepType: str
     who5: Who5Data
     spane: Optional[SpaneData] = None
-    images: HtpImages
+    images: Dict[str, str]
 
 class AiAnalysisData(BaseModel):
     resultSummary: str
