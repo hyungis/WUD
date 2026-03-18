@@ -99,15 +99,8 @@ export default function FloatingDock() {
                         <span className="flex h-5.5 w-5.5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 items-center justify-center rounded-full border border-white/20 bg-white/10 text-[11px] font-semibold">
                             {displayName.slice(0, 1)}
                         </span>
-<<<<<<< HEAD
-                        <div className="leading-tight hidden sm:block">
-                            <p className="text-xs font-semibold text-slate-100">{displayName}</p>
-                            <p className="text-[10px] text-slate-400">MY PAGE</p>
-                        </div>
-=======
                         <span className="hidden lg:inline max-w-[8rem] truncate text-sm font-semibold text-slate-100">{displayName}</span>
                         <span className="text-[10px] sm:text-[11px] lg:text-xs font-semibold tracking-wide text-slate-300">MYPAGE</span>
->>>>>>> 31a56db (FEAT : merge home floating timeline responsive updates)
                     </button>
                 </div>
             </div>

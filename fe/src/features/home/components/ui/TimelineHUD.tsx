@@ -17,7 +17,6 @@ interface TimelineHUDProps {
 }
 
 export function TimelineHUD({
-  isMacro,
   isTimelineOpen,
   setIsTimelineOpen,
   timelineItems,
