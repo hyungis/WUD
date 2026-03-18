@@ -16,6 +16,12 @@ class Who5Data(BaseModel):
     scoreTotal: int
     raw: Dict[str, int]
 
+class SpaneData(BaseModel):
+    scorePositive: int
+    scoreNegative: int
+    scoreBalance: int
+    raw: Dict[str, int]
+
 class HtpImages(BaseModel):
     houseImageKey: str
     treeImageKey: str
@@ -25,6 +31,7 @@ class AiAnalyzeReq(BaseModel):
     sessionId: int
     deepType: str
     who5: Who5Data
+    spane: Optional[SpaneData] = None
     images: HtpImages
 
 class AiAnalysisData(BaseModel):

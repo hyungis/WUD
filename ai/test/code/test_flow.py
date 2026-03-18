@@ -1,8 +1,9 @@
 import sys
 import os
+from pathlib import Path
 
-# app 폴더를 경로에 추가하여 모듈을 찾을 수 있게 함
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+_AI_ROOT = str(Path(__file__).resolve().parents[2])
+sys.path.insert(0, _AI_ROOT)
 
 from ultralytics import YOLO
 from app.services.s3_service import s3_service
@@ -10,7 +11,7 @@ from app.services.s3_service import s3_service
 
 def main():
     s3_key = "photos/test2.jpg"
-    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "best.pt")
+    model_path = os.path.join(_AI_ROOT, "best.pt")
 
     print("=== S3 → YOLO 추론 테스트 ===")
     print(f"S3 Key: {s3_key}")

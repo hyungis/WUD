@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from app.models.schemas import AiAnalyzeReq, AiAnalyzeResp, AiAnalysisData
 from app.services.s3_service import s3_service
 from app.services.yolo_service import YoloService
@@ -7,11 +8,21 @@ from app.services.cv_feature_service import extract_features as cv_extract_featu
 import os
 from pathlib import Path
 
+_IMAGE_KEYS = ("house", "tree", "person")
+
+_BASE_DIR = Path(__file__).resolve().parents[2]
+_YOLO_MODELS_DIR = (_BASE_DIR / "yolo_models").resolve()
+_MODEL_PATHS = {
+    "house": str(_YOLO_MODELS_DIR / "house_640.pt"),
+    "tree": str(_YOLO_MODELS_DIR / "tree_640.pt"),
+    "person": str(_YOLO_MODELS_DIR / "person_640.pt"),
+}
+
 
 def analyze_deep_session_request(request: AiAnalyzeReq) -> AiAnalyzeResp:
     """
     Deep(HTP/WHO5) analysis entrypoint.
-    HTP: downloads 3 images from S3, runs YOLO per image, then calls GPT-4o-mini via SSAFY GMS.
+    HTP: downloads 3 images from S3, runs YOLO per image, then calls GPT-4o via SSAFY GMS.
     """
     print(f"[FastAPI] Received Deep Analysis Request for Session: {request.sessionId}")
     print(f"[FastAPI] DeepType: {request.deepType}")
@@ -27,34 +38,33 @@ def analyze_deep_session_request(request: AiAnalyzeReq) -> AiAnalyzeResp:
     image_paths: dict[str, str] = {}
     downloaded: list[str] = []
     try:
-        # 1) Download images from S3
-        image_paths["house"] = s3_service.download_image(request.images.houseImageKey)
-        image_paths["tree"] = s3_service.download_image(request.images.treeImageKey)
-        image_paths["person"] = s3_service.download_image(request.images.personImageKey)
+        # 1) S3 다운로드 + presigned URL 생성 (병렬)
+        s3_keys = {
+            "house": request.images.houseImageKey,
+            "tree": request.images.treeImageKey,
+            "person": request.images.personImageKey,
+        }
+
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            download_futures = {
+                key: pool.submit(s3_service.download_image, s3_keys[key])
+                for key in _IMAGE_KEYS
+            }
+            url_futures = {
+                key: pool.submit(s3_service.generate_presigned_url, s3_keys[key])
+                for key in _IMAGE_KEYS
+            }
+            image_paths = {key: f.result() for key, f in download_futures.items()}
+            image_urls = {key: f.result() for key, f in url_futures.items()}
+
         downloaded = [p for p in image_paths.values() if p]
 
-        # Prefer presigned URLs for LLM (avoid huge base64 payloads)
-        image_urls = {
-            "house": s3_service.generate_presigned_url(request.images.houseImageKey),
-            "tree": s3_service.generate_presigned_url(request.images.treeImageKey),
-            "person": s3_service.generate_presigned_url(request.images.personImageKey),
-        }
-
-        # 2) YOLO inference (per-image model)
-        # Model files are placed under ai/yolo_models/*.pt
-        base_dir = Path(__file__).resolve().parents[2]  # .../ai/app
-        yolo_models_dir = (base_dir / "yolo_models").resolve()
-        model_paths = {
-            "house": str(yolo_models_dir / "house_640.pt"),
-            "tree": str(yolo_models_dir / "tree_640.pt"),
-            "person": str(yolo_models_dir / "person_640.pt"),
-        }
-
+        # 2) YOLO + CV Feature 추출 (이미지별 순차 — GPU/CPU 리소스 경합 방지)
         yolo_raw: dict[str, object] = {}
         yolo_summary: dict[str, object] = {}
         cv_features: dict[str, object] = {}
-        for key in ("house", "tree", "person"):
-            det = YoloService.classify_image(image_paths[key], model_paths[key])
+        for key in _IMAGE_KEYS:
+            det = YoloService.classify_image(image_paths[key], _MODEL_PATHS[key])
             yolo_raw[key] = det
             yolo_summary[key] = YoloService.summarize_detections(det)
             try:
@@ -70,6 +80,14 @@ def analyze_deep_session_request(request: AiAnalyzeReq) -> AiAnalyzeResp:
             "scoreTotal": request.who5.scoreTotal,
             "raw": request.who5.raw,
         }
+        spane_payload = None
+        if request.spane:
+            spane_payload = {
+                "scorePositive": request.spane.scorePositive,
+                "scoreNegative": request.spane.scoreNegative,
+                "scoreBalance": request.spane.scoreBalance,
+                "raw": request.spane.raw,
+            }
         yolo_payload = {
             "summary": yolo_summary,
             "raw": yolo_raw,
@@ -88,6 +106,7 @@ def analyze_deep_session_request(request: AiAnalyzeReq) -> AiAnalyzeResp:
         llm_json = llm_service.analyze_htp(
             session_id=int(request.sessionId),
             who5=who5_payload,
+            spane=spane_payload,
             yolo=yolo_payload,
             image_paths=image_paths,
             image_urls=image_urls,

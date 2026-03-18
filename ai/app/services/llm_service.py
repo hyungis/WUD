@@ -204,6 +204,7 @@ class LLMService:
         *,
         session_id: int,
         who5: Dict[str, Any],
+        spane: Dict[str, Any] | None = None,
         yolo: Dict[str, Any],
         image_paths: Dict[str, str] | None = None,
         image_urls: Dict[str, str] | None = None,
@@ -222,6 +223,9 @@ class LLMService:
             "단순히 '지붕이 큽니다'라고 끝내지 말고, '지붕을 크게 그리신 것을 보니 상상력이 매우 풍부하시고 때로는 생각이 많아지시는 편인 것 같아요'처럼 반드시 **[그림에 대한 묘사 + 내면 심리 해석]**이 세트로 이어지도록 작성해야 합니다. "
             "진단명이나 병리적 단어(우울증, 편집증 등)는 절대 사용하지 말고, 다소 어두운 내적 갈등이나 결핍이 발견되더라도 깊이 공감하고 어루만지는 언어를 사용합니다. "
             "마무리는 항상 피검사자가 가진 특별한 강점과 잠재력에 대한 확신을 심어주어 큰 감동과 위로를 받도록 하세요. "
+            "WHO-5는 전반적인 심리적 웰빙 수준을, SPANE는 최근 긍정·부정 정서 경험의 균형을 나타냅니다. "
+            "SPANE Balance(scoreBalance = scorePositive − scoreNegative)가 양수이면 긍정 정서 경험이 우세하고, 음수이면 부정 정서 경험이 우세합니다. "
+            "두 설문은 그림 해석의 보조 맥락으로만 활용하고, 점수만으로 해석을 주도하지 마세요. "
             "반드시 JSON 하나만 출력합니다."
         )
 
@@ -239,8 +243,11 @@ class LLMService:
         "questions": ["질문 1", "질문 2", "질문 3", "질문 4", "질문 5"],
         "raw": {
             "wellbeing": {
-            "scoreTotal": N,
-            "note": "WHO-5와 그림 단서를 함께 고려한 짧은 메모"
+            "who5ScoreTotal": N,
+            "spanePositive": N,
+            "spaneNegative": N,
+            "spaneBalance": N,
+            "note": "WHO-5·SPANE과 그림 단서를 함께 고려한 짧은 메모"
             }
         }
         }'''
@@ -254,7 +261,7 @@ class LLMService:
             "- 긍정적 단서와 긴장/부담 단서를 균형 있게 함께 다룰 것.\n"
             "- 강점은 반드시 그림 속 근거와 연결하여 제시할 것.\n"
             "- YOLO 탐지 결과는 보조 참고용이며, 탐지 실패를 곧 부재로 단정하지 말 것.\n"
-            "- WHO-5 점수는 현재 상태를 이해하는 참고 정보이며, 그림 해석 전체를 대신하지 않음.\n"
+            "- WHO-5 점수는 전반적 웰빙 수준을, SPANE은 최근 긍정·부정 정서 경험의 균형을 나타내는 참고 정보이며, 그림 해석 전체를 대신하지 않음.\n"
             "- 출력은 반드시 JSON 객체 하나만 작성할 것.\n\n"
             + output_schema
         )
@@ -270,6 +277,7 @@ class LLMService:
                 "- 해석은 '가능성', '시사점', '경향' 수준에서 표현하고 단정하지 말 것.\n"
                 "- 진단명, 병리적 라벨, 임상적 확정 표현은 금지.\n"
                 "- 부정적 측면만 강조하지 말고, 현재의 강점·회복 자원·지지 기반도 함께 제시할 것.\n"
+                "- WHO-5와 SPANE 점수는 보조 맥락으로만 활용하고, 점수만으로 해석을 끌고 가지 말 것.\n"
                 "- 'intro'는 현재 정서적 기조와 전반적 대처 양식을 요약하는 문단으로 작성할 것.\n"
                 "- 'coreInsights'는 그림의 두드러진 특징 3~5가지를 골라, 각 항목마다 '관찰 + 해석' 구조로 작성할 것.\n"
                 "- 'questions'는 자기이해를 돕는 개방형 질문으로 구성할 것.\n"
@@ -289,6 +297,16 @@ class LLMService:
             if include_wellbeing_raw:
                 wellbeing["raw"] = who5.get("raw")
 
+            spane_survey = None
+            if spane:
+                spane_survey = {
+                    "scorePositive": spane.get("scorePositive"),
+                    "scoreNegative": spane.get("scoreNegative"),
+                    "scoreBalance": spane.get("scoreBalance"),
+                }
+                if include_wellbeing_raw:
+                    spane_survey["raw"] = spane.get("raw")
+
             parts: List[Dict[str, Any]] = [
                 {"type": "text", "text": f"sessionId: {session_id}"},
             ]
@@ -297,7 +315,13 @@ class LLMService:
             parts.extend(
                 [
                     {"type": "text", "text": "입력 데이터(구조화):"},
-                    {"type": "text", "text": f"wellbeing_survey: {wellbeing}"},
+                    {"type": "text", "text": f"WHO5_survey: {wellbeing}"},
+                ]
+            )
+            if spane_survey:
+                parts.append({"type": "text", "text": f"SPANE_survey: {spane_survey}"})
+            parts.extend(
+                [
                     {"type": "text", "text": f"YOLO: {yolo}"},
                 ]
             )
@@ -307,13 +331,14 @@ class LLMService:
                 {
                     "type": "text",
                     "text": (
-                        "입력된 이미지, YOLO 결과, WELL-BEING 정보를 함께 참고하여 HTP 해석 기록안을 작성하세요. "
+                        "입력된 이미지, YOLO 결과, WHO-5·SPANE 설문 정보를 함께 참고하여 HTP 해석 기록안을 작성하세요. "
                         "반드시 그림에서 관찰 가능한 특징을 먼저 언급하고, 그 특징이 시사할 수 있는 정서적 경향, "
                         "대처 방식, 관계 태도, 자기표현 특성을 조심스럽게 해석하세요. "
                         "YOLO 결과는 보조 참고 정보이며, 실제 이미지와 다를 수 있으므로 반드시 이미지와 교차 검토해야 합니다. "
                         "탐지되지 않은 요소를 곧바로 '없음'으로 단정하지 마세요. "
                         "CV_FEATURES가 제공된 경우 '어떻게 그려졌는지' 정량 정보(위치, 크기, 비율 등)를 근거로 활용하세요. "
-                        "WHO-5 점수는 현재의 웰빙 상태를 이해하는 보조 정보로만 활용하세요. "
+                        "WHO-5 점수는 전반적 웰빙 수준을, SPANE 점수는 최근 긍정·부정 정서 경험의 균형을 이해하는 보조 정보로 활용하세요. "
+                        "두 설문 점수만으로 전체 해석을 주도하지 말고, 그림의 시각적 단서와 교차하여 맥락적으로 참고하세요. "
                         "결과는 상담 문장이나 위로 편지가 아니라, 전문적인 분석 기록문 형태로 작성하세요. "
                         "intro는 현재 정서적 기조와 전반적인 특성을 3~5문장으로 요약하고, "
                         "coreInsights는 3~5개의 핵심 특징에 대해 각각 '관찰 + 해석' 구조로 작성하세요. "

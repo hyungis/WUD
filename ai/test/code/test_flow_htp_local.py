@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
+
+_AI_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_AI_ROOT))
 
 from app.services.yolo_service import YoloService
 from app.services.llm_service import llm_service
@@ -10,17 +14,16 @@ from app.services.htp_guide_service import htp_guide_service
 
 
 def main() -> None:
-    root = Path(__file__).resolve().parent
-    test_dir = root / "test_image"
+    test_dir = _AI_ROOT / "test" / "image"
 
     house_img = test_dir / "집.jpg"
     tree_img = test_dir / "나무.jpg"
     person_img = test_dir / "사람.jpg"
 
     if not (house_img.exists() and tree_img.exists() and person_img.exists()):
-        raise SystemExit("test_image 폴더에 집/나무/사람 jpg가 필요합니다.")
+        raise SystemExit("test/image 폴더에 집/나무/사람 jpg가 필요합니다.")
 
-    yolo_models_dir = root / "yolo_models"
+    yolo_models_dir = _AI_ROOT / "yolo_models"
     model_paths = {
         "house": str((yolo_models_dir / "house.pt").resolve()),
         "tree": str((yolo_models_dir / "tree.pt").resolve()),
