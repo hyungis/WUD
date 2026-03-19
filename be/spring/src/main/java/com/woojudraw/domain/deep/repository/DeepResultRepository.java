@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.woojudraw.domain.deep.entity.DeepResult;
 
 public interface DeepResultRepository extends JpaRepository<DeepResult, Long> {
-	Optional<DeepResult> findByDeepSessionId(Long deepSessionId);
+	Optional<DeepResult> findByDeepSession_Id(Long deepSessionId);
 
-	List<DeepResult> findAllByDeepSessionIdIn(List<Long> deepSessionIds);
+	List<DeepResult> findAllByDeepSession_IdIn(List<Long> deepSessionIds);
 }

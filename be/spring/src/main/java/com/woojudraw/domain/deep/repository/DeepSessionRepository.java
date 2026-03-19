@@ -6,11 +6,9 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.woojudraw.domain.deep.entity.DeepSession;
-import com.woojudraw.domain.deep.entity.DeepSubmission;
-
 public interface DeepSessionRepository extends JpaRepository<DeepSession, Long> {
 
-	Optional<DeepSession> findByIdAndUserId(Long id, Long userId);
+	Optional<DeepSession> findByIdAndUser_Id(Long id, Long userId);
 
-	List<DeepSession> findAllByUserIdOrderByCreatedAtDesc(Long userId);
+	List<DeepSession> findAllByUser_IdOrderByCreatedAtDesc(Long userId);
 }

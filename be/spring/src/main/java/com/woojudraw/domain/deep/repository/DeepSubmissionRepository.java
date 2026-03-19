@@ -8,5 +8,5 @@ import com.woojudraw.domain.deep.entity.DeepSubmission;
 
 public interface DeepSubmissionRepository extends JpaRepository<DeepSubmission, Long> {
 
-	List<DeepSubmission> findAllByDeepSessionIdOrderByIdAsc(Long deepSessionId);
+	List<DeepSubmission> findAllByDeepSession_IdOrderByIdAsc(Long deepSessionId);
 }

@@ -9,7 +9,7 @@ import com.woojudraw.domain.daily.entity.DailyResult;
 
 public interface DailyResultRepository extends JpaRepository<DailyResult, Long> {
 
-	Optional<DailyResult> findByDailyEntriesId(Long dailyEntriesId);
+	Optional<DailyResult> findByDaily_Id(Long dailyId);
 
-	List<DailyResult> findAllByDailyEntriesIdIn(List<Long> dailyEntriesIds);
+	List<DailyResult> findAllByDaily_IdIn(List<Long> dailyIds);
 }
