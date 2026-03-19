@@ -44,11 +44,11 @@ public class Star {
 	private Constellation constellation;
 
 	@OneToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "daily_entry_id")
+	@JoinColumn(name = "daily_entry_id", unique = true)
 	private Daily dailyEntry;
 
 	@OneToOne(fetch = FetchType.LAZY)
-	@JoinColumn(name = "deep_session_id")
+	@JoinColumn(name = "deep_session_id", unique = true)
 	private DeepSession deepSession;
 
 	@Enumerated(EnumType.STRING)

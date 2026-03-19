@@ -55,7 +55,7 @@ public class Daily {
 	private String emotionColor;
 
 	@OneToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "drawing_image_id", nullable = false)
+	@JoinColumn(name = "drawing_image_id", nullable = false, unique = true)
 	private Image drawingImage;
 
 	@Enumerated(EnumType.STRING)

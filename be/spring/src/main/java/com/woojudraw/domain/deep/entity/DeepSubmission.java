@@ -37,7 +37,7 @@ public class DeepSubmission {
 	private DeepSession deepSession;
 
 	@OneToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "image_id", nullable = false)
+	@JoinColumn(name = "image_id", nullable = false, unique = true)
 	private Image image;
 
 	@Enumerated(EnumType.STRING)
