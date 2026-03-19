@@ -18,7 +18,7 @@ public interface DeepSessionRepository extends JpaRepository<DeepSession, Long> 
 
 	List<DeepSession> findAllByUser_IdOrderByCreatedAtDesc(Long userId);
 
-	boolean existsByUserIdAndDeepTypeAndStatusInAndCreatedAtAfter(
+	boolean existsByUser_IdAndDeepTypeAndStatusInAndCreatedAtAfter(
 		Long userId,
 		DeepType deepType,
 		Collection<DeepStatus> statuses,

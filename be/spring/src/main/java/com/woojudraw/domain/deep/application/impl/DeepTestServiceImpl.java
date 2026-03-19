@@ -36,13 +36,13 @@ public class DeepTestServiceImpl implements DeepTestService {
 
 		List<DeepStatus> activeStatuses = List.of(DeepStatus.ANALYZING, DeepStatus.DONE);
 
-		boolean htpDone = deepSessionRepository.existsByUserIdAndDeepTypeAndStatusInAndCreatedAtAfter(
+		boolean htpDone = deepSessionRepository.existsByUser_IdAndDeepTypeAndStatusInAndCreatedAtAfter(
 				userId, DeepType.HTP, activeStatuses, weekStart);
 
-		boolean pitrDone = deepSessionRepository.existsByUserIdAndDeepTypeAndStatusInAndCreatedAtAfter(
+		boolean pitrDone = deepSessionRepository.existsByUser_IdAndDeepTypeAndStatusInAndCreatedAtAfter(
 				userId, DeepType.PERSON_IN_RAIN, activeStatuses, weekStart);
 
-		boolean starWaveDone = deepSessionRepository.existsByUserIdAndDeepTypeAndStatusInAndCreatedAtAfter(
+		boolean starWaveDone = deepSessionRepository.existsByUser_IdAndDeepTypeAndStatusInAndCreatedAtAfter(
 				userId, DeepType.STAR_WAVE, activeStatuses, weekStart);
 
 		return List.of(
