@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import LoginPage from "./features/auth/LoginPage";
 import DailyDetailView from "./features/daily/DailyDetailView";
+import DailyColoringView from "./features/daily/DailyColoringView";
 import DailyContentView from "./features/daily/DailyContentView";
 import DailyCompleteView from "./features/daily/DailyCompleteView";
 import WeeklyPage from "./features/weekly/WeeklyPage";
@@ -156,6 +157,14 @@ function App() {
           element={
             <PrivateRoute>
               <DailyDetailView />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/daily/coloring"
+          element={
+            <PrivateRoute>
+              <DailyColoringView />
             </PrivateRoute>
           }
         />
