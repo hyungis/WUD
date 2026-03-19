@@ -1,0 +1,96 @@
+spring:
+  application:
+    name: woojudraw
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: ${REDIS_TIMEOUT:2s}
+      password: ${REDIS_PASSWORD:}
+
+  profiles:
+    active: local
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
+            scope:
+              - email
+              - profile
+
+  jackson:
+    time-zone: Asia/Seoul
+
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-init-sql: SET TIME ZONE 'Asia/Seoul'
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
+    template:
+      reply-timeout: ${RABBITMQ_REPLY_TIMEOUT_MS:30000}
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: Asia/Seoul
+
+security:
+  jwt:
+    secret: "${JWT_SECRET:local-dev-secret-change-this-to-32+chars}"
+    access-token-exp-min: 30
+    refresh-token-exp-day: 14
+    refresh-cookie-name: ${JWT_REFRESH_COOKIE_NAME:refreshToken}
+    refresh-cookie-secure: ${JWT_REFRESH_COOKIE_SECURE:false}
+    refresh-cookie-same-site: ${JWT_REFRESH_COOKIE_SAME_SITE:Lax}
+    refresh-cookie-path: ${JWT_REFRESH_COOKIE_PATH:/}
+
+cloud:
+  aws:
+    s3:
+      bucket: ${AWS_S3_BUCKET:wud-s3}
+      path:
+        photo: ${AWS_S3_PHOTO_PATH:photos}
+      presigned-url-exp-min: ${AWS_S3_PRESIGNED_URL_EXP_MIN:5}
+    region:
+      static: ${AWS_REGION:ap-northeast-2}
+    stack:
+      auto: false
+    credentials:
+      accessKey: ${AWS_ACCESS_KEY:}
+      secretKey: ${AWS_SECRET_KEY:}
+
+server:
+  port: 8081
+  forward-headers-strategy: framework
+
+ai:
+  rabbitmq:
+    exchange: ${AI_RABBITMQ_EXCHANGE:wud.deep.ai.exchange}
+    routing-key: ${AI_RABBITMQ_ROUTING_KEY:wud.deep.ai.request.routing-key}
+    result-routing-key: ${AI_RABBITMQ_RESULT_ROUTING_KEY:wud.deep.ai.result.routing-key}
+    result-queue: ${AI_RABBITMQ_RESULT_QUEUE:wud.deep.ai.result.queue}
+    daily:
+      exchange: ${AI_DAILY_RABBITMQ_EXCHANGE:wud.daily.ai.exchange}
+      routing-key: ${AI_DAILY_RABBITMQ_ROUTING_KEY:wud.daily.ai.request.routing-key}
+      result-routing-key: ${AI_DAILY_RABBITMQ_RESULT_ROUTING_KEY:wud.daily.ai.result.routing-key}
+      result-queue: ${AI_DAILY_RABBITMQ_RESULT_QUEUE:wud.daily.ai.result.queue}
+
+logging:
+  level:
+    org.hibernate.SQL: debug
