@@ -2,6 +2,8 @@ package com.woojudraw.domain.user.entity;
 
 import java.time.OffsetDateTime;
 
+import com.woojudraw.global.time.AppTime;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -16,8 +18,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import com.woojudraw.global.time.AppTime;
 
 @Getter
 @Builder
@@ -60,17 +60,17 @@ public class User {
 		this.lastLoginAt = AppTime.nowKst();
 	}
 
-	public void updateNickname(String nickname){
-		if(nickname != null && !nickname.isBlank()){
+	public void updateNickname(String nickname) {
+		if (nickname != null && !nickname.isBlank()) {
 			this.nickname = nickname;
 		}
 	}
 
-	public void updatePassword(String encodePassword){
+	public void updatePassword(String encodePassword) {
 		this.password = encodePassword;
 	}
 
-	public void withdraw(){
+	public void withdraw() {
 		this.status = UserStatus.DELETED;
 		this.deletedAt = AppTime.nowKst();
 	}

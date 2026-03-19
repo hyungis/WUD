@@ -2,8 +2,27 @@ package com.woojudraw.domain.constellation.entity;
 
 import java.time.OffsetDateTime;
 
-import jakarta.persistence.*;
-import lombok.*;
+import com.woojudraw.domain.daily.entity.Daily;
+import com.woojudraw.domain.deep.entity.DeepSession;
+import com.woojudraw.domain.user.entity.User;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
+import jakarta.persistence.Table;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "stars")
@@ -16,18 +35,21 @@ public class Star {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@Column(name = "user_id", nullable = false)
-	private Long userId;
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "user_id", nullable = false)
+	private User user;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "constellation_id", nullable = false)
 	private Constellation constellation;
 
-	@Column(name = "daily_entry_id")
-	private Long dailyEntryId;
+	@OneToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "daily_entry_id", unique = true)
+	private Daily dailyEntry;
 
-	@Column(name = "deep_session_id")
-	private Long deepSessionId;
+	@OneToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "deep_session_id", unique = true)
+	private DeepSession deepSession;
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "kind", nullable = false, length = 20)
@@ -43,16 +65,16 @@ public class Star {
 	private OffsetDateTime updatedAt;
 
 	public static Star createDeepStar(
-		Long userId,
+		User user,
 		Constellation constellation,
-		Long deepSessionId,
+		DeepSession deepSession,
 		OffsetDateTime now
 	) {
 		return Star.builder()
-			.userId(userId)
+			.user(user)
 			.constellation(constellation)
-			.deepSessionId(deepSessionId)
-			.dailyEntryId(null)
+			.deepSession(deepSession)
+			.dailyEntry(null)
 			.kind(StarKind.DEEP)
 			.color(null)
 			.createdAt(now)
@@ -61,21 +83,37 @@ public class Star {
 	}
 
 	public static Star createDailyStar(
-		Long userId,
+		User user,
 		Constellation constellation,
-		Long dailyEntryId,
+		Daily dailyEntry,
 		String color,
 		OffsetDateTime now
 	) {
 		return Star.builder()
-			.userId(userId)
+			.user(user)
 			.constellation(constellation)
-			.dailyEntryId(dailyEntryId)
-			.deepSessionId(null)
+			.dailyEntry(dailyEntry)
+			.deepSession(null)
 			.kind(StarKind.DAILY)
 			.color(color)
 			.createdAt(now)
 			.updatedAt(now)
 			.build();
+	}
+
+	public Long getUserId() {
+		return user == null ? null : user.getId();
+	}
+
+	public Long getDailyEntryId() {
+		return dailyEntry == null ? null : dailyEntry.getId();
+	}
+
+	public Long getDeepSessionId() {
+		return deepSession == null ? null : deepSession.getId();
+	}
+
+	void attachTo(Constellation constellation) {
+		this.constellation = constellation;
 	}
 }

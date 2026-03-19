@@ -70,8 +70,12 @@ public class DeepAiResultConsumer {
 			rawMap.put("raw", response.getData().getRaw());
 			String rawJson = objectMapper.writeValueAsString(rawMap);
 
-			DeepResult deepResult = deepResultRepository.findByDeepSessionId(sessionId)
-				.orElseGet(() -> DeepResult.create(sessionId, response.getData().getResultSummary(), rawJson));
+			DeepResult deepResult = deepResultRepository.findByDeepSession_Id(sessionId)
+				.orElseGet(() -> {
+					DeepResult created = DeepResult.create(deepSession, response.getData().getResultSummary(), rawJson);
+					deepSession.assignDeepResult(created);
+					return created;
+				});
 			deepResult.updateResult(response.getData().getResultSummary(), rawJson);
 			deepResultRepository.save(deepResult);
 

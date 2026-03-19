@@ -54,7 +54,7 @@ public class DailyServiceImpl implements DailyService {
 		validateEntryDate(request.getEntryDate());
 		DailyType dailyType = parseDailyType(request.getDailyType());
 
-		if (dailyRepository.existsByUsersIdAndEntryDateAndDeletedAtIsNull(userId, request.getEntryDate())) {
+		if (dailyRepository.existsByUser_IdAndEntryDateAndDeletedAtIsNull(userId, request.getEntryDate())) {
 			throw new BusinessException(ResponseCode.DAILY_ALREADY_EXISTS);
 		}
 
@@ -62,13 +62,13 @@ public class DailyServiceImpl implements DailyService {
 
 		Daily saved = dailyRepository.save(
 			Daily.create(
-				userId,
+				drawingImage.getUser(),
 				dailyType,
 				request.getEntryDate(),
 				request.getContent(),
 				request.getEmotion().getValue(),
 				request.getEmotion().getColor(),
-				request.getDrawingImageId()
+				drawingImage
 			)
 		);
 		saved.markAnalyzing();
@@ -102,8 +102,8 @@ public class DailyServiceImpl implements DailyService {
 	public List<DailyListItemResp> getDailies(Long userId, DailyListPeriod period, LocalDate date) {
 		DateRange dateRange = resolveDateRange(period, date);
 		List<Daily> dailies = (dateRange == null)
-			? dailyRepository.findAllByUsersIdAndDeletedAtIsNullOrderByEntryDateDescIdDesc(userId)
-			: dailyRepository.findAllByUsersIdAndDeletedAtIsNullAndEntryDateBetweenOrderByEntryDateDescIdDesc(
+			? dailyRepository.findAllByUser_IdAndDeletedAtIsNullOrderByEntryDateDescIdDesc(userId)
+			: dailyRepository.findAllByUser_IdAndDeletedAtIsNullAndEntryDateBetweenOrderByEntryDateDescIdDesc(
 				userId,
 				dateRange.startDate(),
 				dateRange.endDate()
@@ -112,7 +112,7 @@ public class DailyServiceImpl implements DailyService {
 		List<Long> dailyIds = dailies.stream().map(Daily::getId).toList();
 		Map<Long, DailyResult> resultMap = dailyIds.isEmpty()
 			? Map.of()
-			: dailyResultRepository.findAllByDailyEntriesIdIn(dailyIds)
+			: dailyResultRepository.findAllByDaily_IdIn(dailyIds)
 				.stream()
 				.collect(toMap(DailyResult::getDailyEntriesId, dailyResult -> dailyResult));
 
@@ -147,9 +147,8 @@ public class DailyServiceImpl implements DailyService {
 			throw new BusinessException(ResponseCode.DAILY_ACCESS_DENIED);
 		}
 
-		Image drawingImage = imageRepository.findById(daily.getDrawingImageId())
-			.orElseThrow(() -> new BusinessException(ResponseCode.FILE_NOT_FOUND));
-		DailyResult dailyResult = dailyResultRepository.findByDailyEntriesId(dailyId).orElse(null);
+		Image drawingImage = daily.getDrawingImage();
+		DailyResult dailyResult = dailyResultRepository.findByDaily_Id(dailyId).orElse(null);
 
 		return DailyDetailResp.builder()
 			.dailyId(daily.getId())

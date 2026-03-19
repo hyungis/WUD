@@ -9,12 +9,12 @@ import com.woojudraw.domain.daily.entity.Daily;
 
 public interface DailyRepository extends JpaRepository<Daily, Long> {
 
-	boolean existsByUsersIdAndEntryDateAndDeletedAtIsNull(Long usersId, LocalDate entryDate);
+	boolean existsByUser_IdAndEntryDateAndDeletedAtIsNull(Long userId, LocalDate entryDate);
 
-	List<Daily> findAllByUsersIdAndDeletedAtIsNullOrderByEntryDateDescIdDesc(Long usersId);
+	List<Daily> findAllByUser_IdAndDeletedAtIsNullOrderByEntryDateDescIdDesc(Long userId);
 
-	List<Daily> findAllByUsersIdAndDeletedAtIsNullAndEntryDateBetweenOrderByEntryDateDescIdDesc(
-		Long usersId,
+	List<Daily> findAllByUser_IdAndDeletedAtIsNullAndEntryDateBetweenOrderByEntryDateDescIdDesc(
+		Long userId,
 		LocalDate startDate,
 		LocalDate endDate
 	);

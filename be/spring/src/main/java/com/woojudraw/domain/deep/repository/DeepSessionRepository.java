@@ -14,11 +14,11 @@ import com.woojudraw.domain.deep.entity.DeepType;
 
 public interface DeepSessionRepository extends JpaRepository<DeepSession, Long> {
 
-	Optional<DeepSession> findByIdAndUserId(Long id, Long userId);
+	Optional<DeepSession> findByIdAndUser_Id(Long id, Long userId);
 
-	List<DeepSession> findAllByUserIdOrderByCreatedAtDesc(Long userId);
+	List<DeepSession> findAllByUser_IdOrderByCreatedAtDesc(Long userId);
 
-	boolean existsByUserIdAndDeepTypeAndStatusInAndCreatedAtAfter(
+	boolean existsByUser_IdAndDeepTypeAndStatusInAndCreatedAtAfter(
 		Long userId,
 		DeepType deepType,
 		Collection<DeepStatus> statuses,

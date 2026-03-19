@@ -4,9 +4,12 @@ import java.time.OffsetDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -25,8 +28,9 @@ public class DeepResult{
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@Column(name = "deep_session_id", nullable = false, unique = true)
-	private Long deepSessionId;
+	@OneToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "deep_session_id", nullable = false, unique = true)
+	private DeepSession deepSession;
 
 	@Column(name = "result", columnDefinition = "TEXT", nullable = false)
 	private String result;
@@ -39,24 +43,32 @@ public class DeepResult{
 
 	@Builder
 	private DeepResult(
-		Long deepSessionId,
+		DeepSession deepSession,
 		String result,
 		String raw,
 		OffsetDateTime createdAt
 	) {
-		this.deepSessionId = deepSessionId;
+		this.deepSession = deepSession;
 		this.result = result;
 		this.raw = raw;
 		this.createdAt = createdAt;
 	}
 
-	public static DeepResult create(Long deepSessionId, String result, String raw) {
+	public static DeepResult create(DeepSession deepSession, String result, String raw) {
 		return DeepResult.builder()
-			.deepSessionId(deepSessionId)
+			.deepSession(deepSession)
 			.result(result)
 			.raw(raw)
 			.createdAt(AppTime.nowKst())
 			.build();
+	}
+
+	public Long getDeepSessionId() {
+		return deepSession == null ? null : deepSession.getId();
+	}
+
+	void attachTo(DeepSession deepSession) {
+		this.deepSession = deepSession;
 	}
 
 	public void updateResult(String result, String raw) {
