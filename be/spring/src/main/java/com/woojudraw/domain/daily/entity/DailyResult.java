@@ -6,9 +6,12 @@ import com.woojudraw.global.time.AppTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -25,8 +28,9 @@ public class DailyResult {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@Column(name = "daily_entries_id", nullable = false, unique = true)
-	private Long dailyEntriesId;
+	@OneToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "daily_entries_id", nullable = false, unique = true)
+	private Daily daily;
 
 	@Column(name = "result", nullable = false, columnDefinition = "text")
 	private String result;
@@ -39,24 +43,28 @@ public class DailyResult {
 
 	@Builder
 	private DailyResult(
-		Long dailyEntriesId,
+		Daily daily,
 		String result,
 		String raw,
 		OffsetDateTime createdAt
 	) {
-		this.dailyEntriesId = dailyEntriesId;
+		this.daily = daily;
 		this.result = result;
 		this.raw = raw;
 		this.createdAt = createdAt;
 	}
 
-	public static DailyResult create(Long dailyEntriesId, String result, String raw) {
+	public static DailyResult create(Daily daily, String result, String raw) {
 		return DailyResult.builder()
-			.dailyEntriesId(dailyEntriesId)
+			.daily(daily)
 			.result(result)
 			.raw(raw)
 			.createdAt(AppTime.nowKst())
 			.build();
+	}
+
+	public Long getDailyEntriesId() {
+		return daily == null ? null : daily.getId();
 	}
 
 	public void updateResult(String result, String raw) {

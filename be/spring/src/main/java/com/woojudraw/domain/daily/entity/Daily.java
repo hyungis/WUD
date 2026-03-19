@@ -3,15 +3,21 @@ package com.woojudraw.domain.daily.entity;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 
+import com.woojudraw.domain.image.entity.Image;
+import com.woojudraw.domain.user.entity.User;
 import com.woojudraw.global.time.AppTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -28,8 +34,9 @@ public class Daily {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@Column(name = "users_id", nullable = false)
-	private Long usersId;
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "users_id", nullable = false)
+	private User user;
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "daily_type", nullable = false, length = 30)
@@ -47,8 +54,9 @@ public class Daily {
 	@Column(name = "emotion_color", nullable = false, length = 20)
 	private String emotionColor;
 
-	@Column(name = "drawing_image_id", nullable = false)
-	private Long drawingImageId;
+	@OneToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "drawing_image_id", nullable = false)
+	private Image drawingImage;
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "analysis_status", nullable = false, length = 20)
@@ -65,25 +73,25 @@ public class Daily {
 
 	@Builder
 	private Daily(
-		Long usersId,
+		User user,
 		DailyType dailyType,
 		LocalDate entryDate,
 		String content,
 		Integer emotionValue,
 		String emotionColor,
-		Long drawingImageId,
+		Image drawingImage,
 		DailyAnalysisStatus analysisStatus,
 		OffsetDateTime createdAt,
 		OffsetDateTime updatedAt,
 		OffsetDateTime deletedAt
 	) {
-		this.usersId = usersId;
+		this.user = user;
 		this.dailyType = dailyType;
 		this.entryDate = entryDate;
 		this.content = normalizeContent(content);
 		this.emotionValue = emotionValue;
 		this.emotionColor = emotionColor;
-		this.drawingImageId = drawingImageId;
+		this.drawingImage = drawingImage;
 		this.analysisStatus = analysisStatus;
 		this.createdAt = createdAt;
 		this.updatedAt = updatedAt;
@@ -91,31 +99,39 @@ public class Daily {
 	}
 
 	public static Daily create(
-		Long usersId,
+		User user,
 		DailyType dailyType,
 		LocalDate entryDate,
 		String content,
 		Integer emotionValue,
 		String emotionColor,
-		Long drawingImageId
+		Image drawingImage
 	) {
 		OffsetDateTime now = AppTime.nowKst();
 		return Daily.builder()
-			.usersId(usersId)
+			.user(user)
 			.dailyType(dailyType)
 			.entryDate(entryDate)
 			.content(content)
 			.emotionValue(emotionValue)
 			.emotionColor(emotionColor)
-			.drawingImageId(drawingImageId)
+			.drawingImage(drawingImage)
 			.analysisStatus(DailyAnalysisStatus.PENDING)
 			.createdAt(now)
 			.updatedAt(now)
 			.build();
 	}
 
+	public Long getUserId() {
+		return user == null ? null : user.getId();
+	}
+
+	public Long getDrawingImageId() {
+		return drawingImage == null ? null : drawingImage.getId();
+	}
+
 	public boolean isOwnedBy(Long userId) {
-		return this.usersId != null && this.usersId.equals(userId);
+		return user != null && user.getId().equals(userId);
 	}
 
 	public boolean isDeleted() {

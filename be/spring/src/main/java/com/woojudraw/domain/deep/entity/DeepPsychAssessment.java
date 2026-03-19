@@ -8,22 +8,26 @@ import java.util.Map;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.woojudraw.domain.user.entity.User;
+import com.woojudraw.global.time.AppTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-
-import com.woojudraw.global.time.AppTime;
 
 @Entity
 @Table(name = "deep_psych_assessments")
@@ -35,11 +39,13 @@ public class DeepPsychAssessment {
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
 
-	@Column(name = "deep_session_id", nullable = false)
-	private Long deepSessionId;
+	@OneToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "deep_session_id", nullable = false)
+	private DeepSession deepSession;
 
-	@Column(name = "user_id", nullable = false)
-	private Long userId;
+	@ManyToOne(fetch = FetchType.LAZY, optional = false)
+	@JoinColumn(name = "user_id", nullable = false)
+	private User user;
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "test_code", length = 20, nullable = false)
@@ -69,8 +75,8 @@ public class DeepPsychAssessment {
 
 	@Builder
 	private DeepPsychAssessment(
-		Long deepSessionId,
-		Long userId,
+		DeepSession deepSession,
+		User user,
 		PsychTestCode testCode,
 		Integer scoreTotal,
 		Short scorePositive,
@@ -80,8 +86,8 @@ public class DeepPsychAssessment {
 		String raw,
 		OffsetDateTime createdAt
 	) {
-		this.deepSessionId = deepSessionId;
-		this.userId = userId;
+		this.deepSession = deepSession;
+		this.user = user;
 		this.testCode = testCode;
 		this.scoreTotal = scoreTotal;
 		this.scorePositive = scorePositive;
@@ -93,8 +99,8 @@ public class DeepPsychAssessment {
 	}
 
 	public static DeepPsychAssessment createWho5(
-		Long deepSessionId,
-		Long userId,
+		DeepSession deepSession,
+		User user,
 		List<Integer> answers,
 		LocalDate weekStartDate,
 		ObjectMapper objectMapper
@@ -114,8 +120,8 @@ public class DeepPsychAssessment {
 		}
 
 		return DeepPsychAssessment.builder()
-			.deepSessionId(deepSessionId)
-			.userId(userId)
+			.deepSession(deepSession)
+			.user(user)
 			.testCode(PsychTestCode.WHO5)
 			.scoreTotal(total)
 			.weekStartDate(weekStartDate)
@@ -125,16 +131,16 @@ public class DeepPsychAssessment {
 	}
 
 	public static DeepPsychAssessment createSpane(
-		Long deepSessionId,
-		Long userId,
+		DeepSession deepSession,
+		User user,
 		List<Integer> answers,
 		LocalDate weekStartDate,
 		ObjectMapper objectMapper
 	) {
 		// 문항 순서에 따라 처리 (앞의 6개가 긍정, 뒤의 6개가 부정)
-		short positive = (short) answers.subList(0, 6).stream().mapToInt(Integer::intValue).sum();
-		short negative = (short) answers.subList(6, 12).stream().mapToInt(Integer::intValue).sum();
-		short balance = (short) (positive - negative); // SPANE-B 계산
+		short positive = (short)answers.subList(0, 6).stream().mapToInt(Integer::intValue).sum();
+		short negative = (short)answers.subList(6, 12).stream().mapToInt(Integer::intValue).sum();
+		short balance = (short)(positive - negative); // SPANE-B 계산
 
 		OffsetDateTime now = AppTime.nowKst();
 
@@ -150,8 +156,8 @@ public class DeepPsychAssessment {
 		}
 
 		return DeepPsychAssessment.builder()
-			.deepSessionId(deepSessionId)
-			.userId(userId)
+			.deepSession(deepSession)
+			.user(user)
 			.testCode(PsychTestCode.SPANE)
 			.scorePositive(positive)
 			.scoreNegative(negative)
@@ -162,6 +168,11 @@ public class DeepPsychAssessment {
 			.build();
 	}
 
+	public Long getDeepSessionId() {
+		return deepSession == null ? null : deepSession.getId();
+	}
 
-
+	public Long getUserId() {
+		return user == null ? null : user.getId();
+	}
 }
