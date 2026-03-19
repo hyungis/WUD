@@ -50,6 +50,10 @@ export interface SubmitDrawingRequest {
     treeImageId: number;
     personImageId: number;
 }
+export interface SubmitSingleDrawingRequest {
+    imageId: number;
+    type: "RAIN_PERSON" | "STAR_WAVE";
+}
 export interface SubmitDrawingResponse {
     sessionId: number;
     status: "DRAFT" | "ANALYZING" | "DONE" | "FAILED";

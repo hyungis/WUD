@@ -1,5 +1,12 @@
+import { useState, useEffect } from "react";
 import type { DailyPlanet, DeepStar } from "../../utils/homeHelpers";
 import { formatDateTimeKST } from "../../utils/homeHelpers";
+
+const DEEP_TYPE_LABELS: Record<string, string> = {
+  HTP: "HTP",
+  PERSON_IN_RAIN: "빗속의 사람",
+  STAR_WAVE: "별-파도",
+};
 
 const COLOR_TO_EMOTION: Record<string, string> = {
   "#FFD54F": "기쁨", "#4FC3F7": "평온", "#FF6FAE": "설렘", "#66BB6A": "만족",
@@ -21,6 +28,8 @@ interface StarSidePanelProps {
     status?: string;
   }) | null;
   selectedDailyPlanet: (DailyPlanet & { aiSummary?: string }) | null;
+  deepPages?: any[];
+  onRefresh?: () => void;
 }
 
 export function StarSidePanel({
@@ -30,9 +39,38 @@ export function StarSidePanel({
   reportError,
   selectedDeepStar,
   selectedDailyPlanet,
+  deepPages = [],
+  onRefresh,
 }: StarSidePanelProps) {
+  const [pageIdx, setPageIdx] = useState(0);
+
+  // 새 리포트가 열리면 페이지 인덱스 초기화
+  useEffect(() => { setPageIdx(0); }, [deepPages]);
+
+  // 분석 중인 페이지가 있으면 10초마다 자동 재조회
+  const hasAnalyzing = deepPages.some(p => p.status === "ANALYZING" || p.status === "SUBMITTED");
+  useEffect(() => {
+    if (!isOpen || !hasAnalyzing || !onRefresh) return;
+    const id = window.setInterval(onRefresh, 10_000);
+    return () => window.clearInterval(id);
+  }, [isOpen, hasAnalyzing, onRefresh]);
+
   const isDeep = !!selectedDeepStar;
   const isDaily = !!selectedDailyPlanet && !selectedDeepStar;
+
+  // 현재 페이지 데이터 (deepPages가 있으면 사용, 없으면 selectedDeepStar fallback)
+  const currentPage = deepPages.length > 0
+    ? deepPages[pageIdx] ?? deepPages[0]
+    : selectedDeepStar
+      ? {
+          deepType: selectedDeepStar.deepType,
+          createdAt: selectedDeepStar.createdAt,
+          aiSummary: selectedDeepStar.aiSummary,
+          submissions: selectedDeepStar.submissions,
+          psychAssessments: selectedDeepStar.psychAssessments,
+          status: selectedDeepStar.status,
+        }
+      : null;
 
   const resolveDailyFallbackMessage = (status?: string) => {
     if (status === "FAILED") return "데일리 AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.";
@@ -44,10 +82,10 @@ export function StarSidePanel({
 
   /* ── 리포트 타입 라벨 ── */
   const reportLabel = isDeep
-    ? `${selectedDeepStar?.deepType ?? "HTP"} Deep Report`
+    ? deepPages.length > 1 ? "Weekly Deep Report" : `${currentPage?.deepType ?? "HTP"} Deep Report`
     : "Daily Report";
   const reportTitle = isDeep
-    ? `${selectedDeepStar?.deepType ?? "HTP"} 심층 분석`
+    ? deepPages.length > 1 ? "위클리 심층 분석" : `${DEEP_TYPE_LABELS[currentPage?.deepType] ?? currentPage?.deepType ?? "HTP"} 심층 분석`
     : "감정 분석 리포트";
 
   return (
@@ -115,9 +153,9 @@ export function StarSidePanel({
             <div className="flex flex-col gap-4">
               {/* 로딩 */}
               {reportLoading && (
-                <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                  <div className="mb-3 h-9 w-9 animate-spin rounded-full border-2 border-indigo-500/60 border-t-transparent" />
-                  <p className="text-sm">리포트를 불러오는 중...</p>
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="mb-4 h-10 w-10 animate-spin rounded-full border-[3px] border-indigo-400/30 border-t-indigo-400" />
+                  <p className="text-sm font-medium text-slate-300">리포트를 불러오는 중...</p>
                 </div>
               )}
 
@@ -129,33 +167,95 @@ export function StarSidePanel({
               )}
 
               {/* ═══ DEEP STAR ═══ */}
-              {isDeep && !reportLoading && !reportError && (
+              {isDeep && !reportLoading && !reportError && currentPage && (
                 <>
+                  {/* 검사별 탭 (2개 이상일 때만 표시) */}
+                  {deepPages.length > 1 && (
+                    <div className="flex gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-1">
+                      {deepPages.map((pg: any, i: number) => {
+                        const isActive = i === pageIdx;
+                        const isAnalyzing = pg.status === "ANALYZING" || pg.status === "SUBMITTED";
+                        return (
+                          <button
+                            key={pg.sessionId}
+                            type="button"
+                            onClick={() => setPageIdx(i)}
+                            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+                              isActive
+                                ? "bg-indigo-500/20 text-indigo-200 border border-indigo-500/30 shadow-sm"
+                                : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent"
+                            }`}
+                          >
+                            {isAnalyzing && (
+                              <span className="relative flex h-2 w-2 flex-shrink-0">
+                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                                <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+                              </span>
+                            )}
+                            {DEEP_TYPE_LABELS[pg.deepType] ?? pg.deepType}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   {/* 타이틀 + WHO-5 */}
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-base font-bold text-white">{selectedDeepStar?.deepType ?? "HTP"} 심층 분석</p>
+                      <p className="text-base font-bold text-white">{DEEP_TYPE_LABELS[currentPage.deepType] ?? currentPage.deepType} 심층 분석</p>
                       <p className="mt-1 text-xs text-slate-400">
-                        {selectedDeepStar?.createdAt ? formatDateTimeKST(selectedDeepStar.createdAt) : ""}
+                        {currentPage.createdAt ? formatDateTimeKST(currentPage.createdAt) : ""}
                       </p>
                     </div>
-                    {Array.isArray(selectedDeepStar?.psychAssessments) && selectedDeepStar!.psychAssessments!.length > 0 && (
+                    {Array.isArray(currentPage.psychAssessments) && currentPage.psychAssessments.length > 0 && (
                       <div className="text-center flex-shrink-0 rounded-xl bg-indigo-500/[0.08] border border-indigo-500/[0.12] px-4 py-2">
                         <p className="text-[9px] uppercase tracking-widest text-slate-500">WHO-5</p>
                         <p className="text-2xl font-bold text-indigo-300">
-                          {selectedDeepStar!.psychAssessments![0].scoreTotal}
+                          {currentPage.psychAssessments[0].scoreTotal}
                           <span className="text-sm text-slate-500">/25</span>
                         </p>
                       </div>
                     )}
                   </div>
 
-                  {/* HTP 이미지 */}
-                  {Array.isArray(selectedDeepStar?.submissions) && selectedDeepStar!.submissions!.length > 0 && (
+                  {/* 분석 중 상태 */}
+                  {(currentPage.status === "ANALYZING" || currentPage.status === "SUBMITTED") && (
+                    <div className="relative overflow-hidden rounded-2xl border border-indigo-400/20 p-8" style={{ background: "linear-gradient(160deg, rgba(79,70,229,0.12) 0%, rgba(17,24,39,0.95) 60%)" }}>
+                      {/* 배경 글로우 효과 */}
+                      <div className="absolute -top-12 -right-12 h-40 w-40 rounded-full bg-indigo-500/10 blur-3xl" />
+                      <div className="absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-purple-500/10 blur-3xl" />
+
+                      <div className="relative flex flex-col items-center text-center">
+                        {/* 스피너 */}
+                        <div className="relative mb-5">
+                          <div className="h-14 w-14 animate-spin rounded-full border-[3px] border-indigo-400/30 border-t-indigo-400" style={{ animationDuration: "1.2s" }} />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" strokeWidth="1.5">
+                              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                            </svg>
+                          </div>
+                        </div>
+
+                        <p className="text-lg font-bold text-indigo-200">리포트 생성 중</p>
+                        <p className="mt-2 text-sm text-slate-300 leading-relaxed">
+                          AI가 그림을 분석하고 있습니다<br />
+                          <span className="text-slate-400">잠시만 기다려 주세요</span>
+                        </p>
+
+                        {/* 프로그레스 바 애니메이션 */}
+                        <div className="mt-5 w-48 h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                          <div className="h-full w-1/3 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 animate-[shimmer_2s_ease-in-out_infinite]" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 제출된 그림 */}
+                  {currentPage.status !== "ANALYZING" && currentPage.status !== "SUBMITTED" && Array.isArray(currentPage.submissions) && currentPage.submissions.length > 0 && (
                     <div className="rounded-xl border border-white/[0.12] bg-white/[0.03] p-4">
                       <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">제출된 그림</p>
-                      <div className="grid grid-cols-3 gap-2.5">
-                        {selectedDeepStar!.submissions!.map((sub: any, i: number) => (
+                      <div className={`grid gap-2.5 ${currentPage.submissions.length === 1 ? "grid-cols-1 max-w-[280px] mx-auto" : "grid-cols-3"}`}>
+                        {currentPage.submissions.map((sub: any, i: number) => (
                           <div key={i} className="relative overflow-hidden rounded-lg border border-white/[0.06] bg-slate-900/60">
                             <div className="absolute top-1.5 left-1.5 z-10 rounded bg-black/60 px-1.5 py-0.5">
                               <span className="text-[9px] font-bold uppercase text-slate-200">{sub.type}</span>
@@ -174,23 +274,25 @@ export function StarSidePanel({
                   )}
 
                   {/* AI 분석 */}
-                  <div className="rounded-xl border border-indigo-400/[0.2] p-5" style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.06), transparent)" }}>
-                    <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-300">AI 분석 리포트</p>
-                    <p className="text-sm leading-7 text-slate-200 whitespace-pre-wrap">
-                      {selectedDeepStar?.aiSummary || "심층 분석 결과가 아직 준비되지 않았습니다."}
-                    </p>
-                  </div>
+                  {currentPage.status !== "ANALYZING" && currentPage.status !== "SUBMITTED" && (
+                    <div className="rounded-xl border border-indigo-400/[0.2] p-5" style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.06), transparent)" }}>
+                      <p className="mb-2.5 text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-300">AI 분석 리포트</p>
+                      <p className="text-sm leading-7 text-slate-200 whitespace-pre-wrap">
+                        {currentPage.aiSummary || "심층 분석 결과가 아직 준비되지 않았습니다."}
+                      </p>
+                    </div>
+                  )}
 
                   {/* WHO-5 상세 */}
-                  {Array.isArray(selectedDeepStar?.psychAssessments) && selectedDeepStar!.psychAssessments!.length > 0 && (
+                  {Array.isArray(currentPage.psychAssessments) && currentPage.psychAssessments.length > 0 && (
                     <div className="rounded-xl border border-white/[0.12] bg-white/[0.03] p-4">
                       <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">심리검사 결과</p>
-                      {selectedDeepStar!.psychAssessments!.map((pa: any, idx: number) => {
+                      {currentPage.psychAssessments.map((pa: any, idx: number) => {
                         const pct = Math.min(100, (pa.scoreTotal / 25) * 100);
                         const level = pct >= 72 ? "양호" : pct >= 52 ? "보통" : "주의";
                         const barColor = pct >= 72 ? "#34d399" : pct >= 52 ? "#fbbf24" : "#fb7185";
                         return (
-                          <div key={idx} className={idx < selectedDeepStar!.psychAssessments!.length - 1 ? "mb-2.5" : ""}>
+                          <div key={idx} className={idx < currentPage.psychAssessments.length - 1 ? "mb-2.5" : ""}>
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-xs text-slate-300">{pa.testCode ?? "WHO-5"}</span>
                               <span className="text-xs text-slate-400">{level} · {pa.scoreTotal}점</span>

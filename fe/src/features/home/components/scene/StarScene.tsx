@@ -3,7 +3,7 @@ import { OrbitControls, Stars, Line, Float } from "@react-three/drei";
 import { useEffect, useMemo, useRef, useState, createContext, useContext } from "react";
 import type { MutableRefObject } from "react";
 import type { Group, InstancedMesh, Points } from "three";
-import { Vector3, Object3D, Color, Texture, IcosahedronGeometry, BufferGeometry, Float32BufferAttribute } from "three";
+import { Vector3, Object3D, Color, Texture, IcosahedronGeometry, BufferGeometry, Float32BufferAttribute, ShaderMaterial as ThreeShaderMaterial } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import { useUiStore } from "../../../../store/uiStore";
@@ -58,6 +58,8 @@ const STAR_STELLATED_GEOMETRY = createStellatedPolyhedronGeometry(1, 0.62);
 function DeepPlanet({
   onClick, onOpen, onHover, color, size = 1, seed = 0, variant = "star", isSelected = false, freezeMotion = false,
   isNewborn = false,
+  startBirth = false,
+  birthDelay = 0,
 }: {
   onClick: () => void;
   onOpen?: () => void;
@@ -66,31 +68,48 @@ function DeepPlanet({
   isSelected?: boolean;
   freezeMotion?: boolean;
   isNewborn?: boolean;
+  startBirth?: boolean;
+  birthDelay?: number;
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const birthProgress = useRef(isNewborn ? 0 : 1);
+  const birthElapsed = useRef(0);
   const [isBirthFinished, setIsBirthFinished] = useState(!isNewborn);
 
   useEffect(() => {
     if (isNewborn) {
       birthProgress.current = 0;
+      birthElapsed.current = 0;
       setIsBirthFinished(false);
     }
   }, [isNewborn]);
 
+  // startBirth가 true로 전환되면 별 탄생 타이머 리셋
+  useEffect(() => {
+    if (startBirth && isNewborn) {
+      birthElapsed.current = 0;
+    }
+  }, [startBirth, isNewborn]);
+
   useFrame((_, delta) => {
     if (isBirthFinished) return;
-    birthProgress.current = Math.min(birthProgress.current + delta * 0.8, 1);
+    if (isNewborn && !startBirth) return;
+    birthElapsed.current += delta;
+    if (birthDelay && birthElapsed.current < birthDelay) return;
+    birthProgress.current = Math.min(birthProgress.current + delta * 0.4, 1);
     if (birthProgress.current >= 1) {
       setIsBirthFinished(true);
     }
   });
 
   const isActive = isHovered || isSelected;
-  const currentSize = isBirthFinished ? size : size * birthProgress.current;
+  // easeOutCubic for smooth scale-in
+  const easedBirth = isBirthFinished ? 1 : 1 - Math.pow(1 - birthProgress.current, 3);
+  const currentSize = size * easedBirth;
+  const targetEmissive = isActive ? (variant === "star" ? 3.0 : 4.0) : (variant === "star" ? 1.4 : 1.8);
   const currentEmissiveIntensity = isBirthFinished
-    ? (isActive ? (variant === "star" ? 3.0 : 4.0) : (variant === "star" ? 1.4 : 1.8))
-    : (10.0 * (1 - birthProgress.current) + 2.0); // 초기에는 아주 밝게 빛남
+    ? targetEmissive
+    : targetEmissive + (8.0 - targetEmissive) * (1 - easedBirth);
 
   const handlers = {
     onClick,
@@ -654,13 +673,155 @@ function GalaxyStars({ freezeMotion = false }: { freezeMotion?: boolean }) {
   );
 }
 
+/* ── 별 탄생 파티클 효과: 중심별 → 새 별 위치로 별가루 나선 이동 ── */
+const PARTICLE_COUNT = 80;
+const BIRTH_TRAVEL_DURATION = 6.0;   // 파티클 이동 시간 (천천히)
+const BIRTH_GATHER_DURATION = 2.0;   // 뽙글뽙글 모이는 시간
+
+function StarBirthEffect({ target, color, isGathering = false, onComplete }: {
+  target: [number, number, number];
+  color: string;
+  isGathering?: boolean;
+  onComplete?: () => void;
+}) {
+  const pointsRef = useRef<Points>(null);
+  const elapsed = useRef(0);
+  const completed = useRef(false);
+  const gatherStart = useRef<number | null>(null);
+
+  const particleData = useMemo(() => {
+    const data: { ox: number; oy: number; oz: number; delay: number; speed: number; angularSpeed: number; spinAxis: [number, number, number]; orbitRadius: number; orbitPhase: number }[] = [];
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r = 1.5 + Math.random() * 4.0;
+      const ax = Math.random() - 0.5;
+      const ay = Math.random() - 0.5;
+      const az = Math.random() - 0.5;
+      const len = Math.sqrt(ax * ax + ay * ay + az * az) || 1;
+      data.push({
+        ox: r * Math.sin(phi) * Math.cos(theta),
+        oy: r * Math.sin(phi) * Math.sin(theta),
+        oz: r * Math.cos(phi),
+        delay: Math.random() * 1.0,
+        speed: 0.4 + Math.random() * 0.3,
+        angularSpeed: 0.8 + Math.random() * 1.2,
+        spinAxis: [ax / len, ay / len, az / len],
+        orbitRadius: 0.6 + Math.random() * 0.8,
+        orbitPhase: Math.random() * Math.PI * 2,
+      });
+    }
+    return data;
+  }, []);
+
+  const positions = useMemo(() => new Float32Array(PARTICLE_COUNT * 3), []);
+
+  useFrame((_, delta) => {
+    if (completed.current || !pointsRef.current) return;
+    elapsed.current += delta;
+    const t = elapsed.current;
+
+    // isGathering이 true로 전환되면 gather 시작 시점 기록
+    if (isGathering && gatherStart.current === null) {
+      gatherStart.current = t;
+    }
+
+    const posAttr = pointsRef.current.geometry.getAttribute("position") as any;
+
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      const pd = particleData[i];
+      const localT = Math.max(0, (t - pd.delay) * pd.speed);
+
+      // 이동 단계: 랜덤 위치 → 타겟 근처 궤도로 천천히 이동
+      const travelT = Math.min(localT / BIRTH_TRAVEL_DURATION, 1);
+      const ease = travelT < 0.5
+        ? 4 * travelT * travelT * travelT
+        : 1 - Math.pow(-2 * travelT + 2, 3) / 2;
+
+      let px = pd.ox * (1 - ease) + target[0] * ease;
+      let py = pd.oy * (1 - ease) + target[1] * ease;
+      let pz = pd.oz * (1 - ease) + target[2] * ease;
+
+      // 궤도 회전
+      const angle = t * pd.angularSpeed + pd.orbitPhase;
+      const [ax, ay, az] = pd.spinAxis;
+
+      if (gatherStart.current !== null) {
+        // 모이는 단계: 뽙글뽙글 돌면서 중력처럼 중앙으로 수축
+        const gatherElapsed = t - gatherStart.current;
+        const gatherT = Math.min(gatherElapsed / BIRTH_GATHER_DURATION, 1);
+        const gravity = gatherT * gatherT;
+        const shrink = 1 - gravity;
+        const currentOrbitR = pd.orbitRadius * shrink;
+
+        posAttr.array[i * 3]     = target[0] + (px - target[0]) * shrink + Math.cos(angle) * currentOrbitR;
+        posAttr.array[i * 3 + 1] = target[1] + (py - target[1]) * shrink + Math.sin(angle) * currentOrbitR;
+        posAttr.array[i * 3 + 2] = target[2] + (pz - target[2]) * shrink + Math.sin(angle * 0.7) * currentOrbitR * 0.5;
+      } else {
+        // 궤도 단계: 타겟 주변을 천천히 공전
+        const orbitStrength = ease;
+        const currentOrbitR = pd.orbitRadius * orbitStrength;
+        px += Math.cos(angle) * currentOrbitR * (1 - ax * ax);
+        py += Math.sin(angle) * currentOrbitR * (1 - ay * ay);
+        pz += Math.cos(angle + 1.0) * currentOrbitR * (1 - az * az);
+
+        posAttr.array[i * 3] = px;
+        posAttr.array[i * 3 + 1] = py;
+        posAttr.array[i * 3 + 2] = pz;
+      }
+    }
+    posAttr.needsUpdate = true;
+
+    // gather 완료 후 onComplete 호출
+    if (gatherStart.current !== null) {
+      const gatherElapsed = t - gatherStart.current;
+      if (gatherElapsed > BIRTH_GATHER_DURATION + 0.3 && !completed.current) {
+        completed.current = true;
+        onComplete?.();
+      }
+    }
+  });
+
+  const circleMaterial = useMemo(() => new ThreeShaderMaterial({
+    uniforms: { uColor: { value: new Color(color) }, uOpacity: { value: 0.9 } },
+    vertexShader: `
+      uniform float uSize;
+      void main() {
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_PointSize = ${(0.7 * 128).toFixed(1)} / -mv.z;
+        gl_Position = projectionMatrix * mv;
+      }
+    `,
+    fragmentShader: `
+      uniform vec3 uColor;
+      uniform float uOpacity;
+      void main() {
+        float d = length(gl_PointCoord - vec2(0.5));
+        if (d > 0.5) discard;
+        float alpha = smoothstep(0.5, 0.35, d) * uOpacity;
+        gl_FragColor = vec4(uColor, alpha);
+      }
+    `,
+    transparent: true,
+    depthWrite: false,
+  }), [color]);
+
+  return (
+    <points ref={pointsRef} material={circleMaterial}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} count={PARTICLE_COUNT} />
+      </bufferGeometry>
+    </points>
+  );
+}
+
 // ==========================================
 // 3. 메인 3D Scene 컴포넌트
 // ==========================================
 
 export function StarScene({
   dailyPlanets, deepStars, mypageStar, onStarClick, onDeepStarClick, onPlanetClick, onStarSelect, selectedStarId, hoveredStarId, selectedWeekKey, onStarHover, onViewModeChange,
-  isReportOpen, newbornStarId,
+  isReportOpen, newbornStarId, onBirthComplete, isAnalysisComplete,
 }: StarSceneProps) {
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [focusRequestNonce, setFocusRequestNonce] = useState(0);
@@ -857,7 +1018,6 @@ export function StarScene({
         <pointLight position={[0, 0, 0]} intensity={150} color="#f97316" distance={60} decay={2} />
 
         <EffectComposer enableNormalPass={false} multisampling={0}>
-          {/* Threshold를 1.0 이상으로 높여 Emissive가 높은 핵심 광원만 Bloom이 발생하도록 설정 */}
           <Bloom luminanceThreshold={1.1} mipmapBlur luminanceSmoothing={0.1} intensity={1.5} />
         </EffectComposer>
 
@@ -945,11 +1105,26 @@ export function StarScene({
                     : (isReportOpen ? 0.52 : (viewMode === "macro" ? 0.6 : 0.35))}
                   isSelected={selectedStarId === item.id}
                   isNewborn={isNewborn}
+                  startBirth={isNewborn && Boolean(isAnalysisComplete)}
+                  birthDelay={0.3}
                   seed={hashSeed(item.id)}
                 />
               </SpreadItem>
             );
           })}
+
+          {/* 별 탄생 파티클 효과 */}
+          {newbornStarId && positionMap.get(newbornStarId) && (
+            <StarBirthEffect
+              target={positionMap.get(newbornStarId) as [number, number, number]}
+              color={(() => {
+                const s = dailyPlanets.find(p => p.id === newbornStarId) || deepStars.find(d => d.id === newbornStarId);
+                return (s as any)?.toneColor || (s as any)?.shell || (s as any)?.core || starTone;
+              })()}
+              isGathering={Boolean(isAnalysisComplete)}
+              onComplete={onBirthComplete}
+            />
+          )}
         </SpreadCtx.Provider>
 
         <CameraFocus

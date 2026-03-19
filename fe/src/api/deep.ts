@@ -10,6 +10,7 @@ import type {
     DeepTestGuide,
     SubmitDrawingRequest,
     SubmitDrawingResponse,
+    SubmitSingleDrawingRequest,
     AnalysisStatusResponse,
     DeepDetailResponse,
     DeepHistoryItem,
@@ -32,6 +33,8 @@ export const deepApi = {
             return api.post<any, ApiResponse<SubmitDrawingResponse>>(`/deep-sessions/${sessionId}/submissions/htp`, data);
         }
     },
+    submitSingleDrawing: (sessionId: number, data: SubmitSingleDrawingRequest) =>
+        api.post<any, ApiResponse<SubmitDrawingResponse>>(`/deep-sessions/${sessionId}/submissions`, data),
     saveAnswers: (sessionId: number, data: QuestionAnswerRequest) =>
         api.post<any, ApiResponse<QuestionAnswerResponse>>(`/deep-sessions/${sessionId}/answers`, data),
 

@@ -42,6 +42,8 @@ export type StarSceneProps = {
   isReportOpen: boolean;
   newbornStarId?: string | null;
   externalFocusNonce?: number;
+  onBirthComplete?: () => void;
+  isAnalysisComplete?: boolean;
 };
 
 export const hashSeed = (value: string) => {

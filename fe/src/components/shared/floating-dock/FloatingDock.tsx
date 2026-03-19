@@ -1,11 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../../store/authStore";
 import { useUiStore, selectHasDeepStarThisWeek } from "../../../store/uiStore";
-import { logout } from "../../../services/auth";
 
 export default function FloatingDock() {
-    const navigate = useNavigate();
     const user = useAuthStore((state) => state.user);
     const isDockHidden = useUiStore((state) => state.isDockHidden);
     const isOverlayOpen = useUiStore((state) => state.isOverlayOpen);
@@ -13,27 +10,11 @@ export default function FloatingDock() {
     const setDailyDetailModalOpen = useUiStore((state) => state.setDailyDetailModalOpen);
     const setWeeklyContentModalOpen = useUiStore((state) => state.setWeeklyContentModalOpen);
     const setWeeklyHtpModalOpen = useUiStore((state) => state.setWeeklyHtpModalOpen);
-    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-    const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const setIsMyUniverseOpen = useUiStore((state) => state.setIsMyUniverseOpen);
     const [isCheckingWeekly, setIsCheckingWeekly] = useState(false);
     const glassButtonClass = "inline-flex h-8 sm:h-9 lg:h-10 items-center justify-center rounded-[12px] border border-white/22 bg-white/14 px-2.5 sm:px-3 lg:px-4 text-[11px] sm:text-xs lg:text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.42)] backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-white/24 hover:border-white/45 hover:backdrop-blur-xl hover:shadow-[0_8px_24px_rgba(148,163,184,0.26),inset_0_1px_0_rgba(255,255,255,0.58)]";
 
     const displayName = user?.nickname || user?.name || user?.email?.split("@")[0] || "사용자";
-
-    const handleLogout = async () => {
-        if (isLoggingOut) {
-            return;
-        }
-
-        setIsLoggingOut(true);
-        try {
-            await logout();
-            setIsProfileModalOpen(false);
-            navigate("/");
-        } finally {
-            setIsLoggingOut(false);
-        }
-    };
 
     const hasWeeklyStar = useUiStore(selectHasDeepStarThisWeek);
 
@@ -93,7 +74,7 @@ export default function FloatingDock() {
                 <div className="flex items-center">
                     <button
                         type="button"
-                        onClick={() => setIsProfileModalOpen(true)}
+                        onClick={() => setIsMyUniverseOpen(true)}
                         className="inline-flex h-8 sm:h-9 lg:h-10 max-w-[44vw] sm:max-w-[40vw] lg:max-w-none items-center gap-1.5 sm:gap-2 rounded-[12px] border border-white/22 bg-white/14 px-2.5 sm:px-3 lg:px-4 text-[11px] sm:text-xs lg:text-sm font-semibold text-white cursor-pointer shadow-[inset_0_1px_0_rgba(255,255,255,0.38)] backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-white/24 hover:border-white/45 hover:backdrop-blur-xl hover:shadow-[0_8px_24px_rgba(148,163,184,0.26),inset_0_1px_0_rgba(255,255,255,0.58)]"
                     >
                         <span className="flex h-5.5 w-5.5 sm:h-6 sm:w-6 lg:h-7 lg:w-7 items-center justify-center rounded-full border border-white/20 bg-white/10 text-[11px] font-semibold">
@@ -105,46 +86,7 @@ export default function FloatingDock() {
                 </div>
             </div>
 
-            {isProfileModalOpen && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 px-4" onClick={() => setIsProfileModalOpen(false)}>
-                    <div
-                        className="w-full max-w-sm rounded-[12px] border border-white/10 bg-slate-950/95 p-6 shadow-2xl"
-                        onClick={(event) => event.stopPropagation()}
-                    >
-                        <h2 className="text-lg font-semibold text-white">프로필</h2>
-                        <p className="mt-1 text-sm text-slate-300">{displayName}</p>
-                        <p className="mt-1 text-xs text-slate-400">{user?.email || "이메일을 불러오는 중"}</p>
 
-                        <div className="mt-6 flex justify-end gap-2">
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setIsProfileModalOpen(false);
-                                    navigate("/mypage");
-                                }}
-                                className="rounded-[12px] border border-white/35 bg-white/14 px-4 py-2 text-sm text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-md hover:bg-white/20 transition"
-                            >
-                                마이페이지
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setIsProfileModalOpen(false)}
-                                className="rounded-[12px] border border-white/35 bg-white/14 px-4 py-2 text-sm text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-md hover:bg-white/20 transition"
-                            >
-                                닫기
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleLogout}
-                                disabled={isLoggingOut}
-                                className="rounded-[12px] border border-white/35 bg-white/14 px-4 py-2 text-sm text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] backdrop-blur-md hover:bg-white/20 transition disabled:opacity-60"
-                            >
-                                {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </>
     );
 }
