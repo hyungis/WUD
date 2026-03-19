@@ -303,14 +303,25 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
   const canvasCursor = tool === "fill" ? "crosshair" : tool === "eraser" ? "cell" : "default";
 
   const persistCurrentStepDrawing = useCallback(() => {
-    const dataUrl = canvasRef.current?.toDataURL("image/png");
-    if (!dataUrl) {
-      return;
-    }
+    const originalCanvas = canvasRef.current;
+    if (!originalCanvas) return null;
+
+    const exportCanvas = document.createElement("canvas");
+    exportCanvas.width = 1024;
+    exportCanvas.height = 1024;
+    const exportCtx = exportCanvas.getContext("2d");
+    if (!exportCtx) return null;
+
+    exportCtx.fillStyle = "#ffffff";
+    exportCtx.fillRect(0, 0, 1024, 1024);
+    exportCtx.drawImage(originalCanvas, 0, 0, 1024, 1024);
+
+    const dataUrl = exportCanvas.toDataURL("image/jpeg", 0.6);
     setStepDrawings((current) => ({
       ...current,
       [currentStep.key]: dataUrl,
     }));
+    return dataUrl;
   }, [currentStep.key]);
 
   const uploadDrawingAndCreateImage = useCallback(async (dataUrl: string) => {
@@ -404,11 +415,10 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
       const weekOfMonth = Math.ceil((date.getDate() + new Date(date.getFullYear(), date.getMonth(), 1).getDay()) / 7);
       return `${month}월 ${weekOfMonth}주`;
     };
-    persistCurrentStepDrawing();
-
+    const finalDataUrl = persistCurrentStepDrawing();
     const drawings = {
       ...stepDrawings,
-      [currentStep.key]: canvasRef.current?.toDataURL("image/png") || stepDrawings[currentStep.key],
+      [currentStep.key]: finalDataUrl || stepDrawings[currentStep.key],
     };
 
     if (!drawings.house || !drawings.tree || !drawings.person) {
@@ -425,7 +435,7 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
     const toneLabel = totalStrokes > 180 ? "활력" : totalStrokes > 80 ? "안정" : "여백";
     const toneColor = totalStrokes > 180 ? "#F59E0B" : totalStrokes > 80 ? "#38BDF8" : "#94A3B8";
     const createdAt = new Date();
-    const drawingImage = canvasRef.current?.toDataURL("image/png") ?? null;
+    const drawingImage = finalDataUrl ?? null;
     const nextStar = {
       id: `star-${Date.now()}`,
       createdAt: createdAt.toISOString(),

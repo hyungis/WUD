@@ -23,10 +23,10 @@ const DAILY_FEATURES = [
     enabled: true,
   },
   {
-    id: "pitr",
-    title: "감정 질문",
-    description: "준비중",
-    enabled: false,
+    id: "coloring",
+    title: "명화 색칠하기",
+    description: "명화 위에 자유롭게 색칠하고 AI가 색감 심리를 분석해요.",
+    enabled: true,
   },
   {
     id: "story",
@@ -56,6 +56,7 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
   const isDailyContentModalOpen = useUiStore((state) => state.isDailyContentModalOpen);
   const setDailyContentModalOpen = useUiStore((state) => state.setDailyContentModalOpen);
   const setDailyDetailModalOpen = useUiStore((state) => state.setDailyDetailModalOpen);
+  const setDailyColoringModalOpen = useUiStore((state) => state.setDailyColoringModalOpen);
 
   const handleOpenDailyDetail = async () => {
     if (isCheckingDailyLimit) return;
@@ -135,8 +136,8 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
                     type="button"
                     onClick={() => handleSelectEmotion(emotion)}
                     className={`group relative flex h-full min-h-[90px] flex-col items-center justify-center rounded-2xl border transition-all duration-150 ${selectedEmotion?.label === emotion.label
-                        ? "border-white/25 bg-zinc-800 shadow-lg scale-[1.02]"
-                        : "border-zinc-800/80 bg-zinc-900/60 hover:border-zinc-700 hover:bg-zinc-900"
+                      ? "border-white/25 bg-zinc-800 shadow-lg scale-[1.02]"
+                      : "border-zinc-800/80 bg-zinc-900/60 hover:border-zinc-700 hover:bg-zinc-900"
                       }`}
                   >
                     <div
@@ -192,11 +193,28 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
                         void handleOpenDailyDetail();
                         return;
                       }
+                      if (task.id === "coloring") {
+                        if (selectedEmotion) {
+                          localStorage.setItem("dailyMoodColor", selectedEmotion.color);
+                          localStorage.setItem("dailyMoodValue", String(selectedEmotion.value));
+                          localStorage.setItem("dailyMoodLabel", selectedEmotion.label);
+                        }
+                        setIsLeaving(true);
+                        setTimeout(() => {
+                          if (isDailyContentModalOpen) {
+                            setDailyContentModalOpen(false);
+                            setDailyColoringModalOpen(true);
+                            return;
+                          }
+                          navigate("/daily/coloring");
+                        }, 280);
+                        return;
+                      }
                       navigate(`/daily/${task.id}`);
                     }}
                     className={`group relative flex flex-col items-start rounded-xl border px-4 py-4 text-left transition-all duration-150 ${!task.enabled
-                        ? "cursor-not-allowed border-zinc-800/60 bg-zinc-900/40 opacity-60"
-                        : "border-zinc-800/80 bg-zinc-900/60 hover:border-zinc-700 hover:bg-zinc-900"
+                      ? "cursor-not-allowed border-zinc-800/60 bg-zinc-900/40 opacity-60"
+                      : "border-zinc-800/80 bg-zinc-900/60 hover:border-zinc-700 hover:bg-zinc-900"
                       }`}
                   >
                     <div className="flex w-full items-center justify-between mb-1.5">

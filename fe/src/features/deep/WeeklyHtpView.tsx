@@ -218,7 +218,7 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
       exportCtx.fillStyle = "#ffffff";
       exportCtx.fillRect(0, 0, 1024, 1024);
       exportCtx.drawImage(originalCanvas, 0, 0, 1024, 1024);
-      const dataUrl = exportCanvas.toDataURL("image/png");
+      const dataUrl = exportCanvas.toDataURL("image/jpeg", 0.6);
       setStepDrawings((prev) => ({ ...prev, [currentStep.key]: dataUrl }));
       return dataUrl;
     }

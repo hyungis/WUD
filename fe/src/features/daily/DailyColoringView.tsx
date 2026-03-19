@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCanvasDrawing } from "../../hooks/useCanvasDrawing";
 import type { ToolType } from "../../hooks/useCanvasDrawing";
-import { DailyMandalaCanvas } from "./components/DailyMandalaCanvas";
+import { DailyColoringCanvas } from "./components/DailyColoringCanvas";
 import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntry } from "../../utils/dailyLimit";
 
 /* ── constants ── */
@@ -11,6 +11,8 @@ const PALETTE = [
   "#06B6D4", "#3B82F6", "#6366F1", "#8B5CF6", "#EC4899", "#F43F5E",
 ];
 
+const COLORING_OUTLINE = "/coloring/mona_lisa.png";
+
 /* ── tiny SVG icons ── */
 const BrushIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 19l7-7 3 3-7 7-3-3z" /><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" /><path d="M2 2l7.586 7.586" /></svg>;
 const FillIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M2.5 2.5l19 19" /><path d="M12 2v6.5L17.5 14" /><path d="M19 19c1.5 0 3-1.5 3-3s-3-5-3-5-3 3-3 5 1.5 3 3 3z" /><path d="M2 22l4-4" /><path d="M7.5 13.5L2 19" /></svg>;
@@ -18,7 +20,6 @@ const EraserIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentCol
 const TrashIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>;
 const UndoIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13" /></svg>;
 const RedoIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3l3 2.7" /></svg>;
-const SymmetryIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><circle cx="12" cy="12" r="10" /><line x1="12" y1="2" x2="12" y2="22" /><line x1="2" y1="12" x2="22" y2="12" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /><line x1="4.93" y1="19.07" x2="19.07" y2="4.93" /></svg>;
 
 /* ── toolbar pill button ── */
 function ToolBtn({
@@ -44,24 +45,23 @@ function ToolBtn({
 }
 
 /* ── main page ── */
-type DailyDetailViewProps = {
+type DailyColoringViewProps = {
   isModal?: boolean;
   onClose?: () => void;
   onBackToContent?: () => void;
   onComplete?: () => void;
 };
 
-function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete }: DailyDetailViewProps) {
+function DailyColoringView({ isModal = false, onClose, onBackToContent, onComplete }: DailyColoringViewProps) {
   const navigate = useNavigate();
 
   const [shellColor] = useState(() => localStorage.getItem("dailyMoodColor") || PALETTE[0]);
-  const [paintColor, setPaintColor] = useState(PALETTE[0]);
-  const [brushSize, setBrushSize] = useState(4);
-  const [symmetry, setSymmetry] = useState(8);
+  const [paintColor, setPaintColor] = useState(PALETTE[4]); // 기본 노란색 (모나리자 느낌)
+  const [brushSize, setBrushSize] = useState(6);
   const [tool, setTool] = useState<ToolType>("brush");
   const [activePopup, setActivePopup] = useState<string | null>(null);
 
-  const drawing = useCanvasDrawing({ paintColor, brushSize, tool, symmetry });
+  const drawing = useCanvasDrawing({ paintColor, brushSize, tool, symmetry: 1 });
 
   useEffect(() => {
     let alive = true;
@@ -125,7 +125,7 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
     localStorage.removeItem("dailyDrawingImageId");
     localStorage.setItem("pendingDailyRecord", JSON.stringify({
       shellColor, coreColor: paintColor, objectType: "halo", objectColor: paintColor,
-      mandalaImage: drawingImage, createdAt,
+      mandalaImage: drawingImage, dailyType: "COLORING", createdAt,
     }));
     localStorage.setItem("dailyMoodColor", shellColor);
     handleOpenComplete();
@@ -148,7 +148,7 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
             className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-white/10 hover:text-white">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
           </button>
-          <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">MANDALA</span>
+          <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">명화 색칠하기</span>
         </div>
         <div className="flex items-center gap-2">
           {isModal && (
@@ -217,36 +217,6 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
             )}
           </div>
 
-          {/* 대칭 */}
-          <div className="relative">
-            <ToolBtn active={activePopup === "symmetry"} onClick={() => togglePopup("symmetry")} title="대칭">
-              <SymmetryIcon />
-            </ToolBtn>
-            {activePopup === "symmetry" && (
-              <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-56 bg-zinc-950 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
-                onPointerDown={(e) => e.stopPropagation()}>
-                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-zinc-950 border-l border-b border-white/15" />
-                <div className="flex justify-between items-center mb-2.5 text-xs text-zinc-400">
-                  <span>대칭</span>
-                  <input
-                    type="number" min="2" max="24" step="1"
-                    value={symmetry}
-                    onChange={(e) => {
-                      const v = Math.max(2, Math.min(24, Number(e.target.value) || 2));
-                      setSymmetry(v);
-                    }}
-                    className="w-12 h-6 rounded-md bg-zinc-800 border border-zinc-700 text-center text-white font-bold text-xs appearance-none outline-none focus:border-white/40"
-                  />
-                </div>
-                <input type="range" min="2" max="24" step="1" value={symmetry} onChange={(e) => setSymmetry(Number(e.target.value))}
-                  className="w-full h-2 bg-zinc-700 rounded-full appearance-none cursor-pointer accent-zinc-400" />
-                <div className="mt-1.5 flex justify-between text-[10px] text-zinc-600">
-                  <span>2</span><span>8</span><span>16</span><span>24</span>
-                </div>
-              </div>
-            )}
-          </div>
-
           <div className="w-10 h-px bg-white/10 my-1.5" />
 
           {/* 실행취소 / 다시실행 / 전체삭제 */}
@@ -262,14 +232,14 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
         >
           {/* 가이드 메시지 */}
           <div className="z-10 bg-zinc-900/72 backdrop-blur-md border border-white/12 px-5 py-2.5 rounded-full shadow-xl pointer-events-none text-center shrink-0">
-            <p className="text-sm text-zinc-200">감정을 담아 자유롭게 만다라를 채워보세요</p>
+            <p className="text-sm text-zinc-200">모나리자에 자유롭게 색을 칠해보세요 🎨</p>
           </div>
 
           {/* 캔버스 래퍼 */}
           <div
             className="relative h-[min(88vw,calc(100dvh-180px))] w-[min(88vw,calc(100dvh-180px))] max-h-[760px] max-w-[760px] rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_16px_64px_rgba(0,0,0,0.5)] bg-white shrink-0 mt-2 mx-auto"
           >
-            <DailyMandalaCanvas drawing={drawing} symmetry={symmetry} tool={tool} />
+            <DailyColoringCanvas drawing={drawing} tool={tool} outlineUrl={COLORING_OUTLINE} />
           </div>
         </div>
 
@@ -289,4 +259,4 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
   );
 }
 
-export default DailyDetailView;
+export default DailyColoringView;
