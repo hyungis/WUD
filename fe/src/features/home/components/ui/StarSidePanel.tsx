@@ -311,6 +311,17 @@ export function StarSidePanel({
               {/* ═══ DAILY PLANET ═══ */}
               {isDaily && !reportLoading && !reportError && selectedDailyPlanet && (
                 <>
+                  {/* 그림 이미지 */}
+                  {selectedDailyPlanet.drawingImageUrl && (
+                    <div className="rounded-xl border border-white/[0.12] overflow-hidden">
+                      <img
+                        src={selectedDailyPlanet.drawingImageUrl}
+                        alt="오늘의 그림"
+                        className="w-full object-contain max-h-64 bg-white/5"
+                      />
+                    </div>
+                  )}
+
                   {/* 기록 일시 + 감정 */}
                   <div className="flex items-center gap-3 rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-3">
                     <div className="h-10 w-10 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: selectedDailyPlanet.shell + "22" }}>

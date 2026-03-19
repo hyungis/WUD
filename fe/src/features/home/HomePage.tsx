@@ -431,6 +431,7 @@ function HomePage() {
         shell: detail.emotionColor || prev?.shell,
         core: detail.emotionColor || prev?.core,
         analysisStatus: detail.analysisStatus || prev?.analysisStatus,
+        drawingImageUrl: detail.drawingImageUrl || prev?.drawingImageUrl || "",
         aiSummary,
       }));
     } catch (e) {
