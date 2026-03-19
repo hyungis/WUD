@@ -24,6 +24,7 @@ type UiState = {
   isDailyContentModalOpen: boolean;
   isDailyDetailModalOpen: boolean;
   isDailyCompleteModalOpen: boolean;
+  isDailyColoringModalOpen: boolean;
   isWeeklyContentModalOpen: boolean;
   isWeeklyHtpModalOpen: boolean;
   isWeeklyPirModalOpen: boolean;
@@ -48,6 +49,7 @@ type UiState = {
   setDailyContentModalOpen: (isOpen: boolean) => void;
   setDailyDetailModalOpen: (isOpen: boolean) => void;
   setDailyCompleteModalOpen: (isOpen: boolean) => void;
+  setDailyColoringModalOpen: (isOpen: boolean) => void;
   setWeeklyContentModalOpen: (isOpen: boolean) => void;
   setWeeklyHtpModalOpen: (isOpen: boolean) => void;
   setWeeklyPirModalOpen: (isOpen: boolean) => void;
@@ -77,6 +79,7 @@ export const useUiStore = create<UiState>((set) => ({
   isDailyContentModalOpen: false,
   isDailyDetailModalOpen: false,
   isDailyCompleteModalOpen: false,
+  isDailyColoringModalOpen: false,
   isWeeklyContentModalOpen: false,
   isWeeklyHtpModalOpen: false,
   isWeeklyPirModalOpen: false,
@@ -100,6 +103,7 @@ export const useUiStore = create<UiState>((set) => ({
   setDailyContentModalOpen: (isDailyContentModalOpen) => set({ isDailyContentModalOpen }),
   setDailyDetailModalOpen: (isDailyDetailModalOpen) => set({ isDailyDetailModalOpen }),
   setDailyCompleteModalOpen: (isDailyCompleteModalOpen) => set({ isDailyCompleteModalOpen }),
+  setDailyColoringModalOpen: (isDailyColoringModalOpen) => set({ isDailyColoringModalOpen }),
   setWeeklyContentModalOpen: (isWeeklyContentModalOpen) => set({ isWeeklyContentModalOpen }),
   setWeeklyHtpModalOpen: (isWeeklyHtpModalOpen) => set({ isWeeklyHtpModalOpen }),
   setWeeklyPirModalOpen: (isWeeklyPirModalOpen) => set({ isWeeklyPirModalOpen }),

@@ -219,7 +219,7 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
       exportCtx.fillStyle = "#ffffff";
       exportCtx.fillRect(0, 0, 1024, 1024);
       exportCtx.drawImage(originalCanvas, 0, 0, 1024, 1024);
-      const dataUrl = exportCanvas.toDataURL("image/png");
+      const dataUrl = exportCanvas.toDataURL("image/jpeg", 0.6);
       setStepDrawings((prev) => ({ ...prev, [currentStep.key]: dataUrl }));
       return dataUrl;
     }
@@ -371,8 +371,8 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
       if (isSurveySkipped) {
         // 1. 더미 데이터를 먼저 전송하여 분석 조건을 충족시킴
         await Promise.all([
-          deepApi.submitWho5Assessment(activeSessionId, { answers: [0, 0, 0, 0, 0] }),
-          deepApi.submitSpaneAssessment(activeSessionId, { answers: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] })
+          deepApi.submitWho5Assessment(activeSessionId, { answers: [0, 0, 0, 0, 0], isSkipped: true }),
+          deepApi.submitSpaneAssessment(activeSessionId, { answers: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], isSkipped: true })
         ]);
       }
 

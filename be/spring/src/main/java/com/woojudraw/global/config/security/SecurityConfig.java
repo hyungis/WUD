@@ -9,10 +9,14 @@ import com.woojudraw.global.response.ApiResponse;
 import com.woojudraw.global.security.jwt.JwtAuthenticationFilter;
 import com.woojudraw.global.security.jwt.JwtTokenProvider;
 import com.woojudraw.global.security.jwt.RedisTokenStore;
+import com.woojudraw.global.security.oauth2.CustomOAuth2UserService;
+import com.woojudraw.global.security.oauth2.OAuth2AuthenticationFailureHandler;
+import com.woojudraw.global.security.oauth2.OAuth2AuthenticationSuccessHandler;
 
 import lombok.RequiredArgsConstructor;
 
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -33,38 +37,49 @@ public class SecurityConfig {
 
 	private final JwtTokenProvider jwtTokenProvider;
 	private final RedisTokenStore redisTokenStore;
+	private final CustomOAuth2UserService customOAuth2UserService;
+	private final OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
+	private final OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler;
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
+	@Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}")
+	private String allowedOrigins;
+
 	private static final String[] PERMIT_ALL = {
-		"/health",
-		"/actuator/health",
-		"/swagger-ui/**",
-		"/v3/api-docs/**",
-		"/rabbitmq/**",
-		"/auth/signup",
-		"/auth/login",
-		"/auth/refresh"
+			"/health",
+			"/actuator/health",
+			"/swagger-ui/**",
+			"/v3/api-docs/**",
+			"/rabbitmq/**",
+			"/auth/signup",
+			"/auth/login",
+			"/auth/refresh",
+			"/oauth2/**",
+			"/login/oauth2/**"
 	};
 
 	@Bean
 	public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		http
-			.cors(cors -> cors.configurationSource(corsConfigurationSource()))
-			.csrf(csrf -> csrf.disable())
-			.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-			.formLogin(form -> form.disable())
-			.httpBasic(basic -> basic.disable())
-			.exceptionHandling(ex -> ex
-				.authenticationEntryPoint((request, response, authException) ->
-					writeErrorResponse(response, ResponseCode.LOGIN_REQUIRED))
-				.accessDeniedHandler((request, response, accessDeniedException) ->
-					writeErrorResponse(response, ResponseCode.FORBIDDEN))
-			)
-			.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, redisTokenStore), UsernamePasswordAuthenticationFilter.class)
-			.authorizeHttpRequests(auth -> auth
-				.requestMatchers(PERMIT_ALL).permitAll()
-				.anyRequest().authenticated()
-			);
+				.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+				.csrf(csrf -> csrf.disable())
+				.sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+				.formLogin(form -> form.disable())
+				.httpBasic(basic -> basic.disable())
+				.exceptionHandling(ex -> ex
+						.authenticationEntryPoint((request, response, authException) -> writeErrorResponse(response,
+								ResponseCode.LOGIN_REQUIRED))
+						.accessDeniedHandler((request, response, accessDeniedException) -> writeErrorResponse(response,
+								ResponseCode.FORBIDDEN)))
+				.addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, redisTokenStore),
+						UsernamePasswordAuthenticationFilter.class)
+				.authorizeHttpRequests(auth -> auth
+						.requestMatchers(PERMIT_ALL).permitAll()
+						.anyRequest().authenticated())
+				.oauth2Login(oauth2 -> oauth2
+						.userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
+						.successHandler(oauth2AuthenticationSuccessHandler)
+						.failureHandler(oauth2AuthenticationFailureHandler));
 
 		return http.build();
 	}
@@ -72,8 +87,8 @@ public class SecurityConfig {
 	@Bean
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();
-		// 프론트엔드의 로컬 주소 허용 (필요시 도메인 추가 가능)
-		configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173", "http://127.0.0.1:5173"));
+		// 프론트엔드의 주소 허용 (환경 변수로 관리 가능)
+		configuration.setAllowedOrigins(Arrays.asList(allowedOrigins.split(",")));
 		// 허용할 HTTP 메서드
 		configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
 		// 허용할 HTTP 헤더
@@ -97,7 +112,6 @@ public class SecurityConfig {
 		response.setStatus(responseCode.httpStatus().value());
 		response.setContentType("application/json;charset=UTF-8");
 		response.getWriter().write(
-			objectMapper.writeValueAsString(ApiResponse.fail(responseCode.code(), responseCode.message(), null))
-		);
+				objectMapper.writeValueAsString(ApiResponse.fail(responseCode.code(), responseCode.message(), null)));
 	}
 }

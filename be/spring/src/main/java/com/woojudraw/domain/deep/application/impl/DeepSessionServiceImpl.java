@@ -3,7 +3,6 @@ package com.woojudraw.domain.deep.application.impl;
 import static java.util.stream.Collectors.*;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,9 +11,9 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.woojudraw.domain.constellation.application.ConstellationService;
 import com.woojudraw.domain.deep.api.dto.req.AiAnalyzeReq;
 import com.woojudraw.domain.deep.api.dto.req.CreateDeepSessionReq;
-import com.woojudraw.domain.deep.api.dto.req.HtpImagesAnalyzeReq;
 import com.woojudraw.domain.deep.api.dto.req.SpaneAnalyzeReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitDeepSubmissionsReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitHtpReq;
@@ -71,6 +70,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 	private final DeepAiService deepAiService;
 	private final DeepResultRepository deepResultRepository;
 	private final UserRepository userRepository;
+	private final ConstellationService constellationService;
 
 	@Override
 	public CreateDeepSessionResp createDeepSession(Long userId, CreateDeepSessionReq request) {
@@ -103,6 +103,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 				deepSession,
 				deepSession.getUser(),
 				request.getAnswers(),
+				request.getIsSkipped(),
 				weekStartDate,
 				objectMapper);
 		deepSession.addPsychAssessment(assessment);
@@ -133,6 +134,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 			deepSession,
 			deepSession.getUser(),
 			request.getAnswers(),
+			request.getIsSkipped(),
 			weekStartDate,
 			objectMapper);
 		deepSession.addPsychAssessment(assessment);
@@ -202,6 +204,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 					.who5(
 							Who5AnalyzeReq.builder()
 									.scoreTotal(who5Assessment.getScoreTotal())
+									.isSkipped(who5Assessment.getIsSkipped())
 									.raw(convertWho5Raw(who5Assessment))
 									.build())
 					.spane(
@@ -209,6 +212,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 							.scorePositive(spaneAssessment.getScorePositive())
 							.scoreNegative(spaneAssessment.getScoreNegative())
 							.scoreBalance(spaneAssessment.getScoreBalance())
+							.isSkipped(spaneAssessment.getIsSkipped())
 							.raw(convertSpaneRaw(spaneAssessment)) // 아래 유틸 메서드 필요
 							.build())
 					.images(imageMap)
@@ -279,6 +283,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 				.who5(
 					Who5AnalyzeReq.builder()
 						.scoreTotal(who5Assessment.getScoreTotal())
+						.isSkipped(who5Assessment.getIsSkipped())
 						.raw(convertWho5Raw(who5Assessment))
 						.build())
 				.spane(
@@ -286,6 +291,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 						.scorePositive(spaneAssessment.getScorePositive())
 						.scoreNegative(spaneAssessment.getScoreNegative())
 						.scoreBalance(spaneAssessment.getScoreBalance())
+						.isSkipped(spaneAssessment.getIsSkipped())
 						.raw(convertSpaneRaw(spaneAssessment))
 						.build())
 				.images(imageMap) // 위에서 구성한 범용 Map 주입
@@ -402,6 +408,33 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 					.build();
 			})
 			.toList();
+	}
+
+	@Override
+	public void deleteDeepSession(Long userId, Long sessionId) {
+		DeepSession deepSession = deepSessionRepository.findById(sessionId)
+			.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
+
+		if (!deepSession.isOwnedBy(userId)) {
+			throw new BusinessException(ResponseCode.DEEP_SESSION_ACCESS_DENIED);
+		}
+
+		constellationService.deleteDeepStarIfExists(sessionId);
+		deepResultRepository.findByDeepSession_Id(sessionId)
+			.ifPresent(deepResultRepository::delete);
+
+		List<DeepSubmission> submissions = deepSubmissionRepository.findAllByDeepSession_IdOrderByIdAsc(sessionId);
+		if (!submissions.isEmpty()) {
+			deepSubmissionRepository.deleteAllInBatch(submissions);
+		}
+
+		List<DeepPsychAssessment> psychAssessments = deepPsychAssessmentRepository
+			.findAllByDeepSession_IdOrderByIdAsc(sessionId);
+		if (!psychAssessments.isEmpty()) {
+			deepPsychAssessmentRepository.deleteAllInBatch(psychAssessments);
+		}
+
+		deepSessionRepository.delete(deepSession);
 	}
 
 	private void validateWho5Answers(SubmitWho5Req request) {

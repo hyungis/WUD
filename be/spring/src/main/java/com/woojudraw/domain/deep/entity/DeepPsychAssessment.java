@@ -69,6 +69,9 @@ public class DeepPsychAssessment {
 	@Column(name = "raw")
 	private String raw;
 
+	@Column(name = "is_skipped")
+	private Boolean isSkipped;
+
 	@Column(name = "created_at", nullable = false)
 	private OffsetDateTime createdAt;
 
@@ -83,6 +86,7 @@ public class DeepPsychAssessment {
 		Short scoreBalance,
 		LocalDate weekStartDate,
 		String raw,
+		Boolean isSkipped,
 		OffsetDateTime createdAt
 	) {
 		this.deepSession = deepSession;
@@ -94,6 +98,7 @@ public class DeepPsychAssessment {
 		this.scoreBalance = scoreBalance;
 		this.weekStartDate = weekStartDate;
 		this.raw = raw;
+		this.isSkipped = isSkipped;
 		this.createdAt = createdAt;
 	}
 
@@ -101,6 +106,7 @@ public class DeepPsychAssessment {
 		DeepSession deepSession,
 		User user,
 		List<Integer> answers,
+		Boolean isSkipped,
 		LocalDate weekStartDate,
 		ObjectMapper objectMapper
 	) {
@@ -125,6 +131,7 @@ public class DeepPsychAssessment {
 			.scoreTotal(total)
 			.weekStartDate(weekStartDate)
 			.raw(rawJson)
+			.isSkipped(isSkipped)
 			.createdAt(now)
 			.build();
 	}
@@ -133,6 +140,7 @@ public class DeepPsychAssessment {
 		DeepSession deepSession,
 		User user,
 		List<Integer> answers,
+		Boolean isSkipped,
 		LocalDate weekStartDate,
 		ObjectMapper objectMapper
 	) {
@@ -163,6 +171,7 @@ public class DeepPsychAssessment {
 			.scoreBalance(balance)
 			.weekStartDate(weekStartDate)
 			.raw(rawJson)
+			.isSkipped(isSkipped)
 			.createdAt(now)
 			.build();
 	}

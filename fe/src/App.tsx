@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import LoginPage from "./features/auth/LoginPage";
 import DailyDetailView from "./features/daily/DailyDetailView";
+import DailyColoringView from "./features/daily/DailyColoringView";
 import DailyContentView from "./features/daily/DailyContentView";
 import DailyCompleteView from "./features/daily/DailyCompleteView";
 import WeeklyPage from "./features/weekly/WeeklyPage";
@@ -13,6 +14,7 @@ import WelcomePage from "./features/home/WelcomePage";
 import WeeklyContentView from "./features/deep/WeeklyContentView";
 import WeeklyHtpView from "./features/deep/WeeklyHtpView";
 import WeeklySingleDrawView from "./features/deep/WeeklySingleDrawView";
+import OAuthSuccessPage from "./features/auth/OAuthSuccessPage";
 // import MyPage from "./features/user/MyPage";
 import PrivateRoute from "./routes/PrivateRoute";
 import PublicRoute from "./routes/PublicRoute";
@@ -145,6 +147,14 @@ function App() {
           }
         />
         <Route
+          path="/oauth/success"
+          element={
+            <PublicRoute redirectIfAuthenticated={true}>
+              <OAuthSuccessPage />
+            </PublicRoute>
+          }
+        />
+        <Route
           path="/daily"
           element={
             <PrivateRoute>
@@ -157,6 +167,14 @@ function App() {
           element={
             <PrivateRoute>
               <DailyDetailView />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/daily/coloring"
+          element={
+            <PrivateRoute>
+              <DailyColoringView />
             </PrivateRoute>
           }
         />

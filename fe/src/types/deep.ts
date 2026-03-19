@@ -6,6 +6,7 @@ export interface DeepSessionResponse {
 
 export interface PsyTestRequest {
     answers: number[];
+    isSkipped?: boolean;
 }
 export interface PsyTestResponse {
     assessmentId: number;
@@ -14,6 +15,7 @@ export interface PsyTestResponse {
 
 export interface SpaneTestRequest {
     answers: number[];
+    isSkipped?: boolean;
 }
 
 export interface SpaneTestResponse {

@@ -32,4 +32,6 @@ public interface DeepSessionService {
 	SubmitSpaneResp submitSpane(Long userId, Long sessionId, SubmitSpaneReq request);
 
 	SubmitDeepSubmissionResp submitDeepSubmissions(Long userId, Long sessionId, SubmitDeepSubmissionsReq request);
+
+	void deleteDeepSession(Long userId, Long sessionId);
 }

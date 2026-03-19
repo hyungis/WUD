@@ -11,6 +11,7 @@ type PendingDailyRecord = {
   objectType: "halo" | "shards" | "spark";
   objectColor: string;
   mandalaImage: string | null;
+  dailyType?: "MANDALA" | "COLORING" | string;
   createdAt: string;
 };
 
@@ -243,7 +244,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
       let createRes;
       try {
         createRes = await dailyApi.createDaily({
-          dailyType: "MANDALA",
+          dailyType: (record.dailyType as "MANDALA" | "COLORING") || "MANDALA",
           entryDate,
           content: memo.trim(),
           emotion: resolveEmotionLabel(),
@@ -254,7 +255,8 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
         if (code === "D002") {
           const dailyId = await updateExistingDailyForDate(entryDate);
           setSavedDailyId(dailyId);
-          
+        
+
           addTemporaryStar({
             kind: "DAILY",
             createdAt: new Date().toISOString(),
@@ -426,7 +428,9 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
               )}
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
-              <span className="rounded-full bg-zinc-800 px-3 py-1 text-[11px] font-medium text-zinc-400">만다라</span>
+              <span className="rounded-full bg-zinc-800 px-3 py-1 text-[11px] font-medium text-zinc-400">
+                {record.dailyType === "COLORING" ? "명화색칠" : "만다라"}
+              </span>
               <span className="rounded-full bg-zinc-800 px-3 py-1 text-[11px] font-medium text-zinc-400">
                 {localStorage.getItem("dailyMoodLabel") || "감정"}
               </span>

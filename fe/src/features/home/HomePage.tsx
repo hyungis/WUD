@@ -11,6 +11,7 @@ import { TimelineHUD } from "./components/ui/TimelineHUD";
 import { StarSidePanel } from "./components/ui/StarSidePanel";
 import DailyContentSelector from "../daily/components/DailyContentSelector";
 import DailyDetailView from "../daily/DailyDetailView";
+import DailyColoringView from "../daily/DailyColoringView";
 import DailyCompleteView from "../daily/DailyCompleteView";
 import WeeklyContentView from "../deep/WeeklyContentView";
 import WeeklyHtpView from "../deep/WeeklyHtpView";
@@ -51,6 +52,8 @@ function HomePage() {
   const setDailyDetailModalOpen = useUiStore((state) => state.setDailyDetailModalOpen);
   const isDailyCompleteModalOpen = useUiStore((state) => state.isDailyCompleteModalOpen);
   const setDailyCompleteModalOpen = useUiStore((state) => state.setDailyCompleteModalOpen);
+  const isDailyColoringModalOpen = useUiStore((state) => state.isDailyColoringModalOpen);
+  const setDailyColoringModalOpen = useUiStore((state) => state.setDailyColoringModalOpen);
   const isWeeklyContentModalOpen = useUiStore((state) => state.isWeeklyContentModalOpen);
   const setWeeklyContentModalOpen = useUiStore((state) => state.setWeeklyContentModalOpen);
   const isWeeklyHtpModalOpen = useUiStore((state) => state.isWeeklyHtpModalOpen);
@@ -71,6 +74,7 @@ function HomePage() {
       || isDailyContentModalOpen
       || isDailyDetailModalOpen
       || isDailyCompleteModalOpen
+      || isDailyColoringModalOpen
       || isWeeklyContentModalOpen
       || isWeeklyHtpModalOpen
       || isWeeklyPirModalOpen
@@ -83,6 +87,7 @@ function HomePage() {
     isDailyContentModalOpen,
     isDailyDetailModalOpen,
     isDailyCompleteModalOpen,
+    isDailyColoringModalOpen,
     isWeeklyContentModalOpen,
     isWeeklyHtpModalOpen,
     isWeeklyPirModalOpen,
@@ -595,6 +600,21 @@ function HomePage() {
           onBackToDetail={() => {
             setDailyCompleteModalOpen(false);
             setDailyDetailModalOpen(true);
+          }}
+        />
+      )}
+
+      {isDailyColoringModalOpen && (
+        <DailyColoringView
+          isModal
+          onClose={() => setDailyColoringModalOpen(false)}
+          onBackToContent={() => {
+            setDailyColoringModalOpen(false);
+            setDailyContentModalOpen(true);
+          }}
+          onComplete={() => {
+            setDailyColoringModalOpen(false);
+            setDailyCompleteModalOpen(true);
           }}
         />
       )}
