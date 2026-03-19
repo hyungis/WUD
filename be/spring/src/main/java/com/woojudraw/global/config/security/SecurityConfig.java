@@ -10,6 +10,7 @@ import com.woojudraw.global.security.jwt.JwtAuthenticationFilter;
 import com.woojudraw.global.security.jwt.JwtTokenProvider;
 import com.woojudraw.global.security.jwt.RedisTokenStore;
 import com.woojudraw.global.security.oauth2.CustomOAuth2UserService;
+import com.woojudraw.global.security.oauth2.OAuth2AuthenticationFailureHandler;
 import com.woojudraw.global.security.oauth2.OAuth2AuthenticationSuccessHandler;
 
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,7 @@ public class SecurityConfig {
 	private final RedisTokenStore redisTokenStore;
 	private final CustomOAuth2UserService customOAuth2UserService;
 	private final OAuth2AuthenticationSuccessHandler oauth2AuthenticationSuccessHandler;
+	private final OAuth2AuthenticationFailureHandler oauth2AuthenticationFailureHandler;
 	private final ObjectMapper objectMapper = new ObjectMapper();
 
 	@Value("${app.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}")
@@ -76,7 +78,8 @@ public class SecurityConfig {
 						.anyRequest().authenticated())
 				.oauth2Login(oauth2 -> oauth2
 						.userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
-						.successHandler(oauth2AuthenticationSuccessHandler));
+						.successHandler(oauth2AuthenticationSuccessHandler)
+						.failureHandler(oauth2AuthenticationFailureHandler));
 
 		return http.build();
 	}
