@@ -1,7 +1,0 @@
-.env
-certbot/
-nginx/conf.d/
-nginx/logs/
-
-# monitoring local state
-monitoring/**/data/
