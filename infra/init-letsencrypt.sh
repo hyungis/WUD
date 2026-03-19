@@ -18,6 +18,7 @@ fi
 
 data_path="./certbot"
 staging=0  # 테스트 시 1로 변경 (Let's Encrypt 스테이징 서버 사용)
+enable_monitoring="1" # 1이면 monitoring compose도 함께 기동
 
 echo "=== Let's Encrypt 초기 설정 시작: $DOMAIN ==="
 
@@ -62,7 +63,6 @@ sleep 3
 
 # 5. ACME challenge 경로 테스트
 echo "### ACME challenge 경로 테스트 ..."
-echo "test-ok" > "$data_path/www/.well-known/acme-challenge/test-file"
 mkdir -p "$data_path/www/.well-known/acme-challenge"
 echo "test-ok" > "$data_path/www/.well-known/acme-challenge/test-file"
 TEST_RESULT=$(curl -s http://localhost/.well-known/acme-challenge/test-file)
@@ -117,6 +117,14 @@ server {
 
     client_max_body_size 10M;
 
+    location /grafana/ {
+        proxy_pass http://grafana:3000;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
     location / {
         proxy_pass http://frontend:80;
         proxy_set_header Host \$host;
@@ -139,6 +147,12 @@ NGINXCONF
 # 8. 전체 스택 시작
 echo "### 전체 스택 시작 (HTTPS) ..."
 docker compose up --force-recreate -d
+
+# (선택) 모니터링 스택도 함께 기동
+if [ "$enable_monitoring" = "1" ] && [ -f "./docker-compose.monitoring.yml" ]; then
+  echo "### 모니터링 스택 시작 ..."
+  docker compose -f docker-compose.monitoring.yml up -d
+fi
 
 echo ""
 echo "=== 완료! $DOMAIN HTTPS 설정이 완료되었습니다 ==="

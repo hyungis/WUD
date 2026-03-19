@@ -1,0 +1,26 @@
+groups:
+  - name: container_alerts
+    rules:
+      - alert: ContainerDown
+        expr: absent(container_last_seen{name=~"infra-backend-1|infra-frontend-1|infra-nginx-1"})
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "컨테이너 다운: {{ $labels.name }}"
+
+      - alert: HighCpuUsage
+        expr: rate(container_cpu_usage_seconds_total{name=~"infra-.*"}[5m]) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU 높음: {{ $labels.name }} ({{ $value }}%)"
+
+      - alert: HighMemoryUsage
+        expr: container_memory_usage_bytes{name=~"infra-.*"} / container_spec_memory_limit_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "메모리 높음: {{ $labels.name }}"
