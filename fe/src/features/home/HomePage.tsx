@@ -20,7 +20,8 @@ import WeeklyHtpView from "../deep/WeeklyHtpView";
 // ==========================================
 
 function HomePage() {
-  const [isMyUniverseOpen, setIsMyUniverseOpen] = useState(false);
+  const isMyUniverseOpen = useUiStore((state) => state.isMyUniverseOpen);
+  const setIsMyUniverseOpen = useUiStore((state) => state.setIsMyUniverseOpen);
   const [selectedDeepStar, setSelectedDeepStar] = useState<any>(null);
   const [selectedDailyPlanet, setSelectedDailyPlanet] = useState<DailyPlanet | null>(null);
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
@@ -60,7 +61,8 @@ function HomePage() {
       || isDailyDetailModalOpen
       || isDailyCompleteModalOpen
       || isWeeklyContentModalOpen
-      || isWeeklyHtpModalOpen;
+      || isWeeklyHtpModalOpen
+      || isSidePanelOpen;
     setOverlayOpen(overlayOpen);
     return () => setOverlayOpen(false);
   }, [
@@ -70,6 +72,7 @@ function HomePage() {
     isDailyCompleteModalOpen,
     isWeeklyContentModalOpen,
     isWeeklyHtpModalOpen,
+    isSidePanelOpen,
     setOverlayOpen,
   ]);
 

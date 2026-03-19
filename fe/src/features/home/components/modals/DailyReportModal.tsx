@@ -1,6 +1,12 @@
 import type { DailyPlanet } from "../../utils/homeHelpers";
 import { formatDateTimeKST } from "../../utils/homeHelpers";
 
+const COLOR_TO_EMOTION: Record<string, string> = {
+  "#FFD54F": "기쁨", "#4FC3F7": "평온", "#FF6FAE": "설렘", "#66BB6A": "만족",
+  "#5C6BC0": "슬픔", "#9575CD": "불안", "#EF5350": "분노", "#90A4AE": "지침",
+};
+const emotionFromColor = (hex: string) => COLOR_TO_EMOTION[hex.toUpperCase()] || hex;
+
 interface DailyReportModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -36,12 +42,12 @@ export function DailyReportModal({
     >
       <div
         className="relative mx-4 flex w-full flex-row overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-2xl"
-        style={{ maxWidth: "1280px", height: "85vh", maxHeight: "94vh" }}
+        style={{ maxWidth: "1600px", width: "88vw", height: "92vh", maxHeight: "96vh" }}
       >
         {/* ── 왼쪽: 별 시각화 영역 (1/3) ── */}
         <div
           className="relative flex flex-col items-center justify-center border-r border-white/10 overflow-hidden"
-          style={{ width: "33.333%", flexShrink: 0, background: `radial-gradient(ellipse at center, ${planet.shell}12 0%, transparent 70%)` }}
+          style={{ width: "25%", flexShrink: 0, background: `radial-gradient(ellipse at center, ${planet.shell}12 0%, transparent 70%)` }}
         >
           <div
             className="pointer-events-none absolute rounded-full"
@@ -87,14 +93,8 @@ export function DailyReportModal({
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 24 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, borderRadius: 9999, background: "rgba(255,255,255,0.05)", padding: "6px 12px", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div style={{ width: 12, height: 12, borderRadius: 9999, backgroundColor: planet.shell }} />
-              <span style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace" }}>{planet.shell}</span>
+              <span style={{ fontSize: 10, color: "#94a3b8" }}>{emotionFromColor(planet.shell)}</span>
             </div>
-            {planet.core && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, borderRadius: 9999, background: "rgba(255,255,255,0.05)", padding: "6px 12px", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <div style={{ width: 12, height: 12, borderRadius: 9999, backgroundColor: planet.core }} />
-                <span style={{ fontSize: 10, color: "#94a3b8", fontFamily: "monospace" }}>{planet.core}</span>
-              </div>
-            )}
           </div>
         </div>
 
@@ -140,24 +140,13 @@ export function DailyReportModal({
               </div>
             )}
             <div style={{ borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", padding: 20 }}>
-              <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "#94a3b8", marginBottom: 12 }}>색채 에너지</p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12, borderRadius: 12, background: "rgba(255,255,255,0.05)", padding: 12 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, backgroundColor: planet.shell }} />
-                  <div>
-                    <p style={{ fontSize: 10, textTransform: "uppercase", color: "#64748b" }}>내가 고른 감정</p>
-                    <p style={{ fontSize: 14, color: "#e2e8f0", fontFamily: "monospace" }}>{planet.shell}</p>
-                  </div>
+              <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "#94a3b8", marginBottom: 12 }}>감정 정보</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, borderRadius: 12, background: "rgba(255,255,255,0.05)", padding: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, backgroundColor: planet.shell }} />
+                <div>
+                  <p style={{ fontSize: 10, textTransform: "uppercase", color: "#64748b" }}>내가 고른 감정</p>
+                  <p style={{ fontSize: 14, color: "#e2e8f0", fontWeight: 600 }}>{emotionFromColor(planet.shell)}</p>
                 </div>
-                {planet.core && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, borderRadius: 12, background: "rgba(255,255,255,0.05)", padding: 12 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, backgroundColor: planet.core }} />
-                    <div>
-                      <p style={{ fontSize: 10, textTransform: "uppercase", color: "#64748b" }}>분석된 감정</p>
-                      <p style={{ fontSize: 14, color: "#e2e8f0", fontFamily: "monospace" }}>{planet.core}</p>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
             {planet.objectType && (

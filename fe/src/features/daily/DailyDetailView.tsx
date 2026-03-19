@@ -32,10 +32,10 @@ function ToolBtn({
       onMouseDown={(e) => e.preventDefault()}
       title={title}
       className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-150 shrink-0 ${disabled
-        ? "opacity-30 cursor-not-allowed text-slate-500"
+        ? "opacity-30 cursor-not-allowed text-zinc-600"
         : active
-          ? "bg-cyan-500/90 text-white shadow-md shadow-cyan-500/25 scale-105"
-          : "text-slate-300 hover:bg-white/10 hover:text-white"
+          ? "scale-105 border border-white/30 bg-white/20 text-white shadow-[0_0_18px_rgba(255,255,255,0.16)]"
+          : "border border-transparent bg-white/5 text-zinc-300 hover:border-white/20 hover:bg-white/12 hover:text-white"
         }`}
     >
       {children}
@@ -133,39 +133,40 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
 
   const content = (
     <div
-      className="flex flex-col h-[100dvh] w-full overflow-hidden bg-slate-950 text-slate-100"
+      className={`relative flex w-full flex-col overflow-hidden bg-zinc-950 text-zinc-100 ${isModal ? "h-full" : "h-[100dvh]"}`}
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest('.toolbar-area, .toolbar-popup')) return;
         setActivePopup(null);
       }}
     >
-      {/* ─── 헤더 (컴팩트 1줄) ─── */}
-      <header className="shrink-0 flex items-center justify-between px-4 h-12 border-b border-white/[0.06] z-10">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_55%)]" />
+
+      {/* ─── 헤더 ─── */}
+      <header className="z-10 flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-zinc-950/95 px-4 backdrop-blur-md">
         <div className="flex items-center gap-2.5">
           <button type="button" onClick={handleBackToContent}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition">
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-white/10 hover:text-white">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
           </button>
-          <div className="h-2 w-2 rounded-full" style={{ backgroundColor: shellColor }} />
-          <span className="text-sm font-medium text-slate-300">만다라 그리기</span>
+          <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">MANDALA</span>
         </div>
         <div className="flex items-center gap-2">
           {isModal && (
             <button type="button" onClick={handleClose}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition text-xs">✕</button>
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-white hover:bg-white/10 transition text-xs">✕</button>
           )}
           <button type="button" onClick={exportAndComplete}
-            className="h-8 px-4 rounded-xl bg-cyan-500 text-white text-xs font-semibold shadow-lg shadow-cyan-500/20 hover:bg-cyan-400 transition-colors">
+            className="h-8 rounded-xl border border-white/20 bg-white/15 px-4 text-xs font-semibold text-white transition-colors hover:bg-white/25">
             완료
           </button>
         </div>
       </header>
 
       {/* ─── 메인: 좌 툴바 + 중앙 캔버스 ─── */}
-      <div className="flex flex-1 min-h-0 relative">
+      <div className="flex flex-1 min-h-0 relative z-10">
 
         {/* ─── 좌측 세로 툴바 ─── */}
-        <div className="toolbar-area shrink-0 flex flex-col items-center w-20 py-3 gap-1.5 bg-slate-900/50 border-r border-white/[0.06] z-40 overflow-visible">
+        <div className="toolbar-area z-40 shrink-0 flex w-20 flex-col items-center gap-1.5 overflow-visible border-r border-white/10 bg-zinc-900/95 py-3 backdrop-blur-md">
 
           {/* 도구 */}
           <ToolBtn active={tool === "brush"} onClick={() => { setTool("brush"); setActivePopup(null); }} title="브러시"><BrushIcon /></ToolBtn>
@@ -180,17 +181,17 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
               <div className="h-5 w-5 rounded-full ring-2 ring-white/40" style={{ backgroundColor: paintColor }} />
             </ToolBtn>
             {activePopup === "color" && (
-              <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-[280px] bg-slate-900 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
+              <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-[280px] bg-zinc-950 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
                 onPointerDown={(e) => e.stopPropagation()}>
-                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-slate-900 border-l border-b border-white/15" />
+                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-zinc-950 border-l border-b border-white/15" />
                 <div className="grid grid-cols-6 gap-2.5 mb-3">
                   {PALETTE.map((c) => (
                     <button key={c} onClick={() => setPaintColor(c)}
-                      className={`h-9 w-9 rounded-full transition-all ${paintColor === c ? "scale-110 ring-2 ring-white ring-offset-2 ring-offset-slate-900" : "hover:scale-110 opacity-80 hover:opacity-100"}`}
+                      className={`h-9 w-9 rounded-full transition-all ${paintColor === c ? "scale-110 ring-2 ring-white ring-offset-2 ring-offset-zinc-950" : "hover:scale-110 opacity-80 hover:opacity-100"}`}
                       style={{ backgroundColor: c }} />
                   ))}
                 </div>
-                <label className="flex items-center justify-center w-full h-8 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 cursor-pointer text-xs text-slate-400 transition-colors">
+                <label className="flex h-8 w-full cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-zinc-900/95 text-xs text-zinc-300 transition-colors hover:bg-zinc-800">
                   커스텀 색상
                   <input type="color" value={paintColor} onChange={(e) => setPaintColor(e.target.value)} className="absolute opacity-0 w-0 h-0" />
                 </label>
@@ -204,14 +205,14 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
               <span className="inline-block rounded-full bg-current" style={{ width: Math.max(4, Math.min(brushSize + 2, 12)), height: Math.max(4, Math.min(brushSize + 2, 12)) }} />
             </ToolBtn>
             {activePopup === "size" && (
-              <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-56 bg-slate-900 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
+              <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-56 bg-zinc-950 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
                 onPointerDown={(e) => e.stopPropagation()}>
-                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-slate-900 border-l border-b border-white/15" />
-                <div className="flex justify-between items-center mb-2.5 text-xs text-slate-400">
-                  <span>굵기</span><span className="text-cyan-400 font-bold">{brushSize}px</span>
+                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-zinc-950 border-l border-b border-white/15" />
+                <div className="flex justify-between items-center mb-2.5 text-xs text-zinc-400">
+                  <span>굵기</span><span className="text-zinc-300 font-bold">{brushSize}px</span>
                 </div>
                 <input type="range" min="1" max="30" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))}
-                  className="w-full h-2 bg-slate-700 rounded-full appearance-none cursor-pointer accent-cyan-400" />
+                  className="w-full h-2 bg-zinc-700 rounded-full appearance-none cursor-pointer accent-zinc-400" />
               </div>
             )}
           </div>
@@ -222,10 +223,10 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
               <SymmetryIcon />
             </ToolBtn>
             {activePopup === "symmetry" && (
-              <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-56 bg-slate-900 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
+              <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-56 bg-zinc-950 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
                 onPointerDown={(e) => e.stopPropagation()}>
-                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-slate-900 border-l border-b border-white/15" />
-                <div className="flex justify-between items-center mb-2.5 text-xs text-slate-400">
+                <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-zinc-950 border-l border-b border-white/15" />
+                <div className="flex justify-between items-center mb-2.5 text-xs text-zinc-400">
                   <span>대칭</span>
                   <input
                     type="number" min="2" max="24" step="1"
@@ -234,12 +235,12 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
                       const v = Math.max(2, Math.min(24, Number(e.target.value) || 2));
                       setSymmetry(v);
                     }}
-                    className="w-12 h-6 rounded-md bg-slate-800 border border-white/10 text-center text-indigo-400 font-bold text-xs appearance-none outline-none focus:border-indigo-400"
+                    className="w-12 h-6 rounded-md bg-zinc-800 border border-zinc-700 text-center text-white font-bold text-xs appearance-none outline-none focus:border-white/40"
                   />
                 </div>
                 <input type="range" min="2" max="24" step="1" value={symmetry} onChange={(e) => setSymmetry(Number(e.target.value))}
-                  className="w-full h-2 bg-slate-700 rounded-full appearance-none cursor-pointer accent-indigo-400" />
-                <div className="mt-1.5 flex justify-between text-[10px] text-slate-600">
+                  className="w-full h-2 bg-zinc-700 rounded-full appearance-none cursor-pointer accent-zinc-400" />
+                <div className="mt-1.5 flex justify-between text-[10px] text-zinc-600">
                   <span>2</span><span>8</span><span>16</span><span>24</span>
                 </div>
               </div>
@@ -256,16 +257,17 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
 
         {/* ─── 캔버스 영역 ─── */}
         <div
-          className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden p-4 pb-20"
+          className="flex-1 flex flex-col items-center justify-start min-w-0 min-h-0 overflow-hidden p-3 pt-4 relative"
           onPointerDown={() => setActivePopup(null)}
         >
-          {/*
-            캔버스: 부모 영역 내에서 최대 정사각형.
-            height 기준으로 맞추고 aspect-ratio로 width를 따라가게 함.
-          */}
+          {/* 가이드 메시지 */}
+          <div className="z-10 bg-zinc-900/72 backdrop-blur-md border border-white/12 px-5 py-2.5 rounded-full shadow-xl pointer-events-none text-center shrink-0">
+            <p className="text-sm text-zinc-200">감정을 담아 자유롭게 만다라를 채워보세요</p>
+          </div>
+
+          {/* 캔버스 래퍼 */}
           <div
-            className="relative rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_16px_64px_rgba(0,0,0,0.5)]"
-            style={{ aspectRatio: '1/1', height: '90%', maxHeight: '90%', maxWidth: '90%' }}
+            className="relative h-[min(88vw,calc(100dvh-180px))] w-[min(88vw,calc(100dvh-180px))] max-h-[760px] max-w-[760px] rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_16px_64px_rgba(0,0,0,0.5)] bg-white shrink-0 mt-2 mx-auto"
           >
             <DailyMandalaCanvas drawing={drawing} symmetry={symmetry} tool={tool} />
           </div>
@@ -278,7 +280,7 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
   if (!isModal) return content;
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-4 text-slate-100">
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/78 backdrop-blur-sm px-4 py-4 text-zinc-100">
       <button type="button" aria-label="모달 닫기" onClick={handleClose} className="absolute inset-0 h-full w-full cursor-default" />
       <div className="relative z-10 w-full max-w-6xl h-[94vh] overflow-hidden rounded-3xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.6)]">
         {content}

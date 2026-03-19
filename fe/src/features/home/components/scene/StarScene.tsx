@@ -56,13 +56,13 @@ function createStellatedPolyhedronGeometry(baseRadius = 1, spikeLength = 0.62) {
 const STAR_STELLATED_GEOMETRY = createStellatedPolyhedronGeometry(1, 0.62);
 
 function DeepPlanet({
-  onClick, onOpen, onHover, color, size = 1, glow = 1.1, seed = 0, variant = "star", isSelected = false, freezeMotion = false,
+  onClick, onOpen, onHover, color, size = 1, seed = 0, variant = "star", isSelected = false, freezeMotion = false,
   isNewborn = false,
 }: {
   onClick: () => void;
   onOpen?: () => void;
   onHover?: (data: { isHovered: boolean; x?: number; y?: number }) => void;
-  color: string; size?: number; glow?: number; seed?: number; variant?: "star" | "planet";
+  color: string; size?: number; seed?: number; variant?: "star" | "planet";
   isSelected?: boolean;
   freezeMotion?: boolean;
   isNewborn?: boolean;
@@ -88,7 +88,6 @@ function DeepPlanet({
 
   const isActive = isHovered || isSelected;
   const currentSize = isBirthFinished ? size : size * birthProgress.current;
-  const currentGlow = isBirthFinished ? glow : glow * birthProgress.current;
   const currentEmissiveIntensity = isBirthFinished
     ? (isActive ? (variant === "star" ? 3.0 : 4.0) : (variant === "star" ? 1.4 : 1.8))
     : (10.0 * (1 - birthProgress.current) + 2.0); // 초기에는 아주 밝게 빛남
@@ -124,14 +123,7 @@ function DeepPlanet({
               thickness={0.8}
             />
           </mesh>
-          {/* 외곽 글로우 */}
-          <mesh
-            scale={isActive ? [currentGlow * 1.18, currentGlow * 1.18, currentGlow * 1.18] : [currentGlow * 1.02, currentGlow * 1.02, currentGlow * 1.02]}
-            rotation={[0.16, 0.28, 0.06]}
-          >
-            <octahedronGeometry args={[1, 0]} />
-            <meshBasicMaterial color={color} transparent opacity={isActive ? 0.18 : 0.08} blending={2} depthWrite={false} />
-          </mesh>
+
         </>
       ) : (
         /* ── 심층별: 성형 다면체(stellated polyhedron) ── */
@@ -158,14 +150,7 @@ function DeepPlanet({
               ior={1.5}
             />
           </mesh>
-          {/* 다면체 외곽 후광 */}
-          <mesh
-            geometry={STAR_STELLATED_GEOMETRY}
-            rotation={[0.2, 0.4, 0.08]}
-            scale={isActive ? [currentGlow * 1.22, currentGlow * 1.22, currentGlow * 1.22] : [currentGlow * 1.05, currentGlow * 1.05, currentGlow * 1.05]}
-          >
-            <meshBasicMaterial color={color} transparent opacity={isActive ? 0.18 : 0.08} blending={2} depthWrite={false} />
-          </mesh>
+
           {/* 중심 광원 */}
           <mesh scale={[currentSize * 0.18, currentSize * 0.18, currentSize * 0.18]} position={[currentSize * 0.2, currentSize * 0.2, currentSize * 0.18]}>
             <sphereGeometry args={[1, 20, 20]} />
@@ -896,14 +881,13 @@ export function StarScene({
                 onClick={() => { requestFocus(mypageStar.id); onStarClick(); }}
                 color="#facc15"
                 size={2.4}
-                glow={2.6}
                 seed={999}
                 isSelected={selectedStarId === mypageStar.id}
                 freezeMotion
               />
             ) : (
               <Float speed={1.2} rotationIntensity={0.5} floatIntensity={0.8} floatingRange={[-0.3, 0.3]}>
-                <DeepPlanet onClick={() => { requestFocus(mypageStar.id); onStarClick(); }} color="#facc15" size={2.4} glow={2.6} seed={999} isSelected={selectedStarId === mypageStar.id} />
+                <DeepPlanet onClick={() => { requestFocus(mypageStar.id); onStarClick(); }} color="#facc15" size={2.4} seed={999} isSelected={selectedStarId === mypageStar.id} />
               </Float>
             )}
           </group>
@@ -959,9 +943,6 @@ export function StarScene({
                   size={item.kind === "deep"
                     ? (isReportOpen ? 1.05 : (viewMode === "macro" ? 1.2 : 0.7))
                     : (isReportOpen ? 0.52 : (viewMode === "macro" ? 0.6 : 0.35))}
-                  glow={item.kind === "deep"
-                    ? (isReportOpen ? 1.55 : (viewMode === "macro" ? 1.4 : 0.9))
-                    : (isReportOpen ? 0.78 : (viewMode === "macro" ? 0.7 : 0.45))}
                   isSelected={selectedStarId === item.id}
                   isNewborn={isNewborn}
                   seed={hashSeed(item.id)}
