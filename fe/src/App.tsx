@@ -12,6 +12,7 @@ import HomePage from "./features/home/HomePage";
 import WelcomePage from "./features/home/WelcomePage";
 import WeeklyContentView from "./features/deep/WeeklyContentView";
 import WeeklyHtpView from "./features/deep/WeeklyHtpView";
+import OAuthSuccessPage from "./features/auth/OAuthSuccessPage";
 // import MyPage from "./features/user/MyPage";
 import PrivateRoute from "./routes/PrivateRoute";
 import PublicRoute from "./routes/PublicRoute";
@@ -140,6 +141,14 @@ function App() {
           element={
             <PublicRoute redirectIfAuthenticated={false}>
               <DashboardGate />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/oauth/success"
+          element={
+            <PublicRoute redirectIfAuthenticated={true}>
+              <OAuthSuccessPage />
             </PublicRoute>
           }
         />
