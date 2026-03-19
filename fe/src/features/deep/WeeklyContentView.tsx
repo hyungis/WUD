@@ -163,20 +163,19 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp }: WeeklyConte
                             type="button"
                             disabled={!task.available}
                             onClick={() => task.available && setSelected(task.type)}
-                            className={`group relative flex flex-col items-start rounded-2xl border px-5 py-5 text-left transition-all duration-150 ${
-                                !task.available
+                            className={`group relative flex flex-col items-start rounded-2xl border px-5 py-5 text-left transition-all duration-150 ${!task.available
                                     ? "cursor-not-allowed border-zinc-800/60 bg-zinc-900/40 opacity-60"
                                     : selected === task.type
                                         ? "border-white/25 bg-zinc-800 shadow-lg"
                                         : "border-zinc-800/80 bg-zinc-900/60 hover:border-zinc-700 hover:bg-zinc-900"
-                            }`}
+                                }`}
                         >
                             <div className="flex w-full items-center justify-between">
                                 <span className="text-lg font-bold text-white">{task.title}</span>
                                 {task.available
                                     ? <span className="flex h-4 w-4 items-center justify-center rounded-full border-2 border-zinc-600">
                                         {selected === task.type && <span className="h-2 w-2 rounded-full bg-white" />}
-                                      </span>
+                                    </span>
                                     : <span className="rounded-full bg-zinc-800 px-2.5 py-0.5 text-[10px] font-medium text-zinc-600">SOON</span>
                                 }
                             </div>
