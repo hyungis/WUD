@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { starApi } from "../../api/star";
 import { dailyApi } from "../../api/daily";
 import { deepApi } from "../../api/deep";
-
 import type { DailyPlanet, DeepStar } from "./utils/homeHelpers";
-import { getWeekKey, colorFromId, normalizeDeepReportText } from "./utils/homeHelpers";
+import { getWeekKey, normalizeDeepReportText } from "./utils/homeHelpers";
 import { StarScene } from "./components/scene/StarScene";
 import { useUiStore } from "../../store/uiStore";
 
@@ -17,26 +15,6 @@ import DailyCompleteView from "../daily/DailyCompleteView";
 import WeeklyContentView from "../deep/WeeklyContentView";
 import WeeklyHtpView from "../deep/WeeklyHtpView";
 
-type HomeStar = {
-  id: string;
-  targetId?: number;
-  constellationId?: number;
-  kind: "DAILY" | "DEEP";
-  createdAt: string;
-  weekStartDate?: string;
-  color: string;
-};
-
-type TimelineItem = {
-  id: string;
-  kind: string;
-  color: string;
-  label: string;
-  weekKey: string;
-  createdAt: string;
-  original: HomeStar;
-};
-
 // ==========================================
 // 5. 메인 페이지 (UI)
 // ==========================================
@@ -48,11 +26,17 @@ function HomePage() {
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
-  const [selectedStarId, setSelectedStarId] = useState<string | null>(null);
+  const stars = useUiStore((state) => state.stars);
+  const fetchStarMap = useUiStore((state) => state.fetchStarMap);
+  const selectedStarId = useUiStore((state) => state.selectedStarId);
+  const setSelectedStarId = useUiStore((state) => state.setSelectedStarId);
+  const newbornStarId = useUiStore((state) => state.newbornStarId);
+  const setNewbornStarId = useUiStore((state) => state.setNewbornStarId);
   const [selectedWeekKey, setSelectedWeekKey] = useState<string | null>(null);
   const [hoveredPlanet, setHoveredPlanet] = useState<{ id: string; x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [isTimelineOpen, setIsTimelineOpen] = useState(true);
+  const [timelineFocusNonce, setTimelineFocusNonce] = useState(0);
   const setDockHidden = useUiStore((state) => state.setDockHidden);
   const setOverlayOpen = useUiStore((state) => state.setOverlayOpen);
   const isDailyContentModalOpen = useUiStore((state) => state.isDailyContentModalOpen);
@@ -107,94 +91,50 @@ function HomePage() {
     label: "나의 중심",
   }), []);
 
-  const [stars, setStars] = useState<HomeStar[]>([]);
-  const [timelineItems, setTimelineItems] = useState<TimelineItem[]>([]);
-
-  const applyStarsToState = (fetchedStars: HomeStar[]) => {
-    setStars(fetchedStars);
-
-    const grouped = fetchedStars.map((s) => ({
+  const timelineItems = useMemo(() => {
+    return stars.map((s) => ({
       id: s.id,
       kind: (s.kind || "daily").toLowerCase(),
       color: s.color,
-      label: s.kind === "DAILY" ? "데일리 행성" : "위클리 별",
+      label: s.kind === "DAILY" ? "DAILY PLANET" : "WEEKLY PLANET",
       weekKey: s.weekStartDate ? getWeekKey(new Date(s.weekStartDate)) : getWeekKey(new Date(s.createdAt)),
       createdAt: s.createdAt,
       original: s,
     }));
-    setTimelineItems(grouped);
-  };
-
-  const fetchStars = async () => {
-    const res = await starApi.getStarMap();
-    if (!res.success) {
-      throw new Error("star map API returned success=false");
-    }
-
-    const payload = res.data as any;
-    const rawStars = Array.isArray(payload?.stars)
-      ? payload.stars
-      : Array.isArray(payload)
-        ? payload
-        : Array.isArray((payload as any)?.data?.stars)
-          ? (payload as any).data.stars
-          : [];
-
-    const fetchedStars: HomeStar[] = rawStars.map((s: any) => {
-      const id = String(s.starId ?? s.id ?? s.targetId ?? "");
-      const kindRaw = String(s.kind ?? s.starKind ?? s.type ?? "DAILY").toUpperCase();
-      const kind = (kindRaw === "DEEP" || kindRaw === "HTP" || kindRaw.includes("DEEP") ? "DEEP" : "DAILY") as "DAILY" | "DEEP";
-      const createdAtRaw = s.createdAt ?? s.created_at ?? s.timestamp ?? s.weekStartDate;
-      const createdAt = createdAtRaw ? String(createdAtRaw) : new Date().toISOString();
-      const weekStartDate = s.weekStartDate ?? s.week_start_date;
-      const targetId = typeof s.targetId === "number" ? s.targetId : Number(s.targetId);
-      const constellationId = typeof s.constellationId === "number" ? s.constellationId : Number(s.constellationId);
-      return {
-        id,
-        targetId: Number.isNaN(targetId) ? undefined : targetId,
-        constellationId: Number.isNaN(constellationId) ? undefined : constellationId,
-        kind,
-        createdAt,
-        weekStartDate,
-        color: s.starColor || colorFromId(id, kind),
-      } as HomeStar;
-    }).filter((s: HomeStar) => s.id);
-
-    applyStarsToState(fetchedStars);
-  };
-
-  const refreshStarsAfterDailySave = () => {
-    // Daily star is created when AI result is consumed, so refresh a few times.
-    const delays = [0, 4000, 9000, 15000];
-    delays.forEach((delay) => {
-      window.setTimeout(() => {
-        void fetchStars().catch((e) => {
-          console.error("refresh star map fail:", e);
-        });
-      }, delay);
-    });
-  };
-
-  const refreshStarsAfterWeeklySave = () => {
-    // Weekly star is created asynchronously after AI processing, so keep longer retries.
-    const delays = [0, 4000, 9000, 15000, 25000];
-    delays.forEach((delay) => {
-      window.setTimeout(() => {
-        void fetchStars().catch((e) => {
-          console.error("refresh weekly star map fail:", e);
-        });
-      }, delay);
-    });
-  };
+  }, [stars]);
 
   // 컴포넌트 로드 시 지도(별) 조회
   useEffect(() => {
-    void fetchStars().catch((e) => {
+    void fetchStarMap().catch((e) => {
       console.error("fetch star map fail:", e);
-      setStars([]);
-      setTimelineItems([]);
     });
-  }, []);
+  }, [fetchStarMap]);
+
+  // localStorage 캐시 없이도 새로고침 시 최신 상태를 유지하기 위해 주기적으로 서버에서 재조회한다.
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void fetchStarMap().catch((e) => {
+        console.error("periodic fetch star map fail:", e);
+      });
+    }, 8000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [fetchStarMap]);
+
+  // 새로운 별이 생성되었을 때 자동 선택 및 애니메이션 처리
+  useEffect(() => {
+    if (newbornStarId) {
+      setSelectedStarId(newbornStarId);
+      
+      // 애니메이션이 어느 정도 진행된 후(예: 4초) newborn 상태 해제
+      const timer = setTimeout(() => {
+        setNewbornStarId(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [newbornStarId, setSelectedStarId, setNewbornStarId]);
 
   const dailyPlanets = useMemo(
     () => stars
@@ -206,7 +146,8 @@ function HomePage() {
         core: s.color,
         memo: "",
         createdAt: s.createdAt,
-      })) as (DailyPlanet & { targetId?: number; aiSummary?: string })[],
+        isTemporary: s.isTemporary,
+      })),
     [stars],
   );
 
@@ -216,11 +157,13 @@ function HomePage() {
       .map((s) => ({
         id: s.id,
         targetId: s.targetId,
+        constellationId: s.constellationId,
         toneColor: s.color,
         createdAt: s.createdAt,
         weekKey: s.weekStartDate ? getWeekKey(new Date(s.weekStartDate)) : getWeekKey(new Date(s.createdAt)),
-        label: "위클리 별",
-      })) as (DeepStar & { targetId?: number; aiSummary?: string; questions?: string[] })[],
+        label: s.isTemporary ? "분석 중..." : "위클리 별",
+        isTemporary: s.isTemporary,
+      })),
     [stars],
   );
 
@@ -269,18 +212,117 @@ function HomePage() {
       return;
     }
 
+    const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+    const extractDailyAiSummary = (detail: any) => {
+      const pickTextFromObject = (obj: any): string => {
+        if (!obj || typeof obj !== "object") return "";
+        const candidate = obj.analysis || obj.resultSummary || obj.result || obj.summary || obj.report || "";
+        return typeof candidate === "string" ? candidate : "";
+      };
+
+      const normalizeCandidate = (value: any): string => {
+        if (value && typeof value === "object") {
+          const objectText = pickTextFromObject(value);
+          return objectText ? objectText.trim() : "";
+        }
+
+        if (typeof value !== "string") return "";
+
+        const trimmed = value
+          .replace(/^```(?:json)?\s*/i, "")
+          .replace(/\s*```$/, "")
+          .trim();
+        if (!trimmed) return "";
+
+        const tryParse = (text: string): string => {
+          try {
+            const parsed = JSON.parse(text);
+            const parsedText = pickTextFromObject(parsed);
+            return parsedText ? parsedText.trim() : "";
+          } catch {
+            return "";
+          }
+        };
+
+        if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+          const fullParsed = tryParse(trimmed);
+          if (fullParsed) return fullParsed;
+        }
+
+        const firstBrace = trimmed.indexOf("{");
+        const lastBrace = trimmed.lastIndexOf("}");
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+          const embedded = trimmed.slice(firstBrace, lastBrace + 1);
+          const embeddedParsed = tryParse(embedded);
+          if (embeddedParsed) return embeddedParsed;
+        }
+
+        const analysisMatch = trimmed.match(/"analysis"\s*:\s*"([\s\S]*?)"/i);
+        if (analysisMatch?.[1]) {
+          try {
+            return JSON.parse(`"${analysisMatch[1].replace(/"/g, '\\"')}"`).trim();
+          } catch {
+            return analysisMatch[1].trim();
+          }
+        }
+
+        return trimmed;
+      };
+
+      const parseRaw = (raw: any) => {
+        if (!raw) return null;
+        if (typeof raw === "string") {
+          try {
+            return JSON.parse(raw);
+          } catch {
+            return null;
+          }
+        }
+        return raw;
+      };
+
+      const raw = parseRaw(detail?.analysisRaw ?? detail?.aiResult?.raw);
+
+      return normalizeDeepReportText(
+        normalizeCandidate(detail?.analysisResult)
+        || normalizeCandidate(detail?.aiResult?.result)
+        || normalizeCandidate(detail?.aiResult?.resultSummary)
+        || normalizeCandidate(raw?.resultSummary)
+        || normalizeCandidate(raw?.result)
+        || normalizeCandidate(raw?.summary)
+        || normalizeCandidate(raw?.analysis)
+        || normalizeCandidate(raw?.report)
+        || pickTextFromObject(raw)
+        || "",
+      );
+    };
+
     setReportLoading(true);
     try {
-      const res = await dailyApi.getDailyDetail(dailyId);
-      if (!res.success || !res.data) throw new Error("daily detail API returned success=false");
+      // AI 결과 저장 직후 열었을 때를 고려해 짧게 재시도하여 요약 연결률을 높인다.
+      let detail: any = null;
+      let aiSummary = "";
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        const res = await dailyApi.getDailyDetail(dailyId);
+        if (!res.success || !res.data) throw new Error("daily detail API returned success=false");
 
-      const detail = res.data;
+        detail = res.data;
+        aiSummary = extractDailyAiSummary(detail);
+        if (aiSummary) break;
+
+        if (attempt < 3) {
+          await sleep(1200);
+        }
+      }
+
+      if (!detail) throw new Error("daily detail is empty");
       setSelectedDailyPlanet((prev: any) => ({
         ...prev,
         memo: detail.content || prev?.memo || "",
         shell: detail.emotionColor || prev?.shell,
         core: detail.emotionColor || prev?.core,
-        aiSummary: detail.aiResult?.result || "",
+        analysisStatus: detail.analysisStatus || prev?.analysisStatus,
+        aiSummary,
       }));
     } catch (e) {
       console.error("fetch daily detail fail:", e);
@@ -305,7 +347,7 @@ function HomePage() {
     if (!selectedStarId && mypageStar) {
       setSelectedStarId(mypageStar.id);
     }
-  }, [selectedStarId, mypageStar]);
+  }, [selectedStarId, mypageStar, setSelectedStarId]);
 
   // selectedStarId가 변경될 때 해당 아이템의 weekKey를 찾아 selectedWeekKey 업데이트
   useEffect(() => {
@@ -321,25 +363,34 @@ function HomePage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-black text-slate-100 animate-[fadeIn_0.6s_ease-out]">
-      <StarScene
-        dailyPlanets={dailyPlanets} deepStars={deepStars} mypageStar={mypageStar}
-        isReportOpen={isSidePanelOpen}
-        onViewModeChange={setViewMode} onStarSelect={setSelectedStarId}
-        hoveredStarId={hoveredPlanet?.id || null}
-        selectedWeekKey={selectedWeekKey}
-        onStarClick={() => setIsMyUniverseOpen(true)}
-        onDeepStarClick={(star) => void openDeepReport(star as any)}
-        onPlanetClick={(p) => void openDailyReport(p as any)}
-        onStarHover={(d) => {
-          if (d.id) {
-            if (hoverClearTimerRef.current) window.clearTimeout(hoverClearTimerRef.current);
-            setHoveredPlanet({ id: d.id, x: d.x!, y: d.y! });
-          } else {
-            hoverClearTimerRef.current = window.setTimeout(() => { if (!isTooltipHoverRef.current) setHoveredPlanet(null); }, 200);
-          }
-        }}
-        selectedStarId={selectedStarId}
-      />
+      <div className="absolute inset-0 z-0">
+        <StarScene
+          dailyPlanets={dailyPlanets}
+          deepStars={deepStars}
+          mypageStar={mypageStar}
+          onStarClick={() => setIsMyUniverseOpen(true)}
+          onDeepStarClick={(star) => void openDeepReport(star as any)}
+          onPlanetClick={(p) => void openDailyReport(p as any)}
+          onStarSelect={setSelectedStarId}
+          selectedStarId={selectedStarId}
+          hoveredStarId={hoveredPlanet?.id || null}
+          selectedWeekKey={selectedWeekKey}
+          onStarHover={(d) => {
+            if (d.id) {
+              if (hoverClearTimerRef.current) window.clearTimeout(hoverClearTimerRef.current);
+              setHoveredPlanet({ id: d.id, x: d.x ?? 0, y: d.y ?? 0 });
+            } else {
+              hoverClearTimerRef.current = window.setTimeout(() => {
+                if (!isTooltipHoverRef.current) setHoveredPlanet(null);
+              }, 200);
+            }
+          }}
+          onViewModeChange={setViewMode}
+          isReportOpen={isSidePanelOpen}
+          newbornStarId={newbornStarId}
+          externalFocusNonce={timelineFocusNonce}
+        />
+      </div>
 
       {!isMacro && hoveredPlanetMeta && hoveredPlanet && (
         <div
@@ -350,8 +401,8 @@ function HomePage() {
         >
           <div className="flex items-center justify-between font-medium">
             <span className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: hoveredPlanetMeta.color }} />
-              {hoveredPlanetMeta.label}
+              <span className={`h-2 w-2 rounded-full ${hoveredPlanetMeta.original.isTemporary ? "animate-pulse" : ""}`} style={{ backgroundColor: hoveredPlanetMeta.color }} />
+              {hoveredPlanetMeta.original.isTemporary ? "분석 중..." : hoveredPlanetMeta.label}
             </span>
           </div>
         </div>
@@ -367,6 +418,7 @@ function HomePage() {
         selectedStarId={selectedStarId}
         selectedWeekKey={selectedWeekKey}
         onItemClick={(id) => {
+          setTimelineFocusNonce((prev) => prev + 1);
           if (id === mypageStar.id) {
             setSelectedStarId(id);
             return;
@@ -423,7 +475,7 @@ function HomePage() {
         <DailyCompleteView
           isModal
           onClose={() => setDailyCompleteModalOpen(false)}
-          onSaved={refreshStarsAfterDailySave}
+          onSaved={() => {}} // Store에서 직접 처리하므로 비워둠 (혹은 refreshStarsAfterSave는 호출부에서 함)
           onBackToDetail={() => {
             setDailyCompleteModalOpen(false);
             setDailyDetailModalOpen(true);
@@ -446,7 +498,7 @@ function HomePage() {
         <WeeklyHtpView
           isModal
           onClose={() => setWeeklyHtpModalOpen(false)}
-          onSaved={refreshStarsAfterWeeklySave}
+          onSaved={() => {}}
           onBackToWeeklyContent={() => {
             setWeeklyHtpModalOpen(false);
             setWeeklyContentModalOpen(true);

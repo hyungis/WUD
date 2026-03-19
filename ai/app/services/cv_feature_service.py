@@ -127,6 +127,178 @@ def extract_global_features(image_path: str) -> dict[str, Any]:
         return default
 
 
+def extract_stroke_features(image_path: str) -> dict[str, Any]:
+    """Distance-transform 기반 필압·선질 정량화."""
+    default: dict[str, Any] = {
+        "meanStrokeWidth": 0.0,
+        "strokeWidthStd": 0.0,
+        "strokeWidthLevel": "unknown",
+        "pressureConsistency": "unknown",
+        "overdrawRatio": 0.0,
+    }
+    try:
+        img = cv2.imread(image_path)
+        if img is None:
+            return default
+        h, w = img.shape[:2]
+        if h == 0 or w == 0:
+            return default
+
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        _, thresh = cv2.threshold(
+            blurred, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU,
+        )
+
+        if np.sum(thresh > 0) < 100:
+            thresh = cv2.adaptiveThreshold(
+                blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY_INV, 11, 2,
+            )
+
+        dist = cv2.distanceTransform(thresh, cv2.DIST_L2, 5)
+
+        kernel_3 = np.ones((3, 3), np.uint8)
+        dilated_dist = cv2.dilate(dist, kernel_3)
+        ridge_mask = (dist == dilated_dist) & (dist > 0)
+        ridge_values = dist[ridge_mask]
+
+        if len(ridge_values) < 10:
+            return default
+
+        stroke_widths = ridge_values * 2.0
+        mean_sw = float(np.mean(stroke_widths))
+        std_sw = float(np.std(stroke_widths))
+
+        diag = float(np.sqrt(w ** 2 + h ** 2))
+        norm = mean_sw / diag if diag > 0 else 0
+
+        if norm < 0.003:
+            sw_level = "thin"
+        elif norm < 0.008:
+            sw_level = "medium"
+        else:
+            sw_level = "thick"
+
+        cv_coeff = std_sw / mean_sw if mean_sw > 0 else 0
+        if cv_coeff < 0.3:
+            consistency = "consistent"
+        elif cv_coeff < 0.6:
+            consistency = "moderate"
+        else:
+            consistency = "inconsistent"
+
+        median_sw = float(np.median(stroke_widths))
+        if median_sw > 0:
+            od_count = int(np.sum(stroke_widths > median_sw * 2.5))
+            overdraw_ratio = od_count / len(stroke_widths)
+        else:
+            overdraw_ratio = 0.0
+
+        return {
+            "meanStrokeWidth": round(mean_sw, 2),
+            "strokeWidthStd": round(std_sw, 2),
+            "strokeWidthLevel": sw_level,
+            "pressureConsistency": consistency,
+            "overdrawRatio": round(overdraw_ratio, 4),
+        }
+    except Exception as e:
+        print(f"[CV] extract_stroke_features error: {e}")
+        return default
+
+
+_HUE_BINS: list[tuple[str, tuple[tuple[int, int], ...]]] = [
+    ("red", ((0, 10), (170, 180))),
+    ("orange", ((10, 25),)),
+    ("yellow", ((25, 35),)),
+    ("green", ((35, 85),)),
+    ("cyan", ((85, 100),)),
+    ("blue", ((100, 130),)),
+    ("purple", ((130, 155),)),
+    ("pink", ((155, 170),)),
+]
+
+_WARM_HUES = {"red", "orange", "yellow", "pink"}
+_COOL_HUES = {"blue", "cyan", "purple", "green"}
+
+
+def extract_color_features(image_path: str) -> dict[str, Any]:
+    """HSV 히스토그램 기반 색상 분석."""
+    default: dict[str, Any] = {
+        "isMonochrome": True,
+        "dominantColors": [],
+        "colorCount": 0,
+        "warmCoolBalance": "neutral",
+    }
+    try:
+        img = cv2.imread(image_path)
+        if img is None:
+            return default
+        h, w = img.shape[:2]
+        if h == 0 or w == 0:
+            return default
+
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        sat = hsv[:, :, 1]
+        val = hsv[:, :, 2]
+
+        ink_mask = (val < 240) & (val > 20)
+        ink_total = int(np.sum(ink_mask))
+        if ink_total < 100:
+            return default
+
+        chromatic_ratio = float(np.sum(sat[ink_mask] > 40) / ink_total)
+        if chromatic_ratio < 0.15:
+            return default
+
+        colored_mask = ink_mask & (sat > 40)
+        colored_hues = hsv[:, :, 0][colored_mask]
+        total_colored = len(colored_hues)
+        if total_colored < 50:
+            return default
+
+        color_counts: dict[str, int] = {}
+        for name, ranges in _HUE_BINS:
+            cnt = 0
+            for lo, hi in ranges:
+                cnt += int(np.sum((colored_hues >= lo) & (colored_hues < hi)))
+            if cnt > 0:
+                color_counts[name] = cnt
+
+        sorted_colors = sorted(
+            color_counts.items(), key=lambda x: x[1], reverse=True,
+        )
+        dominant = [
+            {"name": name, "ratio": round(cnt / total_colored, 3)}
+            for name, cnt in sorted_colors
+            if cnt / total_colored > 0.05
+        ][:5]
+
+        warm_sum = sum(color_counts.get(n, 0) for n in _WARM_HUES)
+        cool_sum = sum(color_counts.get(n, 0) for n in _COOL_HUES)
+        total_wc = warm_sum + cool_sum
+        if total_wc > 0:
+            warm_frac = warm_sum / total_wc
+            if warm_frac > 0.6:
+                wc = "warm"
+            elif warm_frac < 0.4:
+                wc = "cool"
+            else:
+                wc = "balanced"
+        else:
+            wc = "neutral"
+
+        return {
+            "isMonochrome": False,
+            "dominantColors": dominant,
+            "colorCount": len(dominant),
+            "warmCoolBalance": wc,
+        }
+    except Exception as e:
+        print(f"[CV] extract_color_features error: {e}")
+        return default
+
+
 def build_object_features(
     detections: list[dict[str, Any]],
     img_width: int,
@@ -331,10 +503,15 @@ def extract_features(
             global_features, object_features, image_type
         )
 
+        stroke_features = extract_stroke_features(image_path)
+        color_features = extract_color_features(image_path)
+
         return {
             "globalFeatures": global_features,
             "objectFeatures": object_features,
             "interpretableFeatures": interpretable,
+            "strokeFeatures": stroke_features,
+            "colorFeatures": color_features,
         }
     except Exception as e:
         print(f"[CV] extract_features error: {e}")
@@ -342,6 +519,8 @@ def extract_features(
             "globalFeatures": {},
             "objectFeatures": {"detections": []},
             "interpretableFeatures": {},
+            "strokeFeatures": {},
+            "colorFeatures": {},
         }
 
 
@@ -358,3 +537,83 @@ def cv_features_to_json_safe(obj: dict[str, Any]) -> str:
             return [to_serializable(v) for v in x]
         return x
     return json.dumps(to_serializable(obj), ensure_ascii=False)
+
+
+def extract_cross_image_features(
+    per_image_features: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """house/tree/person 세 그림 간 비교 feature 추출."""
+    keys = ["house", "tree", "person"]
+    gf = {k: per_image_features.get(k, {}).get("globalFeatures", {}) for k in keys}
+    sf = {k: per_image_features.get(k, {}).get("strokeFeatures", {}) for k in keys}
+
+    size_ratios = {k: float(gf[k].get("drawingAreaRatio", 0)) for k in keys}
+    ink_ratios = {k: float(gf[k].get("inkPixelRatio", 0)) for k in keys}
+    cc_counts = {k: int(gf[k].get("connectedComponentsCount", 0)) for k in keys}
+
+    def _ranked(d: dict) -> list[tuple]:
+        return sorted(d.items(), key=lambda x: x[1], reverse=True)
+
+    size_ranked = _ranked(size_ratios)
+    ink_ranked = _ranked(ink_ratios)
+    cc_ranked = _ranked(cc_counts)
+
+    max_size = max(size_ratios.values()) or 1.0
+    relative_sizes = {
+        k: round(v / max_size, 3) if max_size > 0 else 0.0
+        for k, v in size_ratios.items()
+    }
+
+    size_levels = {k: gf[k].get("drawingSizeLevel", "unknown") for k in keys}
+    stroke_levels = {k: sf[k].get("strokeWidthLevel", "unknown") for k in keys}
+
+    unique_sizes = set(size_levels.values()) - {"unknown"}
+    unique_strokes = set(stroke_levels.values()) - {"unknown"}
+    size_ok = len(unique_sizes) <= 1
+    stroke_ok = len(unique_strokes) <= 1
+
+    if size_ok and stroke_ok:
+        consistency = "high"
+    elif size_ok or stroke_ok:
+        consistency = "moderate"
+    else:
+        consistency = "low"
+
+    ink_vals = [ink_ratios[k] for k in keys]
+    if all(v > 0 for v in ink_vals):
+        if ink_vals[0] < ink_vals[1] < ink_vals[2]:
+            trend = "increasing"
+        elif ink_vals[0] > ink_vals[1] > ink_vals[2]:
+            trend = "decreasing"
+        else:
+            trend = "fluctuating"
+    else:
+        trend = "unknown"
+
+    return {
+        "sizeComparison": {
+            "absolute": {k: round(v, 4) for k, v in size_ratios.items()},
+            "relativeToLargest": relative_sizes,
+            "largest": size_ranked[0][0] if size_ranked else "unknown",
+            "smallest": size_ranked[-1][0] if size_ranked else "unknown",
+        },
+        "inkDensity": {
+            "ratios": {k: round(v, 4) for k, v in ink_ratios.items()},
+            "densest": ink_ranked[0][0] if ink_ranked else "unknown",
+            "lightest": ink_ranked[-1][0] if ink_ranked else "unknown",
+        },
+        "detailLevel": {
+            "componentCounts": cc_counts,
+            "mostDetailed": cc_ranked[0][0] if cc_ranked else "unknown",
+            "leastDetailed": cc_ranked[-1][0] if cc_ranked else "unknown",
+        },
+        "styleConsistency": {
+            "sizeLevels": size_levels,
+            "strokeLevels": stroke_levels,
+            "overall": consistency,
+        },
+        "energyProgression": {
+            "order": "house → tree → person",
+            "inkTrend": trend,
+        },
+    }

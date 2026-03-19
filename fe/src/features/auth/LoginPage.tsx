@@ -6,7 +6,7 @@ import Input from "../../components/shared/Input";
 import LoginStarScene from "../../components/shared/LoginStarScene";
 import { useAuthStore } from "../../store/authStore";
 
-const MOCK_AUTH_STORAGE_KEY = "wud.mockAuth";
+const NICKNAME_MAX_LENGTH = 20;
 
 export default function LoginPage() {
   const [isSignup, setIsSignup] = useState(false);
@@ -21,8 +21,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
 
   const googleAuthUrl = import.meta.env.VITE_GOOGLE_AUTH_URL || "/#placeholder";
-  const isMockEnabled =
-    import.meta.env.VITE_AUTH_MOCK_LOGIN === "true" || import.meta.env.DEV;
+  const isMockEnabled = import.meta.env.VITE_AUTH_MOCK_LOGIN === "true";
 
   const handleStarClick = () => {
     if (phase === "idle") setPhase("login");
@@ -41,10 +40,14 @@ export default function LoginPage() {
 
     try {
       if (isSignup) {
+        const trimmedNickname = nickname.trim();
         if (password !== confirmPassword) {
           throw new Error("비밀번호가 일치하지 않습니다.");
         }
-        await register({ name, nickname, email, password });
+        if (trimmedNickname.length < 2 || trimmedNickname.length > NICKNAME_MAX_LENGTH) {
+          throw new Error(`닉네임은 2자 이상 ${NICKNAME_MAX_LENGTH}자 이하여야 합니다.`);
+        }
+        await register({ name, nickname: trimmedNickname, email, password });
         // 회원가입 성공 후 자동으로 로그인 모드로 전환하거나 바로 로그인 처리
         // 여기서는 편의상 로그인 모드로 전환하고 안내 메시지 표시
         setIsSignup(false);
@@ -72,11 +75,6 @@ export default function LoginPage() {
     const authStore = useAuthStore.getState();
     const mockToken = "mock-access-token";
     const mockUser = { email: "mock@local", name: "Mock User" };
-
-    window.localStorage.setItem(
-      MOCK_AUTH_STORAGE_KEY,
-      JSON.stringify({ accessToken: mockToken, user: mockUser })
-    );
 
     authStore.setAuthTransitioning(true);
     setPhase("success");
@@ -160,10 +158,14 @@ export default function LoginPage() {
                       placeholder="닉네임을 입력하세요"
                       value={nickname}
                       onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNickname(e.target.value)}
+                      maxLength={NICKNAME_MAX_LENGTH}
                       required
                       disabled={isSubmitting}
                       className="w-full bg-white/5 border-white/10 text-white placeholder-white/25 focus:border-white/30 focus:ring-1 focus:ring-white/20 rounded-xl h-11"
                     />
+                    <p className="text-[11px] text-white/35 text-right">
+                      {nickname.length}/{NICKNAME_MAX_LENGTH}
+                    </p>
                   </div>
                 </>
               )}

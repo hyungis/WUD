@@ -18,7 +18,14 @@ export function DailyReportModal({
 }: DailyReportModalProps) {
   if (!isOpen || !planet) return null;
 
-  const dailySummary = (planet as any).aiSummary || "데일리 AI 분석 결과가 아직 준비되지 않았습니다.";
+  const resolveDailyFallbackMessage = (status?: string) => {
+    if (status === "FAILED") return "데일리 AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.";
+    if (status === "PENDING" || status === "ANALYZING") return "데일리 AI 분석이 진행 중입니다. 잠시 후 다시 확인해주세요.";
+    return "데일리 AI 분석 결과가 아직 준비되지 않았습니다.";
+  };
+
+  const dailySummary =
+    (planet as any).aiSummary || resolveDailyFallbackMessage((planet as any).analysisStatus);
 
   return (
     <div
@@ -123,12 +130,12 @@ export function DailyReportModal({
               </div>
             )}
             <div style={{ borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", background: "linear-gradient(to bottom right, rgba(255,255,255,0.05), rgba(255,255,255,0.02))", padding: 24 }}>
-              <p style={{ marginBottom: 12, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.35em", color: "#94a3b8" }}>✦ AI 분석 리포트</p>
+              <p style={{ marginBottom: 12, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.35em", color: "#94a3b8" }}>✦ 오늘의 감정 인사이트</p>
               <p style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{dailySummary}</p>
             </div>
             {planet.memo && (
               <div style={{ borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.05)", padding: 20 }}>
-                <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "#94a3b8", marginBottom: 8 }}>오늘의 한 줄</p>
+                <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "#94a3b8", marginBottom: 8 }}>오늘의 기록</p>
                 <p style={{ fontSize: 16, color: "#e2e8f0", lineHeight: 1.6, fontStyle: "italic" }}>"{planet.memo}"</p>
               </div>
             )}
@@ -138,7 +145,7 @@ export function DailyReportModal({
                 <div style={{ display: "flex", alignItems: "center", gap: 12, borderRadius: 12, background: "rgba(255,255,255,0.05)", padding: 12 }}>
                   <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, backgroundColor: planet.shell }} />
                   <div>
-                    <p style={{ fontSize: 10, textTransform: "uppercase", color: "#64748b" }}>Shell</p>
+                    <p style={{ fontSize: 10, textTransform: "uppercase", color: "#64748b" }}>내가 고른 감정</p>
                     <p style={{ fontSize: 14, color: "#e2e8f0", fontFamily: "monospace" }}>{planet.shell}</p>
                   </div>
                 </div>
@@ -146,7 +153,7 @@ export function DailyReportModal({
                   <div style={{ display: "flex", alignItems: "center", gap: 12, borderRadius: 12, background: "rgba(255,255,255,0.05)", padding: 12 }}>
                     <div style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0, backgroundColor: planet.core }} />
                     <div>
-                      <p style={{ fontSize: 10, textTransform: "uppercase", color: "#64748b" }}>Core</p>
+                      <p style={{ fontSize: 10, textTransform: "uppercase", color: "#64748b" }}>분석된 감정</p>
                       <p style={{ fontSize: 14, color: "#e2e8f0", fontFamily: "monospace" }}>{planet.core}</p>
                     </div>
                   </div>

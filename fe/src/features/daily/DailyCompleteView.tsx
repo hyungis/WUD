@@ -4,6 +4,7 @@ import Button from "../../components/shared/Button";
 import { dailyApi } from "../../api/daily";
 import { resultApi } from "../../api/result";
 import { imageApi } from "../../api/image";
+import { useUiStore } from "../../store/uiStore";
 
 type PendingDailyRecord = {
   shellColor: string;
@@ -23,6 +24,8 @@ type DailyCompleteViewProps = {
 
 function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }: DailyCompleteViewProps) {
   const navigate = useNavigate();
+  const addTemporaryStar = useUiStore((state) => state.addTemporaryStar);
+  const refreshStarsAfterSave = useUiStore((state) => state.refreshStarsAfterSave);
   const [memo, setMemo] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -150,6 +153,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
     } catch {
       // 상세 조회 실패는 저장 처리 완료로 간주
     }
+    return dailyId;
   };
 
   const persistLocalPlanet = () => {
@@ -223,8 +227,16 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
       } catch (createError) {
         const code = extractApiErrorCode(createError);
         if (code === "D002") {
-          await updateExistingDailyForDate(entryDate);
-          persistLocalPlanet();
+          const dailyId = await updateExistingDailyForDate(entryDate);
+          
+          addTemporaryStar({
+            kind: "DAILY",
+            createdAt: new Date().toISOString(),
+            color: record.shellColor,
+            targetId: dailyId,
+          });
+          refreshStarsAfterSave(dailyId, "DAILY");
+
           onSaved?.();
           if (onClose) {
             onClose();
@@ -236,14 +248,22 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
         throw createError;
       }
 
-      const dailyId = createRes.data?.dailyId;
-      if (dailyId) {
+      const dailyId = Number((createRes?.data as any)?.dailyId ?? (createRes?.data as any)?.id ?? 0);
+      if (dailyId > 0) {
         try {
           const detailRes = await resultApi.getDailyResult(dailyId);
           localStorage.setItem("latestDailyResult", JSON.stringify(detailRes.data));
         } catch {
           // 결과 조회 실패는 생성 실패로 보지 않고 진행
         }
+
+        addTemporaryStar({
+          kind: "DAILY",
+          createdAt: new Date().toISOString(),
+          color: record.shellColor,
+          targetId: dailyId,
+        });
+        refreshStarsAfterSave(dailyId, "DAILY");
       }
 
       persistLocalPlanet();

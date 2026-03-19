@@ -1,19 +1,24 @@
 export type DailyPlanet = {
   id: string;
+  targetId?: number;
   shell: string;
   core: string;
   objectType?: "halo" | "shards" | "spark";
   objectColor?: string;
   memo: string;
   createdAt: string;
+  isTemporary?: boolean;
 };
 
 export type DeepStar = {
   id: string;
+  targetId?: number;
+  constellationId?: number;
   toneColor: string;
   createdAt: string;
   weekKey?: string;
   label?: string;
+  isTemporary?: boolean;
 };
 
 export type StarSceneProps = {
@@ -34,7 +39,9 @@ export type StarSceneProps = {
   selectedWeekKey?: string | null;
   onStarHover?: (data: { id: string | null; x?: number; y?: number }) => void;
   onViewModeChange?: (mode: "macro" | "micro") => void;
-  isReportOpen?: boolean;
+  isReportOpen: boolean;
+  newbornStarId?: string | null;
+  externalFocusNonce?: number;
 };
 
 export const hashSeed = (value: string) => {

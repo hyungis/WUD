@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Button from "../../../components/shared/Button";
 import { useUiStore } from "../../../store/uiStore";
+import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntry } from "../../../utils/dailyLimit";
 
 const EMOTIONS = [
   { label: "기쁨", color: "#FFD54F", value: 5 },
@@ -44,12 +45,23 @@ function DailyContentInner({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const [step, setStep] = useState(0); // 0: 감정 선택, 1: 컨텐츠 선택
   const [selectedEmotion, setSelectedEmotion] = useState<{ label: string; color: string; value: number } | null>(null);
+  const [isCheckingDailyLimit, setIsCheckingDailyLimit] = useState(false);
 
   const isDailyContentModalOpen = useUiStore((state) => state.isDailyContentModalOpen);
   const setDailyContentModalOpen = useUiStore((state) => state.setDailyContentModalOpen);
   const setDailyDetailModalOpen = useUiStore((state) => state.setDailyDetailModalOpen);
 
-  const handleOpenDailyDetail = () => {
+  const handleOpenDailyDetail = async () => {
+    if (isCheckingDailyLimit) return;
+
+    setIsCheckingDailyLimit(true);
+    try {
+      const existsToday = await hasTodayDailyEntry();
+      if (existsToday) {
+        window.alert(DAILY_LIMIT_MESSAGE);
+        return;
+      }
+
     if (selectedEmotion) {
       localStorage.setItem("dailyMoodColor", selectedEmotion.color);
       localStorage.setItem("dailyMoodValue", String(selectedEmotion.value));
@@ -63,6 +75,9 @@ function DailyContentInner({ onClose }: { onClose: () => void }) {
     }
 
     navigate("/daily/detail");
+    } finally {
+      setIsCheckingDailyLimit(false);
+    }
   };
 
   const handleSelectEmotion = (emotion: typeof EMOTIONS[0]) => {
@@ -154,7 +169,7 @@ function DailyContentInner({ onClose }: { onClose: () => void }) {
                     onClick={() => {
                       if (!task.enabled) return;
                       if (task.id === "mandala") {
-                        handleOpenDailyDetail();
+                        void handleOpenDailyDetail();
                         return;
                       }
                       navigate(`/daily/${task.id}`);
@@ -174,10 +189,11 @@ function DailyContentInner({ onClose }: { onClose: () => void }) {
                 <Button variant="secondary" onClick={() => setStep(0)}>이전 단계</Button>
                 <Button
                   type="button"
-                  onClick={handleOpenDailyDetail}
+                  onClick={() => void handleOpenDailyDetail()}
+                  disabled={isCheckingDailyLimit}
                   className="liquid-btn liquid-btn--daily min-w-[150px] px-8 py-3"
                 >
-                  다음 단계
+                  {isCheckingDailyLimit ? "확인 중..." : "다음 단계"}
                 </Button>
               </div>
             </>

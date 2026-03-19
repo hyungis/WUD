@@ -14,7 +14,7 @@ sys.path.insert(0, _AI_ROOT)
 
 from PIL import Image as PILImage
 from app.core.config import settings
-from app.models.schemas import AiAnalyzeReq, SpaneData, Who5Data, HtpImages
+from app.models.schemas import AiAnalyzeReq, SpaneData, Who5Data
 from app.services.deep_analyze_service import analyze_deep_session_request
 
 
@@ -61,11 +61,11 @@ def test_full_pipeline():
             raw={"q1": 4, "q2": 3, "q3": 4, "q4": 5, "q5": 3, "q6": 2,
                  "q7": 2, "q8": 3, "q9": 2, "q10": 2, "q11": 1, "q12": 2},
         ),
-        images=HtpImages(
-            houseImageKey=keys[0].strip(),
-            treeImageKey=keys[1].strip(),
-            personImageKey=keys[2].strip(),
-        ),
+        images={
+            "houseImageKey": keys[0].strip(),
+            "treeImageKey": keys[1].strip(),
+            "personImageKey": keys[2].strip(),
+        },
     )
 
     start = time.time()

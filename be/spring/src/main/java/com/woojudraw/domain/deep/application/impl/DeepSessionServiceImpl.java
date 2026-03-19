@@ -255,7 +255,16 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 
 		DeepSubmission submission = DeepSubmission.create(deepSession, image, request.getType());
 		deepSession.addSubmission(submission);
-		deepSubmissionRepository.save(submission);
+		deepSubmissionRepository.save(
+			DeepSubmission.create(sessionId, request.getImageId(), request.getType()));
+
+		DeepType deepType = switch (request.getType()){
+			case RAIN_PERSON -> DeepType.PERSON_IN_RAIN;
+			case STAR_WAVE -> DeepType.STAR_WAVE;
+			default -> throw new BusinessException(ResponseCode.INVALID_REQUEST);
+		};
+
+		deepSession.updateDeepType(deepType);
 		deepSession.markSubmitted();
 		deepSession.changeStatus(DeepStatus.ANALYZING);
 

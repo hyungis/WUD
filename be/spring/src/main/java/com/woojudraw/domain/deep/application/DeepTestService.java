@@ -7,7 +7,7 @@ import com.woojudraw.domain.deep.api.dto.resp.DeepTestListItemResp;
 
 public interface DeepTestService {
 
-	List<DeepTestListItemResp> getDeepTests();
+	List<DeepTestListItemResp> getDeepTests(Long userId);
 
 	DeepTestGuideResp getDeepTestGuide(String type);
 }
