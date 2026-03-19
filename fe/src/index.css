@@ -20,6 +20,16 @@
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slideDown {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-100%); }
+}
+
 @keyframes calHeaderUp {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -51,6 +61,15 @@
 /* 직접 호출용 클래스 (명확한 명칭) */
 .cal-slide-up { animation: calSlideUp 300ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
 .cal-slide-down { animation: calSlideDown 300ms cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+
+.animate-slideDown {
+  animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 .cal-header-up { animation: calHeaderUp 250ms ease-out forwards; }
 .cal-header-down { animation: calHeaderDown 250ms ease-out forwards; }
 

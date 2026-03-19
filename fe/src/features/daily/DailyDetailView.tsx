@@ -146,7 +146,7 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
         <div className="flex items-center gap-2.5">
           <button type="button" onClick={handleBackToContent}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-white/10 hover:text-white">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
           </button>
           <span className="text-xs font-semibold uppercase tracking-widest text-zinc-400">MANDALA</span>
         </div>

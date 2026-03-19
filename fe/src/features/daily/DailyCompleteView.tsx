@@ -252,7 +252,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
         const code = extractApiErrorCode(createError);
         if (code === "D002") {
           const dailyId = await updateExistingDailyForDate(entryDate);
-          
+
           addTemporaryStar({
             kind: "DAILY",
             createdAt: new Date().toISOString(),
