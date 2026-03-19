@@ -1,13 +1,30 @@
 services:
-  # 단일 진입점: frontend(nginx)만 80 포트 노출
+  # SSL 종료 + 리버스 프록시 (단일 진입점)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    command: ["sh", "-c", "while :; do sleep 6h && nginx -s reload; done & nginx -g 'daemon off;'"]
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app-network
+    restart: always
+
   frontend:
     build:
       context: ../fe
       dockerfile: Dockerfile
       args:
         VITE_API_BASE_URL: /api
-    ports:
-      - "80:80"
+    expose:
+      - "80"
     depends_on:
       - backend
     networks:
@@ -27,14 +44,21 @@ services:
     expose:
       - "8081"
     depends_on:
-      - redis
-      - rabbitmq
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - app-network
     restart: always
 
   redis:
     image: redis:alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     networks:
       - app-network
     restart: always
@@ -46,8 +70,13 @@ services:
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASS}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     ports:
-      - "127.0.0.1:15672:15672"  # SSH 터널링용 (관리 UI)
+      - "127.0.0.1:15672:15672"
     networks:
       - app-network
     restart: always
@@ -78,6 +107,16 @@ services:
       - AI_DAILY_RABBITMQ_RESULT_ROUTING_KEY=wud.daily.ai.result.routing-key
     depends_on:
       - rabbitmq
+    networks:
+      - app-network
+    restart: always
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
     networks:
       - app-network
     restart: always
