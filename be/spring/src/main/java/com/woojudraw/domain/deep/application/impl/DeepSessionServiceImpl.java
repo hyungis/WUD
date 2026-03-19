@@ -49,6 +49,8 @@ import com.woojudraw.domain.image.application.ImageService;
 import com.woojudraw.domain.image.entity.Image;
 import com.woojudraw.domain.image.entity.ImageStatus;
 import com.woojudraw.domain.image.repository.ImageRepository;
+import com.woojudraw.domain.user.entity.User;
+import com.woojudraw.domain.user.repository.UserRepository;
 import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
 
@@ -68,10 +70,13 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 	private final ObjectMapper objectMapper;
 	private final DeepAiService deepAiService;
 	private final DeepResultRepository deepResultRepository;
+	private final UserRepository userRepository;
 
 	@Override
 	public CreateDeepSessionResp createDeepSession(Long userId, CreateDeepSessionReq request) {
-		DeepSession deepSession = DeepSession.create(userId);
+		User user = userRepository.findById(userId)
+			.orElseThrow(() -> new BusinessException(ResponseCode.USER_NOT_FOUND));
+		DeepSession deepSession = DeepSession.create(user);
 		DeepSession saved = deepSessionRepository.save(deepSession);
 
 		return CreateDeepSessionResp.builder()
@@ -85,7 +90,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		DeepSession deepSession = deepSessionRepository.findById(sessionId)
 				.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
 
-		if (!deepSession.getUserId().equals(userId)) {
+		if (!deepSession.isOwnedBy(userId)) {
 			throw new BusinessException(ResponseCode.DEEP_SESSION_ACCESS_DENIED);
 		}
 
@@ -95,8 +100,8 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		LocalDate weekStartDate = getWeekStartDate(deepSession.getCreatedAt().toLocalDate());
 
 		DeepPsychAssessment assessment = DeepPsychAssessment.createWho5(
-				deepSession.getId(),
-				userId,
+				deepSession,
+				deepSession.getUser(),
 				request.getAnswers(),
 				weekStartDate,
 				objectMapper);
@@ -114,7 +119,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		DeepSession deepSession = deepSessionRepository.findById(sessionId)
 			.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
 
-		if (!deepSession.getUserId().equals(userId)) {
+		if (!deepSession.isOwnedBy(userId)) {
 			throw new BusinessException(ResponseCode.DEEP_SESSION_ACCESS_DENIED);
 		}
 
@@ -124,8 +129,8 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		LocalDate weekStartDate = getWeekStartDate(deepSession.getCreatedAt().toLocalDate());
 
 		DeepPsychAssessment assessment = DeepPsychAssessment.createSpane(
-			deepSession.getId(),
-			userId,
+			deepSession,
+			deepSession.getUser(),
 			request.getAnswers(),
 			weekStartDate,
 			objectMapper);
@@ -145,7 +150,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		DeepSession deepSession = deepSessionRepository.findById(sessionId)
 				.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
 
-		if (!deepSession.getUserId().equals(userId)) {
+		if (!deepSession.isOwnedBy(userId)) {
 			throw new BusinessException(ResponseCode.DEEP_SESSION_ACCESS_DENIED);
 		}
 
@@ -162,19 +167,19 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		validateImagesAreReady(houseImage, treeImage, personImage);
 
 		DeepPsychAssessment who5Assessment = deepPsychAssessmentRepository
-				.findByDeepSessionIdAndTestCode(sessionId, PsychTestCode.WHO5)
+				.findByDeepSession_IdAndTestCode(sessionId, PsychTestCode.WHO5)
 				.orElseThrow(() -> new BusinessException(ResponseCode.WHO5_NOT_FOUND));
 
 		DeepPsychAssessment spaneAssessment = deepPsychAssessmentRepository
-				.findByDeepSessionIdAndTestCode(sessionId, PsychTestCode.SPANE)
+				.findByDeepSession_IdAndTestCode(sessionId, PsychTestCode.SPANE)
 			    .orElseThrow(() -> new BusinessException(ResponseCode.SPANE_NOT_FOUND));
 
 		deepSubmissionRepository.save(
-				DeepSubmission.create(sessionId, request.getHouseImageId(), SubmissionType.HOUSE));
+				DeepSubmission.create(deepSession, houseImage, SubmissionType.HOUSE));
 		deepSubmissionRepository.save(
-				DeepSubmission.create(sessionId, request.getTreeImageId(), SubmissionType.TREE));
+				DeepSubmission.create(deepSession, treeImage, SubmissionType.TREE));
 		deepSubmissionRepository.save(
-				DeepSubmission.create(sessionId, request.getPersonImageId(), SubmissionType.PERSON));
+				DeepSubmission.create(deepSession, personImage, SubmissionType.PERSON));
 
 		deepSession.updateDeepType(DeepType.HTP);
 		deepSession.markSubmitted();
@@ -228,7 +233,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		DeepSession deepSession = deepSessionRepository.findById(sessionId)
 			.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
 
-		if (!deepSession.getUserId().equals(userId)) {
+		if (!deepSession.isOwnedBy(userId)) {
 			throw new BusinessException(ResponseCode.DEEP_SESSION_ACCESS_DENIED);
 		}
 		validateSubmittableSession(deepSession);
@@ -237,14 +242,14 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		validateImagesAreReady(image);
 
 		DeepPsychAssessment who5Assessment = deepPsychAssessmentRepository
-			.findByDeepSessionIdAndTestCode(sessionId, PsychTestCode.WHO5)
+			.findByDeepSession_IdAndTestCode(sessionId, PsychTestCode.WHO5)
 			.orElseThrow(() -> new BusinessException(ResponseCode.WHO5_NOT_FOUND));
 		DeepPsychAssessment spaneAssessment = deepPsychAssessmentRepository
-			.findByDeepSessionIdAndTestCode(sessionId, PsychTestCode.SPANE)
+			.findByDeepSession_IdAndTestCode(sessionId, PsychTestCode.SPANE)
 			.orElseThrow(() -> new BusinessException(ResponseCode.SPANE_NOT_FOUND));
 
 		deepSubmissionRepository.save(
-			DeepSubmission.create(sessionId, request.getImageId(), request.getType()));
+			DeepSubmission.create(deepSession, image, request.getType()));
 		deepSession.markSubmitted();
 		deepSession.changeStatus(DeepStatus.ANALYZING);
 
@@ -288,7 +293,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 
 	@Override
 	public DeepSessionStatusResp getDeepSessionStatus(Long userId, Long sessionId) {
-		DeepSession deepSession = deepSessionRepository.findByIdAndUserId(sessionId, userId)
+		DeepSession deepSession = deepSessionRepository.findByIdAndUser_Id(sessionId, userId)
 				.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
 
 		return DeepSessionStatusResp.builder()
@@ -302,17 +307,17 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		DeepSession deepSession = deepSessionRepository.findById(sessionId)
 			.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
 
-		if (!deepSession.getUserId().equals(userId)) {
+		if (!deepSession.isOwnedBy(userId)) {
 			throw new BusinessException(ResponseCode.DEEP_SESSION_ACCESS_DENIED);
 		}
 
-		DeepResult deepResult = deepResultRepository.findByDeepSessionId(sessionId)
+		DeepResult deepResult = deepResultRepository.findByDeepSession_Id(sessionId)
 			.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_RESULT_NOT_FOUND));
 
 		List<DeepSubmission> submissions = deepSubmissionRepository
-			.findAllByDeepSessionIdOrderByIdAsc(sessionId);
+			.findAllByDeepSession_IdOrderByIdAsc(sessionId);
 		List<DeepPsychAssessment> assessments = deepPsychAssessmentRepository
-			.findAllByDeepSessionIdOrderByIdAsc(sessionId);
+			.findAllByDeepSession_IdOrderByIdAsc(sessionId);
 
 		Map<String, Object> parsedRaw = parseDeepResultRaw(deepResult.getRaw());
 		List<String> questions = extractQuestions(parsedRaw);
@@ -320,8 +325,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 
 		List<DeepSubmissionItemResp> submissionResponses = submissions.stream()
 			.map(submission -> {
-				Image image = imageRepository.findById(submission.getImageId())
-					.orElseThrow(() -> new BusinessException(ResponseCode.FILE_NOT_FOUND));
+				Image image = submission.getImage();
 				return DeepSubmissionItemResp.builder()
 					.type(submission.getType())
 					.imageId(image.getId())
@@ -358,13 +362,13 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 	@Override
 	public List<DeepSessionListItemResp> getDeepSessions(Long userId) {
 		List<DeepSession> deepSessions = deepSessionRepository
-			.findAllByUserIdOrderByCreatedAtDesc(userId);
+			.findAllByUser_IdOrderByCreatedAtDesc(userId);
 
 		List<Long> sessionIds = deepSessions.stream()
 			.map(DeepSession::getId)
 			.toList();
 		Map<Long, DeepResult> resultMap = deepResultRepository
-			.findAllByDeepSessionIdIn(sessionIds)
+			.findAllByDeepSession_IdIn(sessionIds)
 			.stream()
 			.collect(toMap(
 				DeepResult::getDeepSessionId,
@@ -429,7 +433,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		Image image = imageRepository.findById(imageId)
 				.orElseThrow(() -> new BusinessException(ResponseCode.FILE_NOT_FOUND));
 
-		if (!image.getUser().getId().equals(userId)) {
+		if (!image.isOwnedBy(userId)) {
 			throw new BusinessException(ResponseCode.FILE_ACCESS_DENIED);
 		}
 

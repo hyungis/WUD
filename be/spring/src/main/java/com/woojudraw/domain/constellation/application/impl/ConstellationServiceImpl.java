@@ -40,7 +40,7 @@ public class ConstellationServiceImpl implements ConstellationService {
 	public void createDeepStarIfNeeded(DeepSession deepSession) {
 		validateDeepSessionForStarCreation(deepSession);
 
-		if(starRepository.existsByDeepSessionId(deepSession.getId())){
+		if (starRepository.existsByDeepSession_Id(deepSession.getId())) {
 			return;
 		}
 
@@ -49,10 +49,10 @@ public class ConstellationServiceImpl implements ConstellationService {
 		LocalDate weekEndDate = weekStartDate.plusDays(6);
 
 		Constellation constellation = constellationRepository
-			.findByUserIdAndWeekStartDate(deepSession.getUserId(), weekStartDate)
+			.findByUser_IdAndWeekStartDate(deepSession.getUserId(), weekStartDate)
 			.orElseGet(() -> constellationRepository.save(
 				Constellation.builder()
-					.userId(deepSession.getUserId())
+					.user(deepSession.getUser())
 					.weekStartDate(weekStartDate)
 					.weekEndDate(weekEndDate)
 					.build()
@@ -64,9 +64,9 @@ public class ConstellationServiceImpl implements ConstellationService {
 		}
 
 		Star deepStar = Star.createDeepStar(
-			deepSession.getUserId(),
+			deepSession.getUser(),
 			constellation,
-			deepSession.getId(),
+			deepSession,
 			AppTime.nowKst()
 		);
 
@@ -77,7 +77,7 @@ public class ConstellationServiceImpl implements ConstellationService {
 	public void createDailyStarIfNeeded(Daily daily) {
 		validateDailyForStarCreation(daily);
 
-		if (starRepository.existsByDailyEntryId(daily.getId())) {
+		if (starRepository.existsByDailyEntry_Id(daily.getId())) {
 			return;
 		}
 
@@ -85,19 +85,19 @@ public class ConstellationServiceImpl implements ConstellationService {
 		LocalDate weekEndDate = weekStartDate.plusDays(6);
 
 		Constellation constellation = constellationRepository
-			.findByUserIdAndWeekStartDate(daily.getUsersId(), weekStartDate)
+			.findByUser_IdAndWeekStartDate(daily.getUserId(), weekStartDate)
 			.orElseGet(() -> constellationRepository.save(
 				Constellation.builder()
-					.userId(daily.getUsersId())
+					.user(daily.getUser())
 					.weekStartDate(weekStartDate)
 					.weekEndDate(weekEndDate)
 					.build()
 			));
 
 		Star dailyStar = Star.createDailyStar(
-			daily.getUsersId(),
+			daily.getUser(),
 			constellation,
-			daily.getId(),
+			daily,
 			daily.getEmotionColor(),
 			AppTime.nowKst()
 		);
@@ -120,7 +120,7 @@ public class ConstellationServiceImpl implements ConstellationService {
 
 	@Override
 	public GetWeeklyConstellationResp getWeeklyConstellations(Long userId) {
-		List<Constellation> constellations = constellationRepository.findAllByUserIdOrderByWeekStartDateAsc(userId);
+		List<Constellation> constellations = constellationRepository.findAllByUser_IdOrderByWeekStartDateAsc(userId);
 
 		List<Long> constellationIds = constellations.stream()
 			.map(Constellation::getId)

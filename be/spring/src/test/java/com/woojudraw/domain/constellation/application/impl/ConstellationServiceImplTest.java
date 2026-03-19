@@ -16,6 +16,8 @@ import com.woojudraw.domain.constellation.entity.Star;
 import com.woojudraw.domain.constellation.entity.StarKind;
 import com.woojudraw.domain.constellation.repository.ConstellationRepository;
 import com.woojudraw.domain.constellation.repository.StarRepository;
+import com.woojudraw.domain.deep.entity.DeepSession;
+import com.woojudraw.domain.user.entity.User;
 
 class ConstellationServiceImplTest {
 
@@ -24,19 +26,22 @@ class ConstellationServiceImplTest {
 		ConstellationRepository constellationRepository = mock(ConstellationRepository.class);
 		StarRepository starRepository = mock(StarRepository.class);
 		ConstellationServiceImpl service = new ConstellationServiceImpl(constellationRepository, starRepository);
+		User user = User.builder().id(1L).build();
+		DeepSession deepSession = mock(DeepSession.class);
+		when(deepSession.getId()).thenReturn(99L);
 
 		Constellation constellation = Constellation.builder()
 			.id(7L)
-			.userId(1L)
+			.user(user)
 			.weekStartDate(LocalDate.of(2026, 3, 9))
 			.weekEndDate(LocalDate.of(2026, 3, 15))
 			.build();
 
 		Star star = Star.builder()
 			.id(11L)
-			.userId(1L)
+			.user(user)
 			.constellation(constellation)
-			.deepSessionId(99L)
+			.deepSession(deepSession)
 			.kind(StarKind.DEEP)
 			.color("#4FC3F7")
 			.createdAt(OffsetDateTime.parse("2026-03-12T09:15:30+09:00"))
