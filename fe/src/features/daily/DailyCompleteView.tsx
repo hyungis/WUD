@@ -4,6 +4,7 @@ import { dailyApi } from "../../api/daily";
 import { resultApi } from "../../api/result";
 import { imageApi } from "../../api/image";
 import { useUiStore } from "../../store/uiStore";
+import { extractApiErrorCode, getApiErrorMessage } from "../../utils/apiError";
 
 type PendingDailyRecord = {
   shellColor: string;
@@ -128,11 +129,6 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
     }
 
     return uploadDrawingAndCreateImage(record.mandalaImage);
-  };
-
-  const extractApiErrorCode = (error: unknown) => {
-    const maybe = error as { error?: { code?: string }; code?: string } | undefined;
-    return maybe?.error?.code ?? maybe?.code ?? null;
   };
 
   const updateExistingDailyForDate = async (entryDate: string) => {
@@ -294,7 +290,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
       showBirthAnimation();
     } catch (error) {
       console.error("daily submit failed", error);
-      setSubmitError("서버 저장에 실패했습니다. 잠시 후 다시 시도해주세요.");
+      setSubmitError(getApiErrorMessage(error, "서버 저장에 실패했습니다. 잠시 후 다시 시도해주세요."));
     } finally {
       setIsSubmitting(false);
     }

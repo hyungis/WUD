@@ -5,6 +5,7 @@ import type { DailyPlanet, DeepStar } from "./utils/homeHelpers";
 import { getWeekKey, normalizeDeepReportText, colorFromId } from "./utils/homeHelpers";
 import { StarScene } from "./components/scene/StarScene";
 import { useUiStore } from "../../store/uiStore";
+import { getApiErrorMessage } from "../../utils/apiError";
 
 import { MyUniverseModal } from "./components/modals/MyUniverseModal";
 import { TimelineHUD } from "./components/ui/TimelineHUD";
@@ -272,7 +273,7 @@ function HomePage() {
       }
     } catch (e) {
       console.error("fetch deep result fail:", e);
-      setReportError("위클리 리포트를 불러오지 못했습니다.");
+      setReportError(getApiErrorMessage(e, "위클리 리포트를 불러오지 못했습니다."));
     } finally {
       setReportLoading(false);
     }
@@ -435,7 +436,7 @@ function HomePage() {
       }));
     } catch (e) {
       console.error("fetch daily detail fail:", e);
-      setReportError("데일리 리포트를 불러오지 못했습니다.");
+      setReportError(getApiErrorMessage(e, "데일리 리포트를 불러오지 못했습니다."));
     } finally {
       setReportLoading(false);
     }

@@ -9,6 +9,7 @@ import SingleDrawResultView from "./components/SingleDrawResultView";
 import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
 import { useUiStore } from "../../store/uiStore";
 import { WEEKLY_LIMIT_MESSAGE, hasWeeklyDeepEntryByType } from "../../utils/dailyLimit";
+import { getApiErrorMessage } from "../../utils/apiError";
 
 type DrawPhase = "survey" | "draw" | "result";
 
@@ -530,12 +531,12 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
                         try {
                           await deepApi.submitWho5Assessment(sessionId, { answers: who5Answers });
                           setSurveyPageIndex(1);
-                        } catch { alert("결과 전송 실패. 다시 시도해 주세요."); }
+                        } catch (err) { alert(getApiErrorMessage(err, "결과 전송 실패. 다시 시도해 주세요.")); }
                       } else {
                         try {
                           await deepApi.submitSpaneAssessment(sessionId, { answers: spaneAnswers });
                           setPhase("draw");
-                        } catch { alert("결과 전송 실패. 다시 시도해 주세요."); }
+                        } catch (err) { alert(getApiErrorMessage(err, "결과 전송 실패. 다시 시도해 주세요.")); }
                       }
                     }}
                     className="flex-[2] sm:flex-none h-10 px-7 rounded-xl bg-white text-zinc-950 text-[11px] font-bold hover:bg-zinc-200 transition-all shadow-lg active:scale-95">

@@ -9,6 +9,7 @@ import HTPResultView from "./components/HTPResultView";
 import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
 import { useUiStore } from "../../store/uiStore";
 import { WEEKLY_LIMIT_MESSAGE, hasWeeklyDeepEntryByType } from "../../utils/dailyLimit";
+import { getApiErrorMessage } from "../../utils/apiError";
 
 type HtpStep = "house" | "tree" | "person";
 type HtpPhase = "survey" | "draw" | "result";
@@ -623,14 +624,14 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
                           await deepApi.submitWho5Assessment(sessionId, { answers: who5Answers });
                           setSurveyPageIndex(1);
                         } catch (err) {
-                          alert("결과 전송 실패. 다시 시도해 주세요.");
+                          alert(getApiErrorMessage(err, "결과 전송 실패. 다시 시도해 주세요."));
                         }
                       } else {
                         try {
                           await deepApi.submitSpaneAssessment(sessionId, { answers: spaneAnswers });
                           setPhase("draw");
                         } catch (err) {
-                          alert("결과 전송 실패. 다시 시도해 주세요.");
+                          alert(getApiErrorMessage(err, "결과 전송 실패. 다시 시도해 주세요."));
                         }
                       }
                     }}
