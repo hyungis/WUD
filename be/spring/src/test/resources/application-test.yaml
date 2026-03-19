@@ -1,0 +1,51 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:daily-flow-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;NON_KEYWORDS=USER,USERS
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  rabbitmq:
+    listener:
+      simple:
+        auto-startup: false
+      direct:
+        auto-startup: false
+
+security:
+  jwt:
+    secret: "test-jwt-secret-key-with-32-characters!"
+    access-token-exp-min: 30
+    refresh-token-exp-day: 14
+    refresh-cookie-name: refreshToken
+    refresh-cookie-secure: false
+    refresh-cookie-same-site: Lax
+    refresh-cookie-path: /
+
+cloud:
+  aws:
+    s3:
+      bucket: test-bucket
+      path:
+        photo: photos
+      presigned-url-exp-min: 5
+    region:
+      static: ap-northeast-2
+    credentials:
+      accessKey: test-access-key
+      secretKey: test-secret-key
+
+ai:
+  rabbitmq:
+    daily:
+      exchange: wud.daily.ai.exchange
+      routing-key: wud.daily.ai.request.routing-key
+      result-routing-key: wud.daily.ai.result.routing-key
+      result-queue: wud.daily.ai.result.queue
