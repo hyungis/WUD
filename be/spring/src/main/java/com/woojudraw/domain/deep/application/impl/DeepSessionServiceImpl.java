@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.woojudraw.domain.constellation.application.ConstellationService;
 import com.woojudraw.domain.deep.api.dto.req.AiAnalyzeReq;
 import com.woojudraw.domain.deep.api.dto.req.CreateDeepSessionReq;
 import com.woojudraw.domain.deep.api.dto.req.HtpImagesAnalyzeReq;
@@ -71,6 +72,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 	private final DeepAiService deepAiService;
 	private final DeepResultRepository deepResultRepository;
 	private final UserRepository userRepository;
+	private final ConstellationService constellationService;
 
 	@Override
 	public CreateDeepSessionResp createDeepSession(Long userId, CreateDeepSessionReq request) {
@@ -402,6 +404,33 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 					.build();
 			})
 			.toList();
+	}
+
+	@Override
+	public void deleteDeepSession(Long userId, Long sessionId) {
+		DeepSession deepSession = deepSessionRepository.findById(sessionId)
+			.orElseThrow(() -> new BusinessException(ResponseCode.DEEP_SESSION_NOT_FOUND));
+
+		if (!deepSession.isOwnedBy(userId)) {
+			throw new BusinessException(ResponseCode.DEEP_SESSION_ACCESS_DENIED);
+		}
+
+		constellationService.deleteDeepStarIfExists(sessionId);
+		deepResultRepository.findByDeepSession_Id(sessionId)
+			.ifPresent(deepResultRepository::delete);
+
+		List<DeepSubmission> submissions = deepSubmissionRepository.findAllByDeepSession_IdOrderByIdAsc(sessionId);
+		if (!submissions.isEmpty()) {
+			deepSubmissionRepository.deleteAllInBatch(submissions);
+		}
+
+		List<DeepPsychAssessment> psychAssessments = deepPsychAssessmentRepository
+			.findAllByDeepSession_IdOrderByIdAsc(sessionId);
+		if (!psychAssessments.isEmpty()) {
+			deepPsychAssessmentRepository.deleteAllInBatch(psychAssessments);
+		}
+
+		deepSessionRepository.delete(deepSession);
 	}
 
 	private void validateWho5Answers(SubmitWho5Req request) {

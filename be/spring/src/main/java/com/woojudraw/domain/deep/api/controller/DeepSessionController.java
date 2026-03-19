@@ -3,6 +3,7 @@ package com.woojudraw.domain.deep.api.controller;
 import java.util.List;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -126,6 +127,16 @@ public class DeepSessionController {
 		return ApiResponse.ok(
 			deepSessionService.getDeepSessions(resolveMemberId(authentication))
 		);
+	}
+
+	@DeleteMapping("/{sessionId}")
+	@Operation(security = @SecurityRequirement(name = "bearerAuth"))
+	public ApiResponse<Void> deleteDeepSession(
+		Authentication authentication,
+		@PathVariable Long sessionId
+	) {
+		deepSessionService.deleteDeepSession(resolveMemberId(authentication), sessionId);
+		return ApiResponse.ok();
 	}
 
 	private Long resolveMemberId(Authentication authentication) {
