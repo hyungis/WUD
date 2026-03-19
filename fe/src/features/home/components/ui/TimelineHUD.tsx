@@ -344,7 +344,7 @@ export function TimelineHUD({
           >
             <span className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" style={{ backgroundColor: mypageStar.toneColor }} />
-              <span className="font-bold">My Star</span>
+              <span className="font-bold">MY PLANET</span>
             </span>
           </button>
 

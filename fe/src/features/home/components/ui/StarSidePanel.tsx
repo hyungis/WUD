@@ -28,6 +28,12 @@ export function StarSidePanel({
   const isDeep = !!selectedDeepStar;
   const isDaily = !!selectedDailyPlanet && !selectedDeepStar;
 
+  const resolveDailyFallbackMessage = (status?: string) => {
+    if (status === "FAILED") return "데일리 AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.";
+    if (status === "PENDING" || status === "ANALYZING") return "데일리 AI 분석이 진행 중입니다. 잠시 후 다시 확인해주세요.";
+    return "데일리 AI 분석 결과가 아직 준비되지 않았습니다.";
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -179,16 +185,17 @@ export function StarSidePanel({
 
                 {/* AI 분석 */}
                 <div style={{ borderRadius: 14, border: "1px solid rgba(255,255,255,0.06)", background: "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01))", padding: 20 }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.2em", color: "#94a3b8", marginBottom: 10 }}>✦ AI 분석 리포트</p>
+                  <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.2em", color: "#94a3b8", marginBottom: 10 }}>✦ 오늘의 감정 인사이트</p>
                   <p style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.75, whiteSpace: "pre-wrap" }}>
-                    {(selectedDailyPlanet as any).aiSummary || "데일리 AI 분석 결과가 아직 준비되지 않았습니다."}
+                    {(selectedDailyPlanet as any).aiSummary
+                      || resolveDailyFallbackMessage((selectedDailyPlanet as any).analysisStatus)}
                   </p>
                 </div>
 
                 {/* 색상 정보 */}
                 <div style={{ display: "grid", gridTemplateColumns: selectedDailyPlanet.core ? "1fr 1fr" : "1fr", gap: 12 }}>
                   <div style={{ borderRadius: 14, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)", padding: 16 }}>
-                    <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "#94a3b8", marginBottom: 8 }}>Shell 색상</p>
+                    <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "#94a3b8", marginBottom: 8 }}>내가 고른 감정</p>
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <div style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, backgroundColor: selectedDailyPlanet.shell }} />
                       <span style={{ fontSize: 12, color: "#e2e8f0", fontFamily: "monospace" }}>{selectedDailyPlanet.shell}</span>
@@ -196,7 +203,7 @@ export function StarSidePanel({
                   </div>
                   {selectedDailyPlanet.core && (
                     <div style={{ borderRadius: 14, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)", padding: 16 }}>
-                      <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "#94a3b8", marginBottom: 8 }}>Core 색상</p>
+                      <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "#94a3b8", marginBottom: 8 }}>분석된 감정</p>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <div style={{ width: 24, height: 24, borderRadius: 6, flexShrink: 0, backgroundColor: selectedDailyPlanet.core }} />
                         <span style={{ fontSize: 12, color: "#e2e8f0", fontFamily: "monospace" }}>{selectedDailyPlanet.core}</span>
@@ -208,7 +215,7 @@ export function StarSidePanel({
                 {/* 메모 */}
                 {selectedDailyPlanet.memo && (
                   <div style={{ borderRadius: 14, border: "1px solid rgba(255,255,255,0.06)", background: "rgba(255,255,255,0.03)", padding: 20 }}>
-                    <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "#94a3b8", marginBottom: 8 }}>오늘의 한 줄</p>
+                    <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.2em", color: "#94a3b8", marginBottom: 8 }}>오늘의 기록</p>
                     <p style={{ fontSize: 14, color: "#e2e8f0", lineHeight: 1.6 }}>"{selectedDailyPlanet.memo}"</p>
                   </div>
                 )}

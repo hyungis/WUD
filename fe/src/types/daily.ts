@@ -9,24 +9,33 @@ export interface DailyCreateRequest {
 
 export interface DailyCreateResponse {
     dailyId: number;
-    analysisStatus: "PENDING" | "DONE" | "FAIL";
+    analysisStatus: "PENDING" | "ANALYZING" | "DONE" | "FAILED" | string;
 }
 
 export interface DailyDetailResponse {
-    id: number;
+    id?: number;
+    dailyId?: number;
     dailyType: string;
     entryDate: string;
     content: string;
     emotionValue: number;
     emotionColor: string;
-    drawing: {
+    analysisStatus?: "PENDING" | "ANALYZING" | "DONE" | "FAILED" | string;
+    analysisResult?: string | null;
+    analysisRaw?: any;
+    drawing?: {
         imageId: number;
         imageKey: string;
     };
-    aiResult: {
-        exists: boolean;
-        result: string;
-        raw: any;
+    drawingImageId?: number;
+    drawingImageKey?: string;
+    drawingImageUrl?: string;
+    aiResult?: {
+        exists?: boolean;
+        result?: string;
+        resultSummary?: string;
+        raw?: any;
     };
     createdAt: string;
+    updatedAt?: string;
 }

@@ -71,6 +71,13 @@ function DeepPlanet({
   const birthProgress = useRef(isNewborn ? 0 : 1);
   const [isBirthFinished, setIsBirthFinished] = useState(!isNewborn);
 
+  useEffect(() => {
+    if (isNewborn) {
+      birthProgress.current = 0;
+      setIsBirthFinished(false);
+    }
+  }, [isNewborn]);
+
   useFrame((_, delta) => {
     if (isBirthFinished) return;
     birthProgress.current = Math.min(birthProgress.current + delta * 0.8, 1);
