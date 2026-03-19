@@ -36,6 +36,7 @@ function HomePage() {
   const [hoveredPlanet, setHoveredPlanet] = useState<{ id: string; x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [isTimelineOpen, setIsTimelineOpen] = useState(true);
+  const [timelineFocusNonce, setTimelineFocusNonce] = useState(0);
   const setDockHidden = useUiStore((state) => state.setDockHidden);
   const setOverlayOpen = useUiStore((state) => state.setOverlayOpen);
   const isDailyContentModalOpen = useUiStore((state) => state.isDailyContentModalOpen);
@@ -95,7 +96,7 @@ function HomePage() {
       id: s.id,
       kind: (s.kind || "daily").toLowerCase(),
       color: s.color,
-      label: s.kind === "DAILY" ? "데일리 행성" : "위클리 별",
+      label: s.kind === "DAILY" ? "DAILY PLANET" : "WEEKLY PLANET",
       weekKey: s.weekStartDate ? getWeekKey(new Date(s.weekStartDate)) : getWeekKey(new Date(s.createdAt)),
       createdAt: s.createdAt,
       original: s,
@@ -211,18 +212,117 @@ function HomePage() {
       return;
     }
 
+    const sleep = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
+    const extractDailyAiSummary = (detail: any) => {
+      const pickTextFromObject = (obj: any): string => {
+        if (!obj || typeof obj !== "object") return "";
+        const candidate = obj.analysis || obj.resultSummary || obj.result || obj.summary || obj.report || "";
+        return typeof candidate === "string" ? candidate : "";
+      };
+
+      const normalizeCandidate = (value: any): string => {
+        if (value && typeof value === "object") {
+          const objectText = pickTextFromObject(value);
+          return objectText ? objectText.trim() : "";
+        }
+
+        if (typeof value !== "string") return "";
+
+        const trimmed = value
+          .replace(/^```(?:json)?\s*/i, "")
+          .replace(/\s*```$/, "")
+          .trim();
+        if (!trimmed) return "";
+
+        const tryParse = (text: string): string => {
+          try {
+            const parsed = JSON.parse(text);
+            const parsedText = pickTextFromObject(parsed);
+            return parsedText ? parsedText.trim() : "";
+          } catch {
+            return "";
+          }
+        };
+
+        if ((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]"))) {
+          const fullParsed = tryParse(trimmed);
+          if (fullParsed) return fullParsed;
+        }
+
+        const firstBrace = trimmed.indexOf("{");
+        const lastBrace = trimmed.lastIndexOf("}");
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+          const embedded = trimmed.slice(firstBrace, lastBrace + 1);
+          const embeddedParsed = tryParse(embedded);
+          if (embeddedParsed) return embeddedParsed;
+        }
+
+        const analysisMatch = trimmed.match(/"analysis"\s*:\s*"([\s\S]*?)"/i);
+        if (analysisMatch?.[1]) {
+          try {
+            return JSON.parse(`"${analysisMatch[1].replace(/"/g, '\\"')}"`).trim();
+          } catch {
+            return analysisMatch[1].trim();
+          }
+        }
+
+        return trimmed;
+      };
+
+      const parseRaw = (raw: any) => {
+        if (!raw) return null;
+        if (typeof raw === "string") {
+          try {
+            return JSON.parse(raw);
+          } catch {
+            return null;
+          }
+        }
+        return raw;
+      };
+
+      const raw = parseRaw(detail?.analysisRaw ?? detail?.aiResult?.raw);
+
+      return normalizeDeepReportText(
+        normalizeCandidate(detail?.analysisResult)
+        || normalizeCandidate(detail?.aiResult?.result)
+        || normalizeCandidate(detail?.aiResult?.resultSummary)
+        || normalizeCandidate(raw?.resultSummary)
+        || normalizeCandidate(raw?.result)
+        || normalizeCandidate(raw?.summary)
+        || normalizeCandidate(raw?.analysis)
+        || normalizeCandidate(raw?.report)
+        || pickTextFromObject(raw)
+        || "",
+      );
+    };
+
     setReportLoading(true);
     try {
-      const res = await dailyApi.getDailyDetail(dailyId);
-      if (!res.success || !res.data) throw new Error("daily detail API returned success=false");
+      // AI 결과 저장 직후 열었을 때를 고려해 짧게 재시도하여 요약 연결률을 높인다.
+      let detail: any = null;
+      let aiSummary = "";
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        const res = await dailyApi.getDailyDetail(dailyId);
+        if (!res.success || !res.data) throw new Error("daily detail API returned success=false");
 
-      const detail = res.data;
+        detail = res.data;
+        aiSummary = extractDailyAiSummary(detail);
+        if (aiSummary) break;
+
+        if (attempt < 3) {
+          await sleep(1200);
+        }
+      }
+
+      if (!detail) throw new Error("daily detail is empty");
       setSelectedDailyPlanet((prev: any) => ({
         ...prev,
         memo: detail.content || prev?.memo || "",
         shell: detail.emotionColor || prev?.shell,
         core: detail.emotionColor || prev?.core,
-        aiSummary: detail.aiResult?.result || "",
+        analysisStatus: detail.analysisStatus || prev?.analysisStatus,
+        aiSummary,
       }));
     } catch (e) {
       console.error("fetch daily detail fail:", e);
@@ -288,6 +388,7 @@ function HomePage() {
           onViewModeChange={setViewMode}
           isReportOpen={isSidePanelOpen}
           newbornStarId={newbornStarId}
+          externalFocusNonce={timelineFocusNonce}
         />
       </div>
 
@@ -317,6 +418,7 @@ function HomePage() {
         selectedStarId={selectedStarId}
         selectedWeekKey={selectedWeekKey}
         onItemClick={(id) => {
+          setTimelineFocusNonce((prev) => prev + 1);
           if (id === mypageStar.id) {
             setSelectedStarId(id);
             return;

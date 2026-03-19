@@ -41,6 +41,7 @@ export type StarSceneProps = {
   onViewModeChange?: (mode: "macro" | "micro") => void;
   isReportOpen: boolean;
   newbornStarId?: string | null;
+  externalFocusNonce?: number;
 };
 
 export const hashSeed = (value: string) => {
