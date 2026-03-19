@@ -10,6 +10,10 @@ public interface ConstellationService {
 
 	void createDailyStarIfNeeded(Daily daily);
 
+	void deleteDeepStarIfExists(Long deepSessionId);
+
+	void deleteDailyStarIfExists(Long dailyId);
+
 	GetStarMapResp getStarMap(Long userId);
 
 	GetWeeklyConstellationResp getWeeklyConstellations(Long userId);

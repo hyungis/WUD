@@ -18,6 +18,7 @@ import com.woojudraw.domain.daily.api.dto.resp.CreateDailyResp;
 import com.woojudraw.domain.daily.api.dto.resp.DailyDetailResp;
 import com.woojudraw.domain.daily.api.dto.resp.DailyListItemResp;
 import com.woojudraw.domain.daily.api.dto.resp.UpdateDailyResp;
+import com.woojudraw.domain.constellation.application.ConstellationService;
 import com.woojudraw.domain.daily.application.DailyAiService;
 import com.woojudraw.domain.daily.application.DailyService;
 import com.woojudraw.domain.daily.entity.Daily;
@@ -48,6 +49,7 @@ public class DailyServiceImpl implements DailyService {
 	private final ImageRepository imageRepository;
 	private final ImageService imageService;
 	private final DailyAiService dailyAiService;
+	private final ConstellationService constellationService;
 
 	@Override
 	public CreateDailyResp createDaily(Long userId, CreateDailyReq request) {
@@ -206,6 +208,7 @@ public class DailyServiceImpl implements DailyService {
 			throw new BusinessException(ResponseCode.DAILY_ACCESS_DENIED);
 		}
 
+		constellationService.deleteDailyStarIfExists(dailyId);
 		daily.markDeleted();
 	}
 

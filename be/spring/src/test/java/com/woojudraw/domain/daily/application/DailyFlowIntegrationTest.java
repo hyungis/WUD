@@ -1,6 +1,7 @@
 package com.woojudraw.domain.daily.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
@@ -36,6 +37,8 @@ import com.woojudraw.domain.image.entity.ImageStatus;
 import com.woojudraw.domain.image.repository.ImageRepository;
 import com.woojudraw.domain.user.entity.User;
 import com.woojudraw.domain.user.repository.UserRepository;
+import com.woojudraw.global.exception.BusinessException;
+import com.woojudraw.global.exception.ResponseCode;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -175,6 +178,58 @@ class DailyFlowIntegrationTest {
 		assertThat(dailyResp.getContent()).isNull();
 		assertThat(dailyResp.getEmotion()).isEqualTo("평온");
 		assertThat(dailyResp.getEmotionColor()).isEqualTo("#4FC3F7");
+	}
+
+	@Test
+	void deleteDaily_removesStarAndHidesDeletedEntry() {
+		User user = userRepository.save(
+			User.builder()
+				.email("daily-delete-" + UUID.randomUUID().toString().substring(0, 8) + "@test.com")
+				.password("encoded-password")
+				.nickname("dailyDeleteTester")
+				.build()
+		);
+		Long userId = user.getId();
+		Long drawingImageId = createReadyImage(user, "image/png", 12_000L, 800, 800);
+
+		CreateDailyReq createReq = asDto(
+			Map.of(
+				"dailyType", "FREE",
+				"entryDate", LocalDate.now(),
+				"content", "delete me",
+				"emotion", "JOY",
+				"drawingImageId", drawingImageId
+			),
+			CreateDailyReq.class
+		);
+
+		Long dailyId = dailyService.createDaily(userId, createReq).getDailyId();
+
+		dailyAiResultConsumer.consumeDailyAiResult(
+			DailyAiAnalyzeResp.builder()
+				.dailyId(dailyId)
+				.status("SUCCESS")
+				.message("ok")
+				.data(
+					DailyAiAnalyzeDataResp.builder()
+						.resultSummary("daily summary")
+						.raw(Map.of("mood", "warm"))
+						.build()
+				)
+				.build(),
+			"daily-delete-test-trace"
+		);
+
+		assertThat(starRepository.findAllByUserIdWithConstellation(userId)).hasSize(1);
+
+		dailyService.deleteDaily(userId, dailyId);
+
+		assertThat(dailyService.getDailies(userId, null, null)).isEmpty();
+		assertThat(starRepository.findAllByUserIdWithConstellation(userId)).isEmpty();
+		assertThatThrownBy(() -> dailyService.getDaily(userId, dailyId))
+			.isInstanceOf(BusinessException.class)
+			.extracting("responseCode")
+			.isEqualTo(ResponseCode.DAILY_NOT_FOUND);
 	}
 
 	private Long createReadyImage(User user, String mimeType, Long byteSize, Integer width, Integer height) {

@@ -108,6 +108,18 @@ public class ConstellationServiceImpl implements ConstellationService {
 	}
 
 	@Override
+	public void deleteDeepStarIfExists(Long deepSessionId) {
+		starRepository.findByDeepSession_Id(deepSessionId)
+			.ifPresent(this::deleteStarAndEmptyConstellationIfNeeded);
+	}
+
+	@Override
+	public void deleteDailyStarIfExists(Long dailyId) {
+		starRepository.findByDailyEntry_Id(dailyId)
+			.ifPresent(this::deleteStarAndEmptyConstellationIfNeeded);
+	}
+
+	@Override
 	public GetStarMapResp getStarMap(Long userId) {
 		List<Star> stars = starRepository.findAllByUserIdWithConstellation(userId);
 
@@ -200,5 +212,15 @@ public class ConstellationServiceImpl implements ConstellationService {
 			return star.getDailyEntryId();
 		}
 		return star.getDeepSessionId();
+	}
+
+	private void deleteStarAndEmptyConstellationIfNeeded(Star star) {
+		Long constellationId = star.getConstellation().getId();
+		starRepository.delete(star);
+		starRepository.flush();
+
+		if (!starRepository.existsByConstellation_Id(constellationId)) {
+			constellationRepository.deleteById(constellationId);
+		}
 	}
 }

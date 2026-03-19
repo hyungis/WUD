@@ -44,8 +44,11 @@ public class DeepAiResultConsumer {
 		}
 
 		Long sessionId = response.getSessionId();
-		DeepSession deepSession = deepSessionRepository.findById(sessionId)
-			.orElseThrow(() -> new IllegalStateException("Deep session not found for AI result. sessionId=" + sessionId));
+		DeepSession deepSession = deepSessionRepository.findById(sessionId).orElse(null);
+		if (deepSession == null) {
+			log.warn("Ignore deep AI result because session was deleted or not found. sessionId={}, traceId={}", sessionId, traceId);
+			return;
+		}
 
 		try {
 			// 중복 전달(재시도/재전송) 대비: 이미 완료된 세션이면 결과를 다시 반영하지 않는다.
