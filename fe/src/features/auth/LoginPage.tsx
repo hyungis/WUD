@@ -20,7 +20,7 @@ export default function LoginPage() {
   const [phase, setPhase] = useState<"idle" | "login" | "success">("idle");
   const navigate = useNavigate();
 
-  const googleAuthUrl = import.meta.env.VITE_GOOGLE_AUTH_URL || "/#placeholder";
+  const googleAuthUrl = import.meta.env.VITE_GOOGLE_AUTH_URL || "/api/oauth2/authorization/google";
   const isMockEnabled = import.meta.env.VITE_AUTH_MOCK_LOGIN === "true";
 
   const handleStarClick = () => {
