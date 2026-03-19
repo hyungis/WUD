@@ -33,9 +33,16 @@ export async function login(payload: LoginPayload, options: AuthOptions = {}) {
 
   if (accessToken) {
     useAuthStore.getState().setTokens(accessToken);
+    try {
+      // 로그인 직후에도 닉네임/프로필을 즉시 반영한다.
+      await fetchMe();
+    } catch {
+      // 프로필 조회 실패 시에만 이메일 fallback 유지
+      useAuthStore.getState().setUser({ email: payload.email });
+    }
+  } else {
+    useAuthStore.getState().setUser({ email: payload.email });
   }
-
-  useAuthStore.getState().setUser({ email: payload.email });
 
   return response.data; // LoginResponse 객체 반환
 }

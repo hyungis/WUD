@@ -564,7 +564,7 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
 
         <section className="htp-card flex-1 min-h-0 overflow-hidden">
           {phase === "survey" ? (
-            <div className="h-full min-h-0 space-y-8 overflow-y-auto text-center custom-scrollbar pr-1">
+            <div className="h-full min-h-0 w-full max-w-3xl mx-auto space-y-6 overflow-y-auto text-center custom-scrollbar pr-1 pb-6">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-300">
                   Pre-Assessment
@@ -577,11 +577,11 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-5 text-left">
+              <div className="rounded-2xl border border-white/12 bg-white/[0.06] p-4 text-left">
                 <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">WHO-5 (0-5)</p>
-                <div className="mt-4 space-y-3">
+                <div className="mt-3 space-y-2.5">
                   {WHO5_QUESTIONS.map((question, index) => (
-                    <div key={question} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
+                    <div key={question} className="rounded-xl border border-white/12 bg-white/[0.04] px-3 py-2.5">
                       <p className="text-sm text-slate-200">{index + 1}. {question}</p>
                       <div className="mt-2 flex flex-wrap gap-2">
                         {[0, 1, 2, 3, 4, 5].map((score) => (
@@ -596,8 +596,8 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
                               });
                             }}
                             className={`rounded-lg px-3 py-1.5 text-xs transition ${who5Answers[index] === score
-                              ? "bg-emerald-500/30 text-emerald-100 ring-1 ring-emerald-300/40"
-                              : "bg-white/5 text-slate-300 hover:bg-white/10"
+                              ? "bg-white/20 text-white ring-1 ring-white/35"
+                              : "bg-white/6 text-slate-300 hover:bg-white/12"
                               }`}
                           >
                             {score}
@@ -609,7 +609,7 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
                 </div>
               </div>
 
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center justify-end gap-3">
                 <Button type="button" variant="secondary" onClick={handleBackToDeepContent}>
                   취소
                 </Button>
@@ -768,7 +768,7 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
           </div>
           <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
             <div
-              className={`h-full rounded-full transition-all duration-300 ${phase === "result" ? "bg-gradient-to-r from-sky-400 to-indigo-400" : "bg-gradient-to-r from-emerald-400 to-cyan-400"}`}
+              className={`h-full rounded-full transition-all duration-300 ${phase === "result" ? "bg-gradient-to-r from-zinc-300 to-zinc-100" : "bg-gradient-to-r from-zinc-500 to-zinc-300"}`}
               style={{ width: `${phase === "result" ? progressPercent : (phase === "survey" ? 0 : strokeDensity)}%` }}
             />
           </div>
@@ -790,14 +790,14 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
   }
 
   return (
-    <div className="fixed inset-0 z-[92] flex items-center justify-center bg-black/35 px-4 py-4 text-slate-100">
+    <div className="fixed inset-0 z-[92] flex items-center justify-center bg-black/78 px-4 py-4 text-slate-100">
       <button
         type="button"
         aria-label="모달 닫기"
         onClick={handleClose}
         className="absolute inset-0 h-full w-full cursor-default"
       />
-      <div className="relative z-10 h-[92vh] w-full max-w-6xl overflow-hidden rounded-3xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.42)] ring-1 ring-white/10">
+      <div className="relative z-10 h-[94vh] w-full max-w-7xl overflow-hidden rounded-3xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.58)] ring-1 ring-white/10">
         {content}
       </div>
     </div>
