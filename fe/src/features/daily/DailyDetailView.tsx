@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useCanvasDrawing } from "../../hooks/useCanvasDrawing";
 import type { ToolType } from "../../hooks/useCanvasDrawing";
 import { DailyMandalaCanvas } from "./components/DailyMandalaCanvas";
-import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntry } from "../../utils/dailyLimit";
+import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntryByType } from "../../utils/dailyLimit";
 
 /* ── constants ── */
 const PALETTE = [
@@ -68,7 +68,7 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
 
     const guardByDailyLimit = async () => {
       try {
-        const existsToday = await hasTodayDailyEntry();
+        const existsToday = await hasTodayDailyEntryByType("MANDALA");
         if (!alive || !existsToday) return;
 
         window.alert(DAILY_LIMIT_MESSAGE);

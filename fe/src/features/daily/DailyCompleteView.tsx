@@ -5,6 +5,7 @@ import { resultApi } from "../../api/result";
 import { imageApi } from "../../api/image";
 import { useUiStore } from "../../store/uiStore";
 import { extractApiErrorCode, getApiErrorMessage } from "../../utils/apiError";
+import { getTodayKstDate } from "../../utils/dailyLimit";
 
 type PendingDailyRecord = {
   shellColor: string;
@@ -32,7 +33,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
   const [savedDailyId, setSavedDailyId] = useState<number | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const savedCloseRef = useRef<(() => void) | undefined>(undefined);
+  const savedCloseRef = useRef<((dailyId?: number) => void) | undefined>(undefined);
   const memoCount = useMemo(() => memo.trim().length, [memo]);
   const record = useMemo(() => {
     const stored = localStorage.getItem("pendingDailyRecord");
@@ -156,6 +157,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
   };
 
   const persistLocalPlanet = () => {
+    const nowIso = new Date().toISOString();
     const nextPlanet = {
       id: `daily-${Date.now()}`,
       shell: record.shellColor,
@@ -164,7 +166,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
       objectColor: record.objectColor,
       memo: memo.trim(),
       drawingImage: record.mandalaImage,
-      createdAt: record.createdAt,
+      createdAt: nowIso,
     };
     const stored = localStorage.getItem("dailyPlanets");
     const parsed = stored ? (JSON.parse(stored) as typeof nextPlanet[]) : [];
@@ -205,8 +207,9 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
     navigate("/daily/detail");
   };
 
-  const finishAndClose = () => {
-    if (savedDailyId) onSaved?.(savedDailyId);
+  const finishAndClose = (dailyIdOverride?: number) => {
+    const effectiveDailyId = dailyIdOverride ?? savedDailyId ?? null;
+    if (effectiveDailyId) onSaved?.(effectiveDailyId);
     if (onClose) {
       onClose();
     } else {
@@ -214,9 +217,11 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
     }
   };
 
-  const showBirthAnimation = () => {
-    setIsSaved(true);
+  const showBirthAnimation = (dailyId?: number) => {
+    // 데일리 저장 직후 추가 모달 없이 즉시 닫고 홈에서 결과를 연다.
+    setIsSaved(false);
     savedCloseRef.current = finishAndClose;
+    savedCloseRef.current?.(dailyId);
   };
 
   // 별 탄생 애니메이션 타이머
@@ -235,7 +240,8 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
 
     try {
       const drawingImageId = await ensureDrawingImageId();
-      const entryDate = new Date(record.createdAt).toISOString().slice(0, 10);
+      // 생성 시점(record.createdAt) 대신 현재 KST 날짜를 사용해 날짜 고정/덮어쓰기 이슈를 방지한다.
+      const entryDate = getTodayKstDate();
 
       let createRes;
       try {
@@ -261,7 +267,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
           });
           void fetchStarMap();
 
-          showBirthAnimation();
+          showBirthAnimation(dailyId);
           return;
         }
         throw createError;
@@ -287,7 +293,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
       }
 
       persistLocalPlanet();
-      showBirthAnimation();
+      showBirthAnimation(dailyId > 0 ? dailyId : undefined);
     } catch (error) {
       console.error("daily submit failed", error);
       setSubmitError(getApiErrorMessage(error, "서버 저장에 실패했습니다. 잠시 후 다시 시도해주세요."));

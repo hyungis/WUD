@@ -8,6 +8,7 @@ export type DailyPlanet = {
   memo: string;
   createdAt: string;
   isTemporary?: boolean;
+  drawingImageUrl?: string;
 };
 
 export type DeepStar = {
