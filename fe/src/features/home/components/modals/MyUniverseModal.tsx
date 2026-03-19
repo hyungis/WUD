@@ -1,6 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import type { DailyPlanet, DeepStar } from "../../utils/homeHelpers";
 import { getWeekKey, formatDate, formatDateTimeKST } from "../../utils/homeHelpers";
+import { useAuthStore } from "../../../../store/authStore";
+import { userApi } from "../../../../api/user";
+import { logout } from "../../../../services/auth";
+import type { UserProfileResponse } from "../../../../types/user";
+
+type TabKey = "overview" | "daily" | "deep" | "profile";
 
 interface MyUniverseModalProps {
   isOpen: boolean;
@@ -11,6 +18,49 @@ interface MyUniverseModalProps {
   onDeepStarClick: (star: DeepStar) => void;
 }
 
+/* ── 아이콘 SVG 컴포넌트 ── */
+const IconGrid = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />
+  </svg>
+);
+const IconStar = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M4.93 19.07l1.41-1.41m11.32-11.32 1.41-1.41" />
+  </svg>
+);
+const IconPlanet = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <circle cx="12" cy="12" r="8" /><ellipse cx="12" cy="12" rx="11" ry="4" transform="rotate(-30 12 12)" />
+  </svg>
+);
+const IconUser = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <circle cx="12" cy="8" r="4" /><path d="M5.5 21a6.5 6.5 0 0 1 13 0" />
+  </svg>
+);
+const IconChevron = ({ className = "h-3 w-3" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><path d="M9 18l6-6-6-6" /></svg>
+);
+const IconClose = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><path d="M18 6 6 18M6 6l12 12" /></svg>
+);
+const IconBack = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><path d="M15 18l-6-6 6-6" /></svg>
+);
+const IconEdit = ({ className = "h-3.5 w-3.5" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <path d="M16.474 5.408l2.118 2.118m-.756-3.982L12.109 9.27a2.118 2.118 0 0 0-.58 1.082L11 13l2.648-.53a2.118 2.118 0 0 0 1.082-.58l5.727-5.727a1.853 1.853 0 1 0-2.621-2.621z" />
+    <path d="M19 15v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h3" />
+  </svg>
+);
+const IconLogout = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5-5-5m5 5H9" />
+  </svg>
+);
+
 export function MyUniverseModal({
   isOpen,
   onClose,
@@ -19,15 +69,44 @@ export function MyUniverseModal({
   deepStars,
   onDeepStarClick,
 }: MyUniverseModalProps) {
-  const [tab, setTab] = useState<"overview" | "daily" | "deep">("overview");
+  const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const [tab, setTab] = useState<TabKey>("overview");
   const [selectedItem, setSelectedItem] = useState<{ type: "daily"; data: DailyPlanet } | null>(null);
+
+  // Profile state
+  const [profile, setProfile] = useState<UserProfileResponse | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [editingNickname, setEditingNickname] = useState(false);
+  const [nicknameInput, setNicknameInput] = useState("");
+  const [nicknameSaving, setNicknameSaving] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ current: "", next: "", confirm: "" });
+  const [passwordSaving, setPasswordSaving] = useState(false);
+  const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [withdrawConfirm, setWithdrawConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const fetchProfile = useCallback(async () => {
+    setProfileLoading(true);
+    try {
+      const res = await userApi.getProfile();
+      if (res.success && res.data) setProfile(res.data);
+    } catch { /* ignore */ } finally {
+      setProfileLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
       setTab("overview");
       setSelectedItem(null);
+      setEditingNickname(false);
+      setPasswordForm({ current: "", next: "", confirm: "" });
+      setPasswordMsg(null);
+      setWithdrawConfirm(false);
+      void fetchProfile();
     }
-  }, [isOpen]);
+  }, [isOpen, fetchProfile]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -48,137 +127,196 @@ export function MyUniverseModal({
     ...deepStars.map((s) => s.weekKey || getWeekKey(new Date(s.createdAt))),
   ]).size;
 
-  const TABS = [
-    { key: "overview" as const, label: "개요" },
-    { key: "daily" as const, label: `데일리 (${dailyPlanets.length})` },
-    { key: "deep" as const, label: `심층 (${deepStars.length})` },
+  const displayName = user?.nickname || user?.name || user?.email?.split("@")[0] || "사용자";
+
+  const handleNicknameSave = async () => {
+    if (!nicknameInput.trim()) return;
+    setNicknameSaving(true);
+    try {
+      await userApi.updateProfile({ nickname: nicknameInput.trim() });
+      useAuthStore.getState().setUser({ ...user, nickname: nicknameInput.trim(), name: nicknameInput.trim() });
+      setEditingNickname(false);
+      await fetchProfile();
+    } catch { /* ignore */ } finally {
+      setNicknameSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    setPasswordMsg(null);
+    if (!passwordForm.next || passwordForm.next.length < 8) {
+      setPasswordMsg({ ok: false, text: "비밀번호는 8자 이상이어야 합니다." });
+      return;
+    }
+    if (passwordForm.next !== passwordForm.confirm) {
+      setPasswordMsg({ ok: false, text: "새 비밀번호가 일치하지 않습니다." });
+      return;
+    }
+    setPasswordSaving(true);
+    try {
+      await userApi.changePassword({ currentPassword: passwordForm.current || undefined, newPassword: passwordForm.next });
+      setPasswordMsg({ ok: true, text: "비밀번호가 변경되었습니다." });
+      setPasswordForm({ current: "", next: "", confirm: "" });
+    } catch {
+      setPasswordMsg({ ok: false, text: "비밀번호 변경에 실패했습니다." });
+    } finally {
+      setPasswordSaving(false);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    try {
+      await userApi.withdraw();
+      useAuthStore.getState().clearAuth();
+      onClose();
+      navigate("/");
+    } catch { /* ignore */ }
+  };
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      onClose();
+      navigate("/");
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
+  const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+    { key: "overview", label: "개요", icon: <IconGrid /> },
+    { key: "daily", label: "데일리", icon: <IconPlanet /> },
+    { key: "deep", label: "심층", icon: <IconStar /> },
+    { key: "profile", label: "프로필", icon: <IconUser /> },
   ];
+
+  const switchTab = (key: TabKey) => { setTab(key); setSelectedItem(null); };
+
+  // 공통 카드 스타일
+  const cardCls = "rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 backdrop-blur-sm";
+  const labelCls = "text-[10px] uppercase tracking-[0.3em] text-zinc-500 mb-3";
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm pointer-events-auto"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md pointer-events-auto"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="relative mx-4 flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950/95 shadow-2xl">
-        {/* 상단 헤더 */}
-        <div className="relative px-7 pt-7 pb-5 flex-shrink-0">
+      <div className="relative mx-3 flex max-h-[96vh] w-full max-w-[920px] flex-col overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#0a0a0f]/95 shadow-[0_32px_64px_rgba(0,0,0,0.7)] backdrop-blur-2xl">
+
+        {/* ━━━ 헤더 ━━━ */}
+        <div className="relative flex-shrink-0 px-6 pt-5 pb-0">
           {/* 배경 글로우 */}
           <div
-            className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 h-40 w-40 rounded-full blur-3xl opacity-30"
+            className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-48 w-48 rounded-full blur-[80px] opacity-15"
             style={{ backgroundColor: mypageStar.toneColor }}
           />
-          <div className="flex items-center gap-4 relative z-10">
-            {/* 중심별 아이콘 */}
-            <div
-              className="flex-shrink-0 h-14 w-14 rounded-2xl flex items-center justify-center shadow-lg"
-              style={{
-                backgroundColor: mypageStar.toneColor + "33",
-                border: `1px solid ${mypageStar.toneColor}55`,
-              }}
-            >
+
+          <div className="flex items-center gap-4 relative z-10 mb-5">
+            {/* 아바타 */}
+            <div className="relative flex-shrink-0">
               <div
-                className="h-6 w-6 rotate-45 rounded-sm"
+                className="h-12 w-12 rounded-xl flex items-center justify-center text-lg font-bold text-white"
+                style={{ background: `linear-gradient(135deg, ${mypageStar.toneColor}88, ${mypageStar.toneColor}33)` }}
+              >
+                {displayName.slice(0, 1)}
+              </div>
+              <div
+                className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#0a0a0f]"
                 style={{ backgroundColor: mypageStar.toneColor }}
               />
             </div>
+
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] uppercase tracking-[0.35em] text-slate-400 mb-1">My Universe</p>
-              <h2 className="text-xl font-bold text-slate-100 truncate">{mypageStar.label}</h2>
-              <p className="text-xs text-slate-400 mt-0.5">
-                총 {totalRecords}개 기록 · {uniqueWeeks}주
+              <h2 className="text-base font-semibold text-white truncate leading-tight">{displayName}의 우주</h2>
+              <p className="text-[11px] text-zinc-500 mt-0.5">
+                {totalRecords}개 기록 · {uniqueWeeks}주 · {profile?.email || user?.email || ""}
               </p>
             </div>
+
             <button
               onClick={onClose}
-              className="flex-shrink-0 h-8 w-8 rounded-full bg-white/5 hover:bg-white/15 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+              className="flex-shrink-0 h-8 w-8 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] flex items-center justify-center text-zinc-500 hover:text-white transition-all"
               aria-label="닫기"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
+              <IconClose />
             </button>
           </div>
 
-          {/* 탭 */}
-          <div className="flex gap-1 mt-5 rounded-xl bg-white/5 p-1">
+          {/* ━━━ 탭 ━━━ */}
+          <div className="flex border-b border-white/[0.06]">
             {TABS.map((t) => (
               <button
                 key={t.key}
-                onClick={() => {
-                  setTab(t.key);
-                  setSelectedItem(null);
-                }}
-                className={`flex-1 rounded-lg py-2 text-xs font-medium transition-all duration-200 ${
-                  tab === t.key ? "bg-white/15 text-slate-100 shadow-sm" : "text-slate-400 hover:text-slate-200"
+                onClick={() => switchTab(t.key)}
+                className={`group relative flex items-center gap-1.5 px-4 pb-3 pt-1 text-xs font-medium transition-all ${
+                  tab === t.key
+                    ? "text-white"
+                    : "text-zinc-500 hover:text-zinc-300"
                 }`}
               >
-                {t.label}
+                <span className={tab === t.key ? "text-white" : "text-zinc-600 group-hover:text-zinc-400"}>{t.icon}</span>
+                <span>{t.label}</span>
+                {t.key !== "overview" && t.key !== "profile" && (
+                  <span className={`text-[9px] px-1 py-px rounded ${tab === t.key ? "bg-white/10 text-zinc-300" : "bg-white/[0.04] text-zinc-600"}`}>
+                    {t.key === "daily" ? dailyPlanets.length : deepStars.length}
+                  </span>
+                )}
+                {tab === t.key && (
+                  <span className="absolute bottom-0 left-2 right-2 h-[2px] rounded-full bg-white/80" />
+                )}
               </button>
             ))}
           </div>
         </div>
 
-        {/* 탭 콘텐츠 */}
-        <div className="flex-1 overflow-y-auto px-7 pb-7 custom-scrollbar">
-          {/* ── 개요 탭 ── */}
+        {/* ━━━ 탭 콘텐츠 ━━━ */}
+        <div className="flex-1 overflow-y-auto px-6 pt-5 pb-6 custom-scrollbar">
+
+          {/* ── 개요 ── */}
           {tab === "overview" && (
             <div className="space-y-4">
-              {/* 통계 카드 */}
+              {/* 통계 */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: "전체 기록", value: totalRecords, unit: "개" },
-                  { label: "데일리", value: dailyPlanets.length, unit: "개" },
-                  { label: "심층 (HTP)", value: deepStars.length, unit: "개" },
-                ].map((stat) => (
-                  <div key={stat.label} className="rounded-2xl border border-white/8 bg-white/5 p-4 text-center">
-                    <p className="text-2xl font-bold text-slate-100">
-                      {stat.value}
-                      <span className="text-sm font-normal text-slate-400 ml-0.5">{stat.unit}</span>
+                  { label: "전체", value: totalRecords, color: mypageStar.toneColor },
+                  { label: "데일리", value: dailyPlanets.length, color: "#38bdf8" },
+                  { label: "심층", value: deepStars.length, color: "#a78bfa" },
+                ].map((s) => (
+                  <div key={s.label} className={`${cardCls} text-center`}>
+                    <p className="text-3xl font-bold text-white tracking-tight">{s.value}</p>
+                    <p className="text-[10px] uppercase tracking-wider mt-1 flex items-center justify-center gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: s.color }} />
+                      <span className="text-zinc-500">{s.label}</span>
                     </p>
-                    <p className="text-[10px] text-slate-400 mt-1 uppercase tracking-wider">{stat.label}</p>
                   </div>
                 ))}
               </div>
 
-              {/* 나의 톤 */}
-              <div className="rounded-2xl border border-white/8 bg-white/5 p-5">
-                <p className="text-[10px] uppercase tracking-[0.35em] text-slate-400 mb-3">나의 감정 톤</p>
+              {/* 나의 감정 톤 */}
+              <div className={cardCls}>
+                <p className={labelCls}>나의 감정 톤</p>
                 <div className="flex items-center gap-3">
                   <div
-                    className="h-10 w-10 rounded-xl flex-shrink-0"
-                    style={{ backgroundColor: mypageStar.toneColor, boxShadow: `0 0 20px ${mypageStar.toneColor}66` }}
+                    className="h-10 w-10 rounded-xl flex-shrink-0 shadow-lg"
+                    style={{ backgroundColor: mypageStar.toneColor, boxShadow: `0 0 24px ${mypageStar.toneColor}44` }}
                   />
                   <div>
-                    <p className="text-base font-semibold text-slate-100">{mypageStar.toneColor}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">중심별 색상</p>
+                    <p className="text-sm font-medium text-white font-mono">{mypageStar.toneColor}</p>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">중심별 색상</p>
                   </div>
                 </div>
               </div>
 
               {/* 최근 활동 */}
               {totalRecords > 0 && (
-                <div className="rounded-2xl border border-white/8 bg-white/5 p-5">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-slate-400 mb-3">최근 활동</p>
-                  <div className="space-y-2">
+                <div className={cardCls}>
+                  <p className={labelCls}>최근 활동</p>
+                  <div className="space-y-1">
                     {[
-                      ...dailyPlanets.map((p) => ({
-                        type: "daily" as const,
-                        id: p.id,
-                        color: p.shell,
-                        label: p.memo || "데일리 기록",
-                        date: p.createdAt,
-                        raw: p,
-                      })),
-                      ...deepStars.map((s) => ({
-                        type: "deep" as const,
-                        id: s.id,
-                        color: s.toneColor,
-                        label: s.label || "심층 기록",
-                        date: s.createdAt,
-                        raw: s,
-                      })),
+                      ...dailyPlanets.map((p) => ({ type: "daily" as const, id: p.id, color: p.shell, label: p.memo || "데일리 기록", date: p.createdAt, raw: p })),
+                      ...deepStars.map((s) => ({ type: "deep" as const, id: s.id, color: s.toneColor, label: s.label || "심층 기록", date: s.createdAt, raw: s })),
                     ]
                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                       .slice(0, 5)
@@ -190,27 +328,17 @@ export function MyUniverseModal({
                               ? setSelectedItem({ type: "daily", data: item.raw as DailyPlanet })
                               : onDeepStarClick(item.raw as any)
                           }
-                          className="w-full flex items-center gap-3 rounded-xl hover:bg-white/5 px-2 py-1.5 transition-colors text-left"
+                          className="w-full flex items-center gap-3 rounded-xl hover:bg-white/[0.04] px-3 py-2.5 -mx-1 transition-colors text-left group"
                         >
                           <div className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                          <span className="flex-1 text-xs text-slate-300 truncate">{item.label}</span>
-                          <span className="text-[10px] text-slate-500 flex-shrink-0">{formatDate(item.date)}</span>
-                          <span
-                            className={`text-[9px] px-1.5 py-0.5 rounded-full flex-shrink-0 ${
-                              item.type === "deep" ? "bg-violet-500/20 text-violet-300" : "bg-sky-500/20 text-sky-300"
-                            }`}
-                          >
+                          <span className="flex-1 text-[13px] text-zinc-300 truncate group-hover:text-white transition-colors">{item.label}</span>
+                          <span className="text-[10px] text-zinc-600 flex-shrink-0">{formatDate(item.date)}</span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded flex-shrink-0 ${
+                            item.type === "deep" ? "bg-violet-500/15 text-violet-400" : "bg-sky-500/15 text-sky-400"
+                          }`}>
                             {item.type === "deep" ? "심층" : "데일리"}
                           </span>
-                          <svg
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            className="h-3 w-3 text-slate-600 flex-shrink-0"
-                          >
-                            <path d="M9 18l6-6-6-6" />
-                          </svg>
+                          <IconChevron className="h-3 w-3 text-zinc-700 group-hover:text-zinc-400 flex-shrink-0 transition-colors" />
                         </button>
                       ))}
                   </div>
@@ -218,20 +346,22 @@ export function MyUniverseModal({
               )}
 
               {totalRecords === 0 && (
-                <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center">
-                  <p className="text-slate-400 text-sm">아직 기록이 없어요</p>
-                  <p className="text-slate-500 text-xs mt-1">데일리 또는 HTP 기록을 시작해보세요</p>
+                <div className="rounded-2xl border border-dashed border-white/[0.06] p-10 text-center">
+                  <div className="text-3xl mb-3 opacity-30">✦</div>
+                  <p className="text-zinc-400 text-sm">아직 기록이 없어요</p>
+                  <p className="text-zinc-600 text-xs mt-1">데일리 또는 HTP 기록을 시작해보세요</p>
                 </div>
               )}
             </div>
           )}
 
-          {/* ── 데일리 탭 ── */}
+          {/* ── 데일리 ── */}
           {tab === "daily" && (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {dailyPlanets.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center">
-                  <p className="text-slate-400 text-sm">데일리 기록이 없어요</p>
+                <div className="rounded-2xl border border-dashed border-white/[0.06] p-10 text-center">
+                  <div className="text-3xl mb-3 opacity-30">◇</div>
+                  <p className="text-zinc-400 text-sm">데일리 기록이 없어요</p>
                 </div>
               ) : (
                 [...dailyPlanets]
@@ -240,56 +370,41 @@ export function MyUniverseModal({
                     <button
                       key={planet.id || i}
                       onClick={() => setSelectedItem({ type: "daily", data: planet })}
-                      className="w-full rounded-2xl border border-white/8 bg-white/5 hover:bg-white/10 p-4 flex items-start gap-4 transition-colors text-left"
+                      className="w-full rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.1] p-4 flex items-center gap-4 transition-all text-left group"
                     >
-                      {/* 행성 아이콘: 정팔면체 투영(회전 다이아몬드) */}
-                      <div className="flex-shrink-0 mt-0.5 h-9 w-9 flex items-center justify-center">
+                      <div className="flex-shrink-0 h-9 w-9 flex items-center justify-center">
                         <div
-                          className="h-7 w-7 rotate-45 rounded-sm"
+                          className="h-6 w-6 rotate-45 rounded-[4px]"
                           style={{
-                            background: `linear-gradient(135deg, ${planet.shell}ee, ${
-                              planet.core || planet.shell
-                            }88)`,
-                            boxShadow: `0 0 10px ${planet.shell}66`,
+                            background: `linear-gradient(135deg, ${planet.shell}, ${planet.core || planet.shell}88)`,
+                            boxShadow: `0 0 12px ${planet.shell}44`,
                           }}
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="text-xs font-medium text-slate-200 truncate">
-                            {planet.memo ? planet.memo.slice(0, 30) + (planet.memo.length > 30 ? "…" : "") : "데일리 행성"}
-                          </span>
-                          <span className="text-[10px] text-slate-500 flex-shrink-0">
-                            {formatDate(planet.createdAt)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-300">데일리</span>
-                          {planet.objectType && <span className="text-[10px] text-slate-500">{planet.objectType}</span>}
+                        <p className="text-[13px] text-zinc-200 truncate group-hover:text-white transition-colors">
+                          {planet.memo ? planet.memo.slice(0, 40) + (planet.memo.length > 40 ? "…" : "") : "데일리 행성"}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] text-zinc-600">{formatDate(planet.createdAt)}</span>
+                          {planet.objectType && <span className="text-[10px] px-1.5 py-px rounded bg-sky-500/10 text-sky-400/80">{planet.objectType}</span>}
                         </div>
                       </div>
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        className="h-4 w-4 text-slate-600 flex-shrink-0 mt-2"
-                      >
-                        <path d="M9 18l6-6-6-6" />
-                      </svg>
+                      <IconChevron className="h-3.5 w-3.5 text-zinc-700 group-hover:text-zinc-400 flex-shrink-0 transition-colors" />
                     </button>
                   ))
               )}
             </div>
           )}
 
-          {/* ── 심층 탭 ── */}
+          {/* ── 심층 ── */}
           {tab === "deep" && (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {deepStars.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 p-8 text-center">
-                  <p className="text-slate-400 text-sm">심층 기록이 없어요</p>
-                  <p className="text-slate-500 text-xs mt-1">HTP 검사를 통해 심층 별을 만들어보세요</p>
+                <div className="rounded-2xl border border-dashed border-white/[0.06] p-10 text-center">
+                  <div className="text-3xl mb-3 opacity-30">✧</div>
+                  <p className="text-zinc-400 text-sm">심층 기록이 없어요</p>
+                  <p className="text-zinc-600 text-xs mt-1">HTP 검사를 통해 심층 별을 만들어보세요</p>
                 </div>
               ) : (
                 [...deepStars]
@@ -298,163 +413,252 @@ export function MyUniverseModal({
                     <button
                       key={star.id || i}
                       onClick={() => onDeepStarClick(star as any)}
-                      className="w-full rounded-2xl border border-white/8 bg-white/5 hover:bg-white/10 p-4 flex items-start gap-4 transition-colors text-left"
+                      className="w-full rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.1] p-4 flex items-center gap-4 transition-all text-left group"
                     >
-                      {/* 별 아이콘 */}
                       <div
-                        className="flex-shrink-0 mt-0.5 h-9 w-9 rounded-xl flex items-center justify-center"
-                        style={{ backgroundColor: star.toneColor + "22", border: `1px solid ${star.toneColor}44` }}
+                        className="flex-shrink-0 h-9 w-9 rounded-lg flex items-center justify-center"
+                        style={{ backgroundColor: star.toneColor + "18", border: `1px solid ${star.toneColor}30` }}
                       >
-                        <div className="h-4 w-4 rotate-45 rounded-sm" style={{ backgroundColor: star.toneColor }} />
+                        <div className="h-3.5 w-3.5 rotate-45 rounded-[3px]" style={{ backgroundColor: star.toneColor }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="text-xs font-medium text-slate-200">{star.label || "심층 별"}</span>
-                          <span className="text-[10px] text-slate-500 flex-shrink-0">
-                            {formatDate(star.createdAt)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300">HTP</span>
-                          {star.weekKey && <span className="text-[10px] text-slate-500">{star.weekKey}</span>}
+                        <p className="text-[13px] text-zinc-200 group-hover:text-white transition-colors">{star.label || "심층 별"}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] text-zinc-600">{formatDate(star.createdAt)}</span>
+                          {star.weekKey && <span className="text-[10px] px-1.5 py-px rounded bg-violet-500/10 text-violet-400/80">{star.weekKey}</span>}
                         </div>
                       </div>
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        className="h-4 w-4 text-slate-600 flex-shrink-0 mt-2"
-                      >
-                        <path d="M9 18l6-6-6-6" />
-                      </svg>
+                      <IconChevron className="h-3.5 w-3.5 text-zinc-700 group-hover:text-zinc-400 flex-shrink-0 transition-colors" />
                     </button>
                   ))
+              )}
+            </div>
+          )}
+
+          {/* ── 프로필 ── */}
+          {tab === "profile" && (
+            <div className="space-y-4">
+              {profileLoading ? (
+                <div className={`${cardCls} py-10 text-center`}>
+                  <div className="inline-block h-5 w-5 rounded-full border-2 border-zinc-600 border-t-white animate-spin" />
+                  <p className="text-zinc-500 text-xs mt-3">불러오는 중...</p>
+                </div>
+              ) : (
+                <>
+                  {/* 프로필 카드 */}
+                  <div className={cardCls}>
+                    <div className="flex items-start gap-4">
+                      <div
+                        className="h-14 w-14 rounded-xl flex items-center justify-center text-xl font-bold text-white flex-shrink-0"
+                        style={{ background: `linear-gradient(135deg, ${mypageStar.toneColor}66, ${mypageStar.toneColor}22)` }}
+                      >
+                        {displayName.slice(0, 1)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          {editingNickname ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={nicknameInput}
+                                onChange={(e) => setNicknameInput(e.target.value)}
+                                className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-sm text-white outline-none focus:border-white/20 w-36"
+                                autoFocus
+                                maxLength={20}
+                                onKeyDown={(e) => e.key === "Enter" && handleNicknameSave()}
+                              />
+                              <button onClick={handleNicknameSave} disabled={nicknameSaving} className="rounded-md bg-white/10 px-2.5 py-1.5 text-[11px] text-white hover:bg-white/15 transition disabled:opacity-50">
+                                {nicknameSaving ? "..." : "저장"}
+                              </button>
+                              <button onClick={() => setEditingNickname(false)} className="rounded-md bg-white/[0.04] px-2.5 py-1.5 text-[11px] text-zinc-400 hover:bg-white/[0.08] transition">
+                                취소
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="text-base font-semibold text-white">{profile?.nickname || displayName}</p>
+                              <button
+                                onClick={() => { setNicknameInput(profile?.nickname || displayName); setEditingNickname(true); }}
+                                className="text-zinc-600 hover:text-zinc-300 transition"
+                              >
+                                <IconEdit />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        <p className="text-xs text-zinc-500">{profile?.email || user?.email || "-"}</p>
+                        <div className="flex gap-4 mt-3 text-[10px] text-zinc-600">
+                          <span>가입 {profile?.joinedAt ? formatDate(profile.joinedAt) : "-"}</span>
+                          <span>마지막 접속 {profile?.lastLoginAt ? formatDate(profile.lastLoginAt) : "-"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 비밀번호 변경 */}
+                  <div className={cardCls}>
+                    <p className={labelCls}>비밀번호 변경</p>
+                    <div className="space-y-2.5">
+                      {[
+                        { key: "current" as const, placeholder: "현재 비밀번호" },
+                        { key: "next" as const, placeholder: "새 비밀번호 (8자 이상)" },
+                        { key: "confirm" as const, placeholder: "새 비밀번호 확인" },
+                      ].map((f) => (
+                        <input
+                          key={f.key}
+                          type="password"
+                          placeholder={f.placeholder}
+                          value={passwordForm[f.key]}
+                          onChange={(e) => setPasswordForm((prev) => ({ ...prev, [f.key]: e.target.value }))}
+                          className="w-full rounded-lg border border-white/[0.06] bg-white/[0.03] px-3 py-2.5 text-sm text-white placeholder-zinc-600 outline-none focus:border-white/15 transition-colors"
+                        />
+                      ))}
+                      {passwordMsg && (
+                        <p className={`text-xs ${passwordMsg.ok ? "text-emerald-400" : "text-red-400"}`}>{passwordMsg.text}</p>
+                      )}
+                      <button
+                        onClick={handlePasswordChange}
+                        disabled={passwordSaving}
+                        className="w-full rounded-lg bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.06] py-2.5 text-sm text-zinc-200 transition-all disabled:opacity-50"
+                      >
+                        {passwordSaving ? "변경 중..." : "비밀번호 변경"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 계정 관리 */}
+                  <div className={cardCls}>
+                    <p className={labelCls}>계정 관리</p>
+                    <div className="space-y-2">
+                      <button
+                        onClick={handleLogout}
+                        disabled={isLoggingOut}
+                        className="w-full rounded-lg border border-white/[0.06] bg-white/[0.03] hover:bg-white/[0.06] py-2.5 text-sm text-zinc-300 flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                      >
+                        <IconLogout className="h-3.5 w-3.5" />
+                        {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+                      </button>
+                      {!withdrawConfirm ? (
+                        <button
+                          onClick={() => setWithdrawConfirm(true)}
+                          className="w-full rounded-lg border border-red-500/10 bg-red-500/[0.04] py-2.5 text-sm text-red-400/80 hover:bg-red-500/[0.08] transition-all"
+                        >
+                          회원 탈퇴
+                        </button>
+                      ) : (
+                        <div className="rounded-xl border border-red-500/20 bg-red-500/[0.06] p-4">
+                          <p className="text-xs text-red-300/80 mb-3">정말 탈퇴하시겠습니까? 모든 데이터가 삭제됩니다.</p>
+                          <div className="flex gap-2">
+                            <button onClick={handleWithdraw} className="flex-1 rounded-lg bg-red-500/20 border border-red-400/20 py-2 text-xs text-red-200 hover:bg-red-500/30 transition">
+                              탈퇴 확인
+                            </button>
+                            <button onClick={() => setWithdrawConfirm(false)} className="flex-1 rounded-lg bg-white/[0.04] border border-white/[0.06] py-2 text-xs text-zinc-400 hover:bg-white/[0.08] transition">
+                              취소
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           )}
         </div>
       </div>
 
-      {/* ── 상세 리포트 패널 ── */}
+      {/* ━━━ 상세 리포트 오버레이 ━━━ */}
       {selectedItem && (
         <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedItem(null);
-          }}
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md"
+          onClick={(e) => { if (e.target === e.currentTarget) setSelectedItem(null); }}
         >
-          <div className="relative mx-4 flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-white/10 bg-slate-950 shadow-2xl">
-            {/* 리포트 헤더 */}
-            <div className="relative px-8 pt-7 pb-5 flex-shrink-0">
+          <div className="relative mx-3 flex max-h-[92vh] w-full max-w-[860px] flex-col overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#0a0a0f]/95 shadow-[0_32px_64px_rgba(0,0,0,0.7)] backdrop-blur-2xl">
+            <div className="relative px-6 pt-5 pb-4 flex-shrink-0">
               <div
-                className="pointer-events-none absolute -top-6 left-1/2 -translate-x-1/2 h-28 w-28 rounded-full blur-3xl opacity-40"
-                style={{
-                  backgroundColor:
-                    selectedItem.type === "daily" ? selectedItem.data.shell : (selectedItem.data as any).toneColor,
-                }}
+                className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 h-32 w-32 rounded-full blur-[60px] opacity-25"
+                style={{ backgroundColor: selectedItem.type === "daily" ? selectedItem.data.shell : (selectedItem.data as any).toneColor }}
               />
               <div className="flex items-center gap-3 relative z-10">
                 <button
                   onClick={() => setSelectedItem(null)}
-                  className="flex-shrink-0 h-8 w-8 rounded-full bg-white/5 hover:bg-white/15 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                  className="flex-shrink-0 h-8 w-8 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] flex items-center justify-center text-zinc-500 hover:text-white transition-all"
                   aria-label="뒤로"
                 >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-4 w-4">
-                    <path d="M15 18l-6-6 6-6" />
-                  </svg>
+                  <IconBack />
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] uppercase tracking-[0.35em] text-slate-400">
+                  <p className="text-[10px] uppercase tracking-[0.3em] text-zinc-500">
                     {selectedItem.type === "daily" ? "Daily Report" : "Deep Star Report"}
                   </p>
-                  <h3 className="text-base font-bold text-slate-100 truncate mt-0.5">
+                  <h3 className="text-sm font-semibold text-white truncate mt-0.5">
                     {selectedItem.type === "daily"
-                      ? selectedItem.data.memo?.slice(0, 24) || "데일리 행성"
+                      ? selectedItem.data.memo?.slice(0, 30) || "데일리 행성"
                       : (selectedItem.data as any).label || "심층 별"}
                   </h3>
                 </div>
-                <span className="text-[10px] text-slate-500 flex-shrink-0">
-                  {formatDate(selectedItem.data.createdAt)}
-                </span>
+                <span className="text-[10px] text-zinc-600 flex-shrink-0">{formatDate(selectedItem.data.createdAt)}</span>
               </div>
             </div>
 
-            {/* 리포트 본문 */}
-            <div className="flex-1 overflow-y-auto px-8 pb-8 custom-scrollbar space-y-5">
-              {/* ── 데일리 리포트 ── */}
+            <div className="flex-1 overflow-y-auto px-6 pb-6 custom-scrollbar space-y-4">
               {selectedItem.type === "daily" &&
                 (() => {
                   const p = selectedItem.data;
                   return (
                     <>
-                      {/* 행성 시각화: 정팔면체(octahedron) 투영 */}
-                      <div className="flex justify-center py-6">
+                      <div className="flex justify-center py-5">
                         <div className="relative flex items-center justify-center">
                           <div
-                            className="h-24 w-24 rotate-45 rounded-lg shadow-2xl"
+                            className="h-20 w-20 rotate-45 rounded-lg"
                             style={{
-                              background: `linear-gradient(135deg, ${p.shell}ff, ${p.core || p.shell}99, ${
-                                p.shell
-                              }cc)`,
-                              boxShadow: `0 0 40px ${p.shell}88, 0 0 80px ${p.shell}44`,
+                              background: `linear-gradient(135deg, ${p.shell}, ${p.core || p.shell}88)`,
+                              boxShadow: `0 0 40px ${p.shell}55, 0 0 80px ${p.shell}22`,
                             }}
                           />
-                          {/* 내부 하이라이트 */}
-                          <div
-                            className="absolute h-6 w-6 rotate-45 rounded-sm opacity-60"
-                            style={{ backgroundColor: "#ffffff", top: "22%", left: "26%" }}
-                          />
+                          <div className="absolute h-5 w-5 rotate-45 rounded-sm opacity-50" style={{ backgroundColor: "#ffffff", top: "20%", left: "24%" }} />
                         </div>
                       </div>
 
-                      {/* 색상 정보 */}
                       <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">Shell 색상</p>
+                        <div className={cardCls}>
+                          <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Shell</p>
                           <div className="flex items-center gap-2">
-                            <div className="h-6 w-6 rounded-lg flex-shrink-0" style={{ backgroundColor: p.shell }} />
-                            <span className="text-xs text-slate-200 font-mono">{p.shell}</span>
+                            <div className="h-5 w-5 rounded-md flex-shrink-0" style={{ backgroundColor: p.shell }} />
+                            <span className="text-xs text-zinc-300 font-mono">{p.shell}</span>
                           </div>
                         </div>
                         {p.core && (
-                          <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                            <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">Core 색상</p>
+                          <div className={cardCls}>
+                            <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Core</p>
                             <div className="flex items-center gap-2">
-                              <div className="h-6 w-6 rounded-lg flex-shrink-0" style={{ backgroundColor: p.core }} />
-                              <span className="text-xs text-slate-200 font-mono">{p.core}</span>
+                              <div className="h-5 w-5 rounded-md flex-shrink-0" style={{ backgroundColor: p.core }} />
+                              <span className="text-xs text-zinc-300 font-mono">{p.core}</span>
                             </div>
                           </div>
                         )}
                       </div>
 
-                      {/* 메모 */}
                       {p.memo && (
-                        <div className="rounded-2xl border border-white/8 bg-white/5 p-5">
-                          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">오늘의 한 줄</p>
-                          <p className="text-sm text-slate-200 leading-relaxed">"{p.memo}"</p>
+                        <div className={cardCls}>
+                          <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">오늘의 한 줄</p>
+                          <p className="text-sm text-zinc-200 leading-relaxed italic">"{p.memo}"</p>
                         </div>
                       )}
 
-                      {/* 오브젝트 타입 */}
                       {p.objectType && (
-                        <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                          <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-2">오브젝트 타입</p>
+                        <div className={cardCls}>
+                          <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">오브젝트</p>
                           <div className="flex items-center gap-2">
-                            <span className="text-xs px-2 py-1 rounded-full bg-sky-500/15 text-sky-300">
-                              {p.objectType}
-                            </span>
-                            {p.objectColor && (
-                              <div className="h-5 w-5 rounded-full" style={{ backgroundColor: p.objectColor }} />
-                            )}
+                            <span className="text-xs px-2 py-1 rounded bg-sky-500/10 text-sky-400">{p.objectType}</span>
+                            {p.objectColor && <div className="h-4 w-4 rounded-full" style={{ backgroundColor: p.objectColor }} />}
                           </div>
                         </div>
                       )}
 
-                      {/* 날짜 */}
-                      <div className="rounded-2xl border border-white/8 bg-white/5 p-4">
-                        <p className="text-[10px] uppercase tracking-wider text-slate-400 mb-1">기록 일시</p>
-                        <p className="text-sm text-slate-200">{formatDateTimeKST(p.createdAt)}</p>
+                      <div className={cardCls}>
+                        <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">기록 일시</p>
+                        <p className="text-sm text-zinc-300">{formatDateTimeKST(p.createdAt)}</p>
                       </div>
                     </>
                   );
