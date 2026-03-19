@@ -89,7 +89,7 @@ function DeepPlanet({
   const isActive = isHovered || isSelected;
   const currentSize = isBirthFinished ? size : size * birthProgress.current;
   const currentGlow = isBirthFinished ? glow : glow * birthProgress.current;
-  const currentEmissiveIntensity = isBirthFinished 
+  const currentEmissiveIntensity = isBirthFinished
     ? (isActive ? (variant === "star" ? 3.0 : 4.0) : (variant === "star" ? 1.4 : 1.8))
     : (10.0 * (1 - birthProgress.current) + 2.0); // 초기에는 아주 밝게 빛남
 
@@ -102,77 +102,77 @@ function DeepPlanet({
 
   const planetBody = (
     <group>
-        {variant === "planet" ? (
-          /* ── 데일리 행성: 정팔면체 ── */
-          <>
-            {/* 메인 정팔면체 */}
-            <mesh
-              {...handlers}
-              scale={isActive ? [currentSize * 1.25, currentSize * 1.25, currentSize * 1.25] : [currentSize, currentSize, currentSize]}
-              rotation={[0.16, 0.28, isActive ? 0.2 : 0.06]}
-            >
-              <octahedronGeometry args={[1, 0]} />
-              <meshPhysicalMaterial
-                color={color}
-                emissive={color}
-                emissiveIntensity={currentEmissiveIntensity}
-                transparent
-                opacity={0.92}
-                roughness={0.15}
-                metalness={0.0}
-                transmission={0.4}
-                thickness={0.8}
-              />
-            </mesh>
-            {/* 외곽 글로우 */}
-            <mesh
-              scale={isActive ? [currentGlow * 1.18, currentGlow * 1.18, currentGlow * 1.18] : [currentGlow * 1.02, currentGlow * 1.02, currentGlow * 1.02]}
-              rotation={[0.16, 0.28, 0.06]}
-            >
-              <octahedronGeometry args={[1, 0]} />
-              <meshBasicMaterial color={color} transparent opacity={isActive ? 0.18 : 0.08} blending={2} depthWrite={false} />
-            </mesh>
-          </>
-        ) : (
-          /* ── 심층별: 성형 다면체(stellated polyhedron) ── */
-          <>
-            {/* 메인 성형 다면체 */}
-            <mesh
-              {...handlers}
-              geometry={STAR_STELLATED_GEOMETRY}
-              rotation={[0.2, 0.4, isActive ? 0.24 : 0.08]}
-              scale={isActive ? [currentSize * 1.2, currentSize * 1.2, currentSize * 1.2] : [currentSize, currentSize, currentSize]}
-            >
-              <meshPhysicalMaterial
-                color={color}
-                emissive={color}
-                emissiveIntensity={currentEmissiveIntensity}
-                transparent
-                opacity={0.95}
-                transmission={0.08}
-                thickness={1.1}
-                roughness={0.12}
-                clearcoat={0.9}
-                clearcoatRoughness={0.12}
-                metalness={0.18}
-                ior={1.5}
-              />
-            </mesh>
-            {/* 다면체 외곽 후광 */}
-            <mesh
-              geometry={STAR_STELLATED_GEOMETRY}
-              rotation={[0.2, 0.4, 0.08]}
-              scale={isActive ? [currentGlow * 1.22, currentGlow * 1.22, currentGlow * 1.22] : [currentGlow * 1.05, currentGlow * 1.05, currentGlow * 1.05]}
-            >
-              <meshBasicMaterial color={color} transparent opacity={isActive ? 0.18 : 0.08} blending={2} depthWrite={false} />
-            </mesh>
-            {/* 중심 광원 */}
-            <mesh scale={[currentSize * 0.18, currentSize * 0.18, currentSize * 0.18]} position={[currentSize * 0.2, currentSize * 0.2, currentSize * 0.18]}>
-              <sphereGeometry args={[1, 20, 20]} />
-              <meshBasicMaterial color="#ffffff" toneMapped={false} opacity={isBirthFinished ? 1 : 1} transparent />
-            </mesh>
-          </>
-        )}
+      {variant === "planet" ? (
+        /* ── 데일리 행성: 정팔면체 ── */
+        <>
+          {/* 메인 정팔면체 */}
+          <mesh
+            {...handlers}
+            scale={isActive ? [currentSize * 1.25, currentSize * 1.25, currentSize * 1.25] : [currentSize, currentSize, currentSize]}
+            rotation={[0.16, 0.28, isActive ? 0.2 : 0.06]}
+          >
+            <octahedronGeometry args={[1, 0]} />
+            <meshPhysicalMaterial
+              color={color}
+              emissive={color}
+              emissiveIntensity={currentEmissiveIntensity}
+              transparent
+              opacity={0.92}
+              roughness={0.15}
+              metalness={0.0}
+              transmission={0.4}
+              thickness={0.8}
+            />
+          </mesh>
+          {/* 외곽 글로우 */}
+          <mesh
+            scale={isActive ? [currentGlow * 1.18, currentGlow * 1.18, currentGlow * 1.18] : [currentGlow * 1.02, currentGlow * 1.02, currentGlow * 1.02]}
+            rotation={[0.16, 0.28, 0.06]}
+          >
+            <octahedronGeometry args={[1, 0]} />
+            <meshBasicMaterial color={color} transparent opacity={isActive ? 0.18 : 0.08} blending={2} depthWrite={false} />
+          </mesh>
+        </>
+      ) : (
+        /* ── 심층별: 성형 다면체(stellated polyhedron) ── */
+        <>
+          {/* 메인 성형 다면체 */}
+          <mesh
+            {...handlers}
+            geometry={STAR_STELLATED_GEOMETRY}
+            rotation={[0.2, 0.4, isActive ? 0.24 : 0.08]}
+            scale={isActive ? [currentSize * 1.2, currentSize * 1.2, currentSize * 1.2] : [currentSize, currentSize, currentSize]}
+          >
+            <meshPhysicalMaterial
+              color={color}
+              emissive={color}
+              emissiveIntensity={currentEmissiveIntensity}
+              transparent
+              opacity={0.95}
+              transmission={0.08}
+              thickness={1.1}
+              roughness={0.12}
+              clearcoat={0.9}
+              clearcoatRoughness={0.12}
+              metalness={0.18}
+              ior={1.5}
+            />
+          </mesh>
+          {/* 다면체 외곽 후광 */}
+          <mesh
+            geometry={STAR_STELLATED_GEOMETRY}
+            rotation={[0.2, 0.4, 0.08]}
+            scale={isActive ? [currentGlow * 1.22, currentGlow * 1.22, currentGlow * 1.22] : [currentGlow * 1.05, currentGlow * 1.05, currentGlow * 1.05]}
+          >
+            <meshBasicMaterial color={color} transparent opacity={isActive ? 0.18 : 0.08} blending={2} depthWrite={false} />
+          </mesh>
+          {/* 중심 광원 */}
+          <mesh scale={[currentSize * 0.18, currentSize * 0.18, currentSize * 0.18]} position={[currentSize * 0.2, currentSize * 0.2, currentSize * 0.18]}>
+            <sphereGeometry args={[1, 20, 20]} />
+            <meshBasicMaterial color="#ffffff" toneMapped={false} opacity={isBirthFinished ? 1 : 1} transparent />
+          </mesh>
+        </>
+      )}
     </group>
   );
 
@@ -274,14 +274,14 @@ function MacroGalaxy({ timelineItems, positionMap, starTone, hiddenIds, freezeMo
     if (freezeMotion) return;
     if (!meshRef.current || !initialized.current) return;
     const p = spreadRef.current;
-    
+
     // spread가 변하지 않고 이미 완료된 상태여도, 새로 추가된 아이템이 있을 수 있으므로 체크
     const needsUpdate = p !== prevSpread.current || p < 1;
-    
+
     if (!needsUpdate) {
       // 애니메이션 완료 상태에서는 가벼운 y축 움직임만 처리
       meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.5;
-      
+
       // 새로 추가된 아이템(인스턴스)이 있는지 확인하여 마지막으로 한 번 더 강제 동기화 (간단히 처리)
       // 실제로는 useEffect에서도 처리하지만, instancedMesh 특성상 여기서 한 번 더 해주면 확실함
       return;
@@ -548,6 +548,7 @@ function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportP
   return null;
 }
 
+// 🚨 [수정됨] 별자리 선 애니메이션 개선 (비활성 상태에서도 은은하게 반짝임 유지)
 function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = false }: { weekKey: string; pts: Vector3[]; isHovered: boolean; freezeMotion?: boolean }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const lineRef = useRef<any>(null);
@@ -559,9 +560,9 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = fal
     const sPts: Vector3[] = [];
     const vCols: [number, number, number][] = [];
 
-    // 블룸 효과를 위한 색상
-    const bright: [number, number, number] = [3.0, 3.5, 6.0];
-    const faint: [number, number, number] = [0.05, 0.05, 0.1];
+    // Bloom 임계값을 넘기 위한 강한 색상
+    const bright: [number, number, number] = [8.0, 10.0, 15.0];
+    const faint: [number, number, number] = [0.5, 0.5, 1.0];
 
     for (let i = 0; i < pts.length - 1; i++) {
       const p1 = pts[i];
@@ -582,9 +583,8 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = fal
     return { subdividedPts: sPts, vertexColors: vCols };
   }, [pts]);
 
-  // 내부 상태: 현재 투명도와 선 두께를 부드럽게 추적
   const currentOpacity = useRef(0);
-  const currentLineWidth = useRef(0.5);
+  const currentLineWidth = useRef(0.8);
 
   useFrame((state, delta) => {
     if (!lineRef.current?.material) return;
@@ -592,41 +592,50 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = fal
 
     const dt = Math.min(delta, 0.1);
 
-    // ── 목표값 결정 ──
     let goalOpacity: number;
     let goalWidth: number;
 
     if (isHovered) {
-      // 선택/호버 상태: 또렷하게
-      goalOpacity = 0.7;
-      goalWidth = 1.2;
+      // 마우스를 올렸을 때는 무조건 뚜렷하게 점등
+      goalOpacity = 0.9;
+      goalWidth = 1.5;
     } else {
-      // 비활성 상태: 아주 은은한 반짝임
       const time = state.clock.elapsedTime;
-      const speed = 0.15 + (seed % 7) * 0.02;  // 매우 느린 주기 (약 10~20초)
-      const phase = (seed % 100) * 0.5;
-      const wave = Math.sin(time * speed + phase) * 0.5 + 0.5;  // 0~1
+      // 속도를 낮추어 매우 천천히 파동이 지나가게 설정
+      const speed = 0.2 + (seed % 10) * 0.02;
+      const phase = (seed % 100);
 
-      // wave가 0.9 이상일 때만 살짝 보임 (전체 시간의 ~10%)
-      goalOpacity = wave > 0.9 ? ((wave - 0.9) / 0.1) * 0.08 : 0.0;
-      goalWidth = 0.5;
+      // -1 ~ 1 사이를 진동하는 사인파
+      const wave = Math.sin(time * speed + phase);
+
+      // 상위 20% 구간(약 0.6 이상)에서만 반응하도록 임계값 설정
+      const threshold = 0.6;
+
+      if (wave > threshold) {
+        // 0.6 ~ 1.0 사이의 파동 값을 0 ~ 1 비율로 정규화
+        const normalized = (wave - threshold) / (1 - threshold);
+
+        // Smoothstep 공식을 통해 곡선의 양 끝을 둥글게 깎아 은은한 페이드 인/아웃 생성
+        const smooth = normalized * normalized * (3 - 2 * normalized);
+
+        // 평소(0.02)에서 최대 0.35까지 부드럽게 밝아짐
+        goalOpacity = 0.02 + (smooth * 0.33);
+        goalWidth = 0.8 + (smooth * 0.2);
+      } else {
+        // 나머지 80%의 시간 동안은 거의 꺼진 상태(0.02) 유지
+        goalOpacity = 0.0;
+        goalWidth = 0.8;
+      }
     }
 
-    // ── 비대칭 보간: 밝아질 때는 느리게, 사라질 때는 더 느리게 ──
-    const diff = goalOpacity - currentOpacity.current;
-    const lerpSpeed = diff > 0
-      ? dt * 1.8   // 페이드인: 약 0.5초에 걸쳐 밝아짐
-      : dt * 0.8;  // 페이드아웃: 약 1.2초에 걸쳐 사라짐 (더 느림)
+    // 보간(Lerp) 속도. 평상시에는 dt * 0.5를 사용하여 목표값으로 스르륵 이동하게 만듦
+    const lerpSpeed = isHovered ? dt * 4.0 : dt * 0.5;
 
-    currentOpacity.current += diff * lerpSpeed;
+    currentOpacity.current += (goalOpacity - currentOpacity.current) * lerpSpeed;
+    currentLineWidth.current += (goalWidth - currentLineWidth.current) * lerpSpeed;
 
-    // 선 두께도 부드럽게 보간
-    currentLineWidth.current += (goalWidth - currentLineWidth.current) * (dt * 1.5);
-
-    // 극소값 최적화
     if (currentOpacity.current < 0.002) currentOpacity.current = 0;
 
-    // material에 반영
     lineRef.current.material.opacity = currentOpacity.current;
     lineRef.current.material.linewidth = currentLineWidth.current;
   });
@@ -639,11 +648,11 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = fal
       transparent
       blending={2}
       opacity={0}
-      lineWidth={0.5}
+      lineWidth={0.8}
+      toneMapped={false}
     />
   );
 }
-
 function GalaxyStars({ freezeMotion = false }: { freezeMotion?: boolean }) {
   const starsRef = useRef<Group>(null);
   useFrame((state) => {
@@ -775,24 +784,13 @@ export function StarScene({
 
   const positionMap = useMemo(() => new Map(timelinePositions.map((i) => [i.id, i.position])), [timelinePositions]);
 
-  const getDeepLineGroupKey = (item: { constellationId?: number; weekKey?: string }) => {
-    if (typeof item.constellationId === "number" && !Number.isNaN(item.constellationId)) {
-      return `constellation-${item.constellationId}`;
-    }
-    if (item.weekKey) {
-      return `week-${item.weekKey}`;
-    }
-    return null;
-  };
-
   const constellationLines = useMemo(() => {
+    // 1. 주차(weekKey)별로 모든 별(데일리, 딥)을 그룹화합니다.
     const groups = new Map<string, typeof timelineItems>();
 
-    // 심층별끼리만 별자리 선을 생성한다.
     timelineItems.forEach((item) => {
-      if (item.kind !== "deep") return;
-
-      const groupKey = getDeepLineGroupKey(item);
+      // 🚨 [수정 1] 심층별만 필터링하던 로직 제거
+      const groupKey = item.weekKey; // 주차 키를 그대로 사용
       if (!groupKey) return;
 
       if (!groups.has(groupKey)) groups.set(groupKey, []);
@@ -800,14 +798,23 @@ export function StarScene({
     });
 
     const lines: { weekKey: string, pts: Vector3[] }[] = [];
+
+    // 2. 그룹별로 선 만들기
     groups.forEach((items, groupKey) => {
-      const sorted = [...items].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      // 🚨 [수정 2] 해당 주차의 모든 별을 날짜순(오름차순)으로 정렬
+      const sorted = [...items].sort((a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
+
       const pts = sorted
         .map((i) => positionMap.get(i.id))
-        .filter(Boolean)
+        .filter(Boolean) // 위치가 없는 별 제외
         .map((pos) => new Vector3(...(pos as [number, number, number])));
 
-      if (pts.length > 1) lines.push({ weekKey: groupKey, pts });
+      // 🚨 [수정 3] 점이 2개 이상일 때만 선을 긋습니다.
+      if (pts.length > 1) {
+        lines.push({ weekKey: groupKey, pts });
+      }
     });
 
     return lines;
@@ -819,22 +826,21 @@ export function StarScene({
     return match ? new Vector3(...match) : null;
   }, [positionMap, selectedStarId, mypageStar]);
 
+  // 🚨 [수정 4] 하이라이트를 위한 그룹 키 매칭도 weekKey 하나로 통일
   const hoveredLineGroupKey = useMemo(() => {
     if (!hoveredStarId || hoveredStarId === mypageStar.id) return null;
     const hoveredItem = timelineItems.find(item => item.id === hoveredStarId);
-    if (!hoveredItem || hoveredItem.kind !== "deep") return null;
-    return getDeepLineGroupKey(hoveredItem);
+    return hoveredItem ? hoveredItem.weekKey : null;
   }, [hoveredStarId, timelineItems, mypageStar.id]);
 
   const selectedLineGroupKey = useMemo(() => {
     if (!selectedStarId || selectedStarId === mypageStar.id) return null;
     const selectedItem = timelineItems.find((item) => item.id === selectedStarId);
-    if (!selectedItem || selectedItem.kind !== "deep") return null;
-    return getDeepLineGroupKey(selectedItem);
+    return selectedItem ? selectedItem.weekKey : null;
   }, [selectedStarId, timelineItems, mypageStar.id]);
 
   // 클릭된 별 또는 호버된 별의 weekKey 중 하나라도 일치하면 별자리 강조
-  const highlightedWeekKey = hoveredLineGroupKey || selectedLineGroupKey || (selectedWeekKey ? `week-${selectedWeekKey}` : null);
+  const highlightedWeekKey = hoveredLineGroupKey || selectedLineGroupKey || (selectedWeekKey ? selectedWeekKey : null);
 
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
