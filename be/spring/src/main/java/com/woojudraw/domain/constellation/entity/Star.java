@@ -112,4 +112,8 @@ public class Star {
 	public Long getDeepSessionId() {
 		return deepSession == null ? null : deepSession.getId();
 	}
+
+	void attachTo(Constellation constellation) {
+		this.constellation = constellation;
+	}
 }

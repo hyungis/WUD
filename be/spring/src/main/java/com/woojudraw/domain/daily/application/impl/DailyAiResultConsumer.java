@@ -98,7 +98,11 @@ public class DailyAiResultConsumer {
 				: objectMapper.writeValueAsString(response.getData().getRaw());
 
 			DailyResult dailyResult = dailyResultRepository.findByDaily_Id(dailyId)
-				.orElseGet(() -> DailyResult.create(daily, response.getData().getResultSummary(), rawJson));
+				.orElseGet(() -> {
+					DailyResult created = DailyResult.create(daily, response.getData().getResultSummary(), rawJson);
+					daily.assignDailyResult(created);
+					return created;
+				});
 			dailyResult.updateResult(response.getData().getResultSummary(), rawJson);
 			dailyResultRepository.save(dailyResult);
 

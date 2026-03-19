@@ -7,6 +7,7 @@ import com.woojudraw.domain.image.entity.Image;
 import com.woojudraw.domain.user.entity.User;
 import com.woojudraw.global.time.AppTime;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -57,6 +58,9 @@ public class Daily {
 	@OneToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "drawing_image_id", nullable = false, unique = true)
 	private Image drawingImage;
+
+	@OneToOne(mappedBy = "daily", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+	private DailyResult dailyResult;
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "analysis_status", nullable = false, length = 20)
@@ -128,6 +132,28 @@ public class Daily {
 
 	public Long getDrawingImageId() {
 		return drawingImage == null ? null : drawingImage.getId();
+	}
+
+	public void assignDailyResult(DailyResult dailyResult) {
+		if (this.dailyResult == dailyResult) {
+			return;
+		}
+		if (this.dailyResult != null) {
+			this.dailyResult.attachTo(null);
+		}
+		this.dailyResult = dailyResult;
+		if (dailyResult != null) {
+			dailyResult.attachTo(this);
+		}
+	}
+
+	public void removeDailyResult() {
+		if (this.dailyResult == null) {
+			return;
+		}
+		DailyResult current = this.dailyResult;
+		this.dailyResult = null;
+		current.attachTo(null);
 	}
 
 	public boolean isOwnedBy(Long userId) {

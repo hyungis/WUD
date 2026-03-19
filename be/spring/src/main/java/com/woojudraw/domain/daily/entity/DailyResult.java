@@ -67,6 +67,10 @@ public class DailyResult {
 		return daily == null ? null : daily.getId();
 	}
 
+	void attachTo(Daily daily) {
+		this.daily = daily;
+	}
+
 	public void updateResult(String result, String raw) {
 		this.result = result;
 		this.raw = raw;

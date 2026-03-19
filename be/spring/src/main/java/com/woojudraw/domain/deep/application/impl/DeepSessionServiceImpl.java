@@ -105,6 +105,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 				request.getAnswers(),
 				weekStartDate,
 				objectMapper);
+		deepSession.addPsychAssessment(assessment);
 
 		DeepPsychAssessment saved = deepPsychAssessmentRepository.save(assessment);
 
@@ -134,6 +135,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 			request.getAnswers(),
 			weekStartDate,
 			objectMapper);
+		deepSession.addPsychAssessment(assessment);
 
 		DeepPsychAssessment saved = deepPsychAssessmentRepository.save(assessment);
 
@@ -174,12 +176,15 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 				.findByDeepSession_IdAndTestCode(sessionId, PsychTestCode.SPANE)
 			    .orElseThrow(() -> new BusinessException(ResponseCode.SPANE_NOT_FOUND));
 
-		deepSubmissionRepository.save(
-				DeepSubmission.create(deepSession, houseImage, SubmissionType.HOUSE));
-		deepSubmissionRepository.save(
-				DeepSubmission.create(deepSession, treeImage, SubmissionType.TREE));
-		deepSubmissionRepository.save(
-				DeepSubmission.create(deepSession, personImage, SubmissionType.PERSON));
+		DeepSubmission houseSubmission = DeepSubmission.create(deepSession, houseImage, SubmissionType.HOUSE);
+		DeepSubmission treeSubmission = DeepSubmission.create(deepSession, treeImage, SubmissionType.TREE);
+		DeepSubmission personSubmission = DeepSubmission.create(deepSession, personImage, SubmissionType.PERSON);
+		deepSession.addSubmission(houseSubmission);
+		deepSession.addSubmission(treeSubmission);
+		deepSession.addSubmission(personSubmission);
+		deepSubmissionRepository.save(houseSubmission);
+		deepSubmissionRepository.save(treeSubmission);
+		deepSubmissionRepository.save(personSubmission);
 
 		deepSession.updateDeepType(DeepType.HTP);
 		deepSession.markSubmitted();
@@ -248,8 +253,9 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 			.findByDeepSession_IdAndTestCode(sessionId, PsychTestCode.SPANE)
 			.orElseThrow(() -> new BusinessException(ResponseCode.SPANE_NOT_FOUND));
 
-		deepSubmissionRepository.save(
-			DeepSubmission.create(deepSession, image, request.getType()));
+		DeepSubmission submission = DeepSubmission.create(deepSession, image, request.getType());
+		deepSession.addSubmission(submission);
+		deepSubmissionRepository.save(submission);
 		deepSession.markSubmitted();
 		deepSession.changeStatus(DeepStatus.ANALYZING);
 

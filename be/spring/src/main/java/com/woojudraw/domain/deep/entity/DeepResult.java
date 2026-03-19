@@ -67,6 +67,10 @@ public class DeepResult{
 		return deepSession == null ? null : deepSession.getId();
 	}
 
+	void attachTo(DeepSession deepSession) {
+		this.deepSession = deepSession;
+	}
+
 	public void updateResult(String result, String raw) {
 		this.result = result;
 		this.raw = raw;

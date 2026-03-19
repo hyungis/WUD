@@ -69,6 +69,7 @@ public class ConstellationServiceImpl implements ConstellationService {
 			deepSession,
 			AppTime.nowKst()
 		);
+		constellation.addStar(deepStar);
 
 		starRepository.save(deepStar);
 	}
@@ -101,6 +102,7 @@ public class ConstellationServiceImpl implements ConstellationService {
 			daily.getEmotionColor(),
 			AppTime.nowKst()
 		);
+		constellation.addStar(dailyStar);
 
 		starRepository.save(dailyStar);
 	}

@@ -71,4 +71,8 @@ public class DeepSubmission {
 	public Long getImageId() {
 		return image == null ? null : image.getId();
 	}
+
+	void attachTo(DeepSession deepSession) {
+		this.deepSession = deepSession;
+	}
 }

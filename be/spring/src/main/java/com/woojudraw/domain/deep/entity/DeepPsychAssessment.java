@@ -174,4 +174,8 @@ public class DeepPsychAssessment {
 	public Long getUserId() {
 		return user == null ? null : user.getId();
 	}
+
+	void attachTo(DeepSession deepSession) {
+		this.deepSession = deepSession;
+	}
 }

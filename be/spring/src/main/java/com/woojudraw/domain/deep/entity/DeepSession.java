@@ -1,10 +1,13 @@
 package com.woojudraw.domain.deep.entity;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.time.OffsetDateTime;
 
 import com.woojudraw.domain.user.entity.User;
 import com.woojudraw.global.time.AppTime;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -15,6 +18,8 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -34,6 +39,15 @@ public class DeepSession {
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user;
+
+	@OneToMany(mappedBy = "deepSession", cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<DeepSubmission> submissions = new ArrayList<>();
+
+	@OneToMany(mappedBy = "deepSession", cascade = CascadeType.ALL, orphanRemoval = true)
+	private List<DeepPsychAssessment> psychAssessments = new ArrayList<>();
+
+	@OneToOne(mappedBy = "deepSession", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+	private DeepResult deepResult;
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "deep_type", length = 30)
@@ -90,6 +104,55 @@ public class DeepSession {
 
 	public boolean isOwnedBy(Long userId) {
 		return user != null && user.getId().equals(userId);
+	}
+
+	public void addSubmission(DeepSubmission submission) {
+		if (submission == null) {
+			return;
+		}
+		if (!submissions.contains(submission)) {
+			submissions.add(submission);
+		}
+		submission.attachTo(this);
+	}
+
+	public void removeSubmission(DeepSubmission submission) {
+		if (submission == null) {
+			return;
+		}
+		submissions.remove(submission);
+		submission.attachTo(null);
+	}
+
+	public void addPsychAssessment(DeepPsychAssessment psychAssessment) {
+		if (psychAssessment == null) {
+			return;
+		}
+		if (!psychAssessments.contains(psychAssessment)) {
+			psychAssessments.add(psychAssessment);
+		}
+		psychAssessment.attachTo(this);
+	}
+
+	public void removePsychAssessment(DeepPsychAssessment psychAssessment) {
+		if (psychAssessment == null) {
+			return;
+		}
+		psychAssessments.remove(psychAssessment);
+		psychAssessment.attachTo(null);
+	}
+
+	public void assignDeepResult(DeepResult deepResult) {
+		if (this.deepResult == deepResult) {
+			return;
+		}
+		if (this.deepResult != null) {
+			this.deepResult.attachTo(null);
+		}
+		this.deepResult = deepResult;
+		if (deepResult != null) {
+			deepResult.attachTo(this);
+		}
 	}
 
 	public void updateDeepType(DeepType deepType) {
