@@ -616,7 +616,7 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = fal
         goalWidth = 0.8 + (smooth * 0.2);
       } else {
         // 나머지 80%의 시간 동안은 거의 꺼진 상태(0.02) 유지
-        goalOpacity = 0.02;
+        goalOpacity = 0.0;
         goalWidth = 0.8;
       }
     }
