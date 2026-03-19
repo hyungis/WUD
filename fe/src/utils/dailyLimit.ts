@@ -1,7 +1,7 @@
 import { dailyApi } from "../api/daily";
 import type { DeepHistoryItem } from "../types/deep";
 
-export const DAILY_LIMIT_MESSAGE = "오늘 데일리 기록은 이미 완료했어요. 내일 다시 작성할 수 있어요.";
+export const DAILY_LIMIT_MESSAGE = "오늘 해당 데일리 콘텐츠는 이미 완료했어요. 다른 콘텐츠를 선택하거나 내일 다시 작성할 수 있어요.";
 export const WEEKLY_LIMIT_MESSAGE = "이번 주 해당 위클리 콘텐츠는 이미 완료했어요. 다음 주에 다시 진행할 수 있어요.";
 
 type StarLike = {
@@ -41,6 +41,15 @@ export const hasTodayDailyEntry = async () => {
   const today = getTodayKstDate();
 
   return list.some((item) => item.entryDate === today);
+};
+
+export const hasTodayDailyEntryByType = async (dailyType: string) => {
+  const res = await dailyApi.getDailyList();
+  const list = (res.data ?? []) as Array<{ entryDate?: string; dailyType?: string }>;
+  const today = getTodayKstDate();
+  const targetType = dailyType.toUpperCase();
+
+  return list.some((item) => item.entryDate === today && String(item.dailyType ?? "").toUpperCase() === targetType);
 };
 
 export const hasTodayWeeklyEntryFromStars = (stars: StarLike[]) => {

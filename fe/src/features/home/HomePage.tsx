@@ -68,7 +68,9 @@ function HomePage() {
   const hoverClearTimerRef = useRef<number | null>(null);
   const isTooltipHoverRef = useRef(false);
   const pendingBirthReport = useRef<any>(null);
+  const pendingBirthKind = useRef<"daily" | "deep" | null>(null);
   const openDeepReportRef = useRef<((payload: any) => void) | null>(null);
+  const openDailyReportRef = useRef<((payload: any) => void) | null>(null);
 
   useEffect(() => {
     const overlayOpen = isMyUniverseOpen
@@ -187,12 +189,14 @@ function HomePage() {
     [stars],
   );
 
-  const openDeepReport = async (star: DeepStar & { targetId?: number; aiSummary?: string; questions?: string[] }) => {
+  const openDeepReport = async (
+    star: DeepStar & { targetId?: number; aiSummary?: string; questions?: string[]; deepType?: string },
+    options?: { silent?: boolean },
+  ) => {
     setReportError(null);
     setSelectedDeepStar(star);
     setSelectedDailyPlanet(null);
     setIsSidePanelOpen(true);
-    setDeepPages([]);
 
     const sessionId = Number(star.targetId ?? star.id);
     if (Number.isNaN(sessionId) || sessionId <= 0) {
@@ -200,7 +204,10 @@ function HomePage() {
       return;
     }
 
-    setReportLoading(true);
+    const silent = Boolean(options?.silent);
+    if (!silent) {
+      setReportLoading(true);
+    }
     try {
       // 모든 완료/분석중 세션을 가져와 검사별 탭으로 구성
       const sessionsRes = await deepApi.getPastSessions();
@@ -216,6 +223,21 @@ function HomePage() {
         }
       }
       const weekSessions = Array.from(byType.values());
+
+      // 대상 세션은 새로고침 없이도 반드시 리포트 페이지 목록에 포함
+      const targetDeepType = (star as any).deepType;
+      const targetSession = allSessions.find((s: any) => Number(s.sessionId) === sessionId);
+      const targetExists = weekSessions.some((s: any) => Number(s.sessionId) === sessionId);
+      if (!targetExists) {
+        weekSessions.push(
+          targetSession || {
+            sessionId,
+            deepType: targetDeepType || "HTP",
+            status: "ANALYZING",
+            createdAt: star.createdAt,
+          },
+        );
+      }
 
       // 최소 대상 세션은 포함
       if (weekSessions.length === 0) {
@@ -244,19 +266,29 @@ function HomePage() {
             createdAt: session.createdAt,
           });
         } else {
+          const normalizedStatus = session.status === "DONE" || session.status === "FAILED"
+            ? session.status
+            : "ANALYZING";
           pages.push({
             sessionId: session.sessionId,
             deepType: session.deepType || "HTP",
             aiSummary: "",
             submissions: [],
             psychAssessments: [],
-            status: session.status || "ANALYZING",
+            status: normalizedStatus,
             createdAt: session.createdAt,
           });
         }
       });
 
       pages.sort((a, b) => (TYPE_ORDER[a.deepType] ?? 99) - (TYPE_ORDER[b.deepType] ?? 99));
+
+      // 방금 요청한 세션을 맨 앞으로 올려 즉시 해당 리포트가 보이도록 한다.
+      const targetIdx = pages.findIndex((p) => Number(p.sessionId) === sessionId);
+      if (targetIdx > 0) {
+        const [targetPage] = pages.splice(targetIdx, 1);
+        pages.unshift(targetPage);
+      }
       setDeepPages(pages);
 
       // 헤더용으로 대표 세션 데이터 설정
@@ -275,40 +307,77 @@ function HomePage() {
       console.error("fetch deep result fail:", e);
       setReportError(getApiErrorMessage(e, "위클리 리포트를 불러오지 못했습니다."));
     } finally {
-      setReportLoading(false);
+      if (!silent) {
+        setReportLoading(false);
+      }
     }
   };
 
-  // 별 탄생 파티클 애니메이션 완료 시 newborn 상태 해제 + 분석 완료 폴링 시작
+  // 별 탄생 파티클 애니메이션 완료 시 newborn 상태 해제 + 리포트 오픈 (데일리/위클리 동일)
   openDeepReportRef.current = openDeepReport;
   const handleBirthComplete = useCallback(() => {
     setNewbornStarId(null);
     setAnalysisReady(false);
     if (pendingBirthReport.current) {
       const payload = pendingBirthReport.current;
+      const kind = pendingBirthKind.current;
       pendingBirthReport.current = null;
-      openDeepReportRef.current?.(payload);
+      pendingBirthKind.current = null;
+      if (kind === "daily") {
+        openDailyReportRef.current?.(payload);
+      } else {
+        openDeepReportRef.current?.(payload);
+      }
     }
   }, [setNewbornStarId]);
 
-  // 분석 완료 폴링: pendingSessionId가 있으면 8초마다 결과 조회, DONE이면 별가루 모으기 시작
+  // 분석 완료 폴링: pendingSessionId(위클리)가 있으면 8초마다 결과 조회, DONE이면 별가루 모으기 시작
   useEffect(() => {
     if (!pendingSessionId) return;
     let cancelled = false;
     const poll = async () => {
       try {
-        const res = await deepApi.getDeepResult(pendingSessionId);
+        const res = await deepApi.getAnalysisStatus(pendingSessionId);
         if (cancelled) return;
         if (res.success && res.data && res.data.status === "DONE") {
           setPendingSessionId(null);
           setAnalysisReady(true);
+        } else if (res.success && res.data && res.data.status === "FAILED") {
+          setPendingSessionId(null);
+          setAnalysisReady(false);
+          pendingBirthReport.current = null;
         }
       } catch { /* retry next interval */ }
     };
     void poll();
-    const id = window.setInterval(poll, 8000);
+    const id = window.setInterval(poll, 3000);
     return () => { cancelled = true; window.clearInterval(id); };
   }, [pendingSessionId]);
+
+  // 분석 완료 폴링: pendingDailyId(데일리)가 있으면 5초마다 결과 조회, DONE이면 별가루 모으기
+  const [pendingDailyId, setPendingDailyId] = useState<number | null>(null);
+  useEffect(() => {
+    if (!pendingDailyId) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await dailyApi.getDailyDetail(pendingDailyId);
+        if (cancelled) return;
+        const status = res.data?.analysisStatus;
+        if (status === "DONE") {
+          setPendingDailyId(null);
+          setAnalysisReady(true);
+        } else if (status === "FAILED") {
+          setPendingDailyId(null);
+          setAnalysisReady(false);
+          pendingBirthReport.current = null;
+        }
+      } catch { /* retry next interval */ }
+    };
+    void poll();
+    const id = window.setInterval(poll, 3000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, [pendingDailyId]);
 
   const openDailyReport = async (planet: DailyPlanet & { targetId?: number; aiSummary?: string }) => {
     setReportError(null);
@@ -432,6 +501,7 @@ function HomePage() {
         shell: detail.emotionColor || prev?.shell,
         core: detail.emotionColor || prev?.core,
         analysisStatus: detail.analysisStatus || prev?.analysisStatus,
+        drawingImageUrl: detail.drawingImageUrl || prev?.drawingImageUrl || "",
         aiSummary,
       }));
     } catch (e) {
@@ -441,6 +511,8 @@ function HomePage() {
       setReportLoading(false);
     }
   };
+
+  openDailyReportRef.current = openDailyReport;
 
   const handleTimelineItemClick = async (item: any) => {
     setSelectedStarId(item.id);
@@ -551,7 +623,7 @@ function HomePage() {
         selectedDeepStar={selectedDeepStar}
         selectedDailyPlanet={selectedDailyPlanet}
         deepPages={deepPages}
-        onRefresh={selectedDeepStar ? () => void openDeepReport(selectedDeepStar as any) : undefined}
+        onRefresh={selectedDeepStar ? () => void openDeepReport(selectedDeepStar as any, { silent: true }) : undefined}
       />
 
       <MyUniverseModal
@@ -591,12 +663,15 @@ function HomePage() {
           onClose={() => setDailyCompleteModalOpen(false)}
           onSaved={(dailyId) => {
             setDailyCompleteModalOpen(false);
-            const planet = dailyPlanets.find((p: any) => p.targetId === dailyId);
-            if (planet) {
-              void openDailyReport(planet as any);
-            } else {
-              void openDailyReport({ id: String(dailyId), targetId: dailyId, shell: "#facc15", core: "#facc15", memo: "", createdAt: new Date().toISOString() } as any);
-            }
+            // 데일리도 위클리와 동일한 별 탄생 흐름: 별가루 → 분석 대기 → 모임 → 별 탄생 → 리포트
+            const starColor = (() => {
+              const stored = localStorage.getItem("dailyPlanetShellColor");
+              return stored || "#facc15";
+            })();
+            const reportPayload = { id: String(dailyId), targetId: dailyId, shell: starColor, core: starColor, memo: "", createdAt: new Date().toISOString() } as any;
+            pendingBirthReport.current = reportPayload;
+            pendingBirthKind.current = "daily";
+            setPendingDailyId(dailyId);
           }}
           onBackToDetail={() => {
             setDailyCompleteModalOpen(false);
@@ -644,17 +719,34 @@ function HomePage() {
           isModal
           onClose={() => setWeeklyHtpModalOpen(false)}
           onSaved={async (sid) => {
-            const hadDeepStar = useUiStore.getState().stars.some(s => s.kind === "DEEP" && !s.isTemporary);
+            const existingDeepStar = useUiStore.getState().stars.find(s => s.kind === "DEEP" && !s.isTemporary);
             setWeeklyHtpModalOpen(false);
             const starColor = colorFromId(String(sid), "DEEP");
-            const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "HTP" } as any;
-            if (!hadDeepStar) {
-              // 첫 검사: 즉시 임시별 추가 → 별가루 애니메이션 → 분석 완료 후 리포트
+            const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "HTP", deepType: "HTP" } as any;
+            if (!existingDeepStar) {
               pendingBirthReport.current = reportPayload;
+              pendingBirthKind.current = "deep";
               addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
               setPendingSessionId(sid);
             } else {
-              // 후속 검사: 리포트 즉시 열기 (분석 중 UI 표시)
+              setDeepPages([{
+                sessionId: sid,
+                deepType: "HTP",
+                aiSummary: "",
+                submissions: [],
+                psychAssessments: [],
+                status: "ANALYZING",
+                createdAt: new Date().toISOString(),
+              }]);
+              setSelectedDeepStar((prev: any) => ({
+                ...(prev ?? {}),
+                ...reportPayload,
+                status: "ANALYZING",
+                submissions: [],
+                psychAssessments: [],
+                aiSummary: "",
+              }));
+              setSelectedStarId(existingDeepStar.id);
               void openDeepReport(reportPayload);
             }
           }}
@@ -671,15 +763,34 @@ function HomePage() {
           isModal
           onClose={() => setWeeklyPirModalOpen(false)}
           onSaved={async (sid) => {
-            const hadDeepStar = useUiStore.getState().stars.some(s => s.kind === "DEEP" && !s.isTemporary);
+            const existingDeepStar = useUiStore.getState().stars.find(s => s.kind === "DEEP" && !s.isTemporary);
             setWeeklyPirModalOpen(false);
             const starColor = colorFromId(String(sid), "DEEP");
-            const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "PIR" } as any;
-            if (!hadDeepStar) {
+            const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "PIR", deepType: "PERSON_IN_RAIN" } as any;
+            if (!existingDeepStar) {
               pendingBirthReport.current = reportPayload;
+              pendingBirthKind.current = "deep";
               addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
               setPendingSessionId(sid);
             } else {
+              setDeepPages([{
+                sessionId: sid,
+                deepType: "PERSON_IN_RAIN",
+                aiSummary: "",
+                submissions: [],
+                psychAssessments: [],
+                status: "ANALYZING",
+                createdAt: new Date().toISOString(),
+              }]);
+              setSelectedDeepStar((prev: any) => ({
+                ...(prev ?? {}),
+                ...reportPayload,
+                status: "ANALYZING",
+                submissions: [],
+                psychAssessments: [],
+                aiSummary: "",
+              }));
+              setSelectedStarId(existingDeepStar.id);
               void openDeepReport(reportPayload);
             }
           }}
@@ -696,15 +807,34 @@ function HomePage() {
           isModal
           onClose={() => setWeeklySwModalOpen(false)}
           onSaved={async (sid) => {
-            const hadDeepStar = useUiStore.getState().stars.some(s => s.kind === "DEEP" && !s.isTemporary);
+            const existingDeepStar = useUiStore.getState().stars.find(s => s.kind === "DEEP" && !s.isTemporary);
             setWeeklySwModalOpen(false);
             const starColor = colorFromId(String(sid), "DEEP");
-            const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "SW" } as any;
-            if (!hadDeepStar) {
+            const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "SW", deepType: "STAR_WAVE" } as any;
+            if (!existingDeepStar) {
               pendingBirthReport.current = reportPayload;
+              pendingBirthKind.current = "deep";
               addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
               setPendingSessionId(sid);
             } else {
+              setDeepPages([{
+                sessionId: sid,
+                deepType: "STAR_WAVE",
+                aiSummary: "",
+                submissions: [],
+                psychAssessments: [],
+                status: "ANALYZING",
+                createdAt: new Date().toISOString(),
+              }]);
+              setSelectedDeepStar((prev: any) => ({
+                ...(prev ?? {}),
+                ...reportPayload,
+                status: "ANALYZING",
+                submissions: [],
+                psychAssessments: [],
+                aiSummary: "",
+              }));
+              setSelectedStarId(existingDeepStar.id);
               void openDeepReport(reportPayload);
             }
           }}

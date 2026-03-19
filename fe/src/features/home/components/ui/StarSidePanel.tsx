@@ -44,14 +44,29 @@ export function StarSidePanel({
 }: StarSidePanelProps) {
   const [pageIdx, setPageIdx] = useState(0);
 
-  // 새 리포트가 열리면 페이지 인덱스 초기화
-  useEffect(() => { setPageIdx(0); }, [deepPages]);
+  // deepPages 갱신 시 사용자가 보던 탭을 유지하고, 범위를 벗어나면 마지막 탭으로 보정
+  useEffect(() => {
+    setPageIdx((prev) => {
+      if (!deepPages.length) return 0;
+      return Math.min(prev, deepPages.length - 1);
+    });
+  }, [deepPages.length]);
+
+  // 새 리포트를 열 때는 요청한 세션 탭으로 이동
+  useEffect(() => {
+    const targetSessionId = Number((selectedDeepStar as any)?.targetId ?? 0);
+    if (!targetSessionId || !deepPages.length) return;
+    const idx = deepPages.findIndex((p: any) => Number(p?.sessionId) === targetSessionId);
+    if (idx >= 0) setPageIdx(idx);
+  }, [selectedDeepStar, deepPages]);
 
   // 분석 중인 페이지가 있으면 10초마다 자동 재조회
   const hasAnalyzing = deepPages.some(p => p.status === "ANALYZING" || p.status === "SUBMITTED");
   useEffect(() => {
     if (!isOpen || !hasAnalyzing || !onRefresh) return;
-    const id = window.setInterval(onRefresh, 10_000);
+    // 패널을 연 직후 즉시 1회 재조회 + 이후 3초 주기 폴링
+    void onRefresh();
+    const id = window.setInterval(onRefresh, 3_000);
     return () => window.clearInterval(id);
   }, [isOpen, hasAnalyzing, onRefresh]);
 
@@ -71,6 +86,29 @@ export function StarSidePanel({
           status: selectedDeepStar.status,
         }
       : null;
+
+  const who5Assessment = Array.isArray(currentPage?.psychAssessments)
+    ? currentPage.psychAssessments.find((pa: any) => String(pa?.testCode ?? "").toUpperCase() === "WHO5")
+    : null;
+
+  const parseSpaneFromRaw = (raw: any) => {
+    if (!raw || typeof raw !== "object") {
+      return { positive: 0, negative: 0, balance: 0 };
+    }
+    const positive = Number(raw.scorePositive ?? raw.positive ?? 0);
+    const negative = Number(raw.scoreNegative ?? raw.negative ?? 0);
+    const balance = Number(raw.scoreBalance ?? raw.balance ?? (positive - negative));
+
+    // raw에 answers만 있는 경우 계산 (앞 6문항 긍정, 뒤 6문항 부정)
+    if (!positive && !negative && Array.isArray(raw.answers) && raw.answers.length >= 12) {
+      const nums = raw.answers.map((v: any) => Number(v) || 0);
+      const p = nums.slice(0, 6).reduce((acc: number, cur: number) => acc + cur, 0);
+      const n = nums.slice(6, 12).reduce((acc: number, cur: number) => acc + cur, 0);
+      return { positive: p, negative: n, balance: p - n };
+    }
+
+    return { positive, negative, balance };
+  };
 
   const resolveDailyFallbackMessage = (status?: string) => {
     if (status === "FAILED") return "데일리 AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.";
@@ -207,11 +245,11 @@ export function StarSidePanel({
                         {currentPage.createdAt ? formatDateTimeKST(currentPage.createdAt) : ""}
                       </p>
                     </div>
-                    {Array.isArray(currentPage.psychAssessments) && currentPage.psychAssessments.length > 0 && (
+                    {who5Assessment && typeof who5Assessment.scoreTotal === "number" && (
                       <div className="text-center flex-shrink-0 rounded-xl bg-indigo-500/[0.08] border border-indigo-500/[0.12] px-4 py-2">
                         <p className="text-[9px] uppercase tracking-widest text-slate-500">WHO-5</p>
                         <p className="text-2xl font-bold text-indigo-300">
-                          {currentPage.psychAssessments[0].scoreTotal}
+                          {who5Assessment.scoreTotal}
                           <span className="text-sm text-slate-500">/25</span>
                         </p>
                       </div>
@@ -288,14 +326,32 @@ export function StarSidePanel({
                     <div className="rounded-xl border border-white/[0.12] bg-white/[0.03] p-4">
                       <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">심리검사 결과</p>
                       {currentPage.psychAssessments.map((pa: any, idx: number) => {
-                        const pct = Math.min(100, (pa.scoreTotal / 25) * 100);
+                        const testCode = String(pa?.testCode ?? "").toUpperCase();
+                        const isSpane = testCode === "SPANE";
+
+                        const scoreTotal = Number(pa?.scoreTotal ?? 0);
+                        const spaneParsed = parseSpaneFromRaw(pa?.raw);
+                        const scorePositive = Number(pa?.scorePositive ?? spaneParsed.positive ?? 0);
+                        const scoreNegative = Number(pa?.scoreNegative ?? spaneParsed.negative ?? 0);
+                        const scoreBalance = Number(pa?.scoreBalance ?? spaneParsed.balance ?? (scorePositive - scoreNegative));
+
+                        const pct = isSpane
+                          ? Math.max(0, Math.min(100, ((scoreBalance + 24) / 48) * 100))
+                          : Math.min(100, (scoreTotal / 25) * 100);
                         const level = pct >= 72 ? "양호" : pct >= 52 ? "보통" : "주의";
                         const barColor = pct >= 72 ? "#34d399" : pct >= 52 ? "#fbbf24" : "#fb7185";
+
+                        const scoreLabel = isSpane
+                          ? (scorePositive || scoreNegative
+                            ? `긍정 ${scorePositive} · 부정 ${scoreNegative} · 균형 ${scoreBalance}`
+                            : "점수 계산 중")
+                          : `${scoreTotal}점`;
+
                         return (
                           <div key={idx} className={idx < currentPage.psychAssessments.length - 1 ? "mb-2.5" : ""}>
                             <div className="flex items-center justify-between mb-1">
-                              <span className="text-xs text-slate-300">{pa.testCode ?? "WHO-5"}</span>
-                              <span className="text-xs text-slate-400">{level} · {pa.scoreTotal}점</span>
+                              <span className="text-xs text-slate-300">{testCode || "WHO-5"}</span>
+                              <span className="text-xs text-slate-400">{level} · {scoreLabel}</span>
                             </div>
                             <div className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
                               <div className="h-full rounded-full transition-all duration-500" style={{ background: barColor, width: `${pct}%` }} />
@@ -311,6 +367,17 @@ export function StarSidePanel({
               {/* ═══ DAILY PLANET ═══ */}
               {isDaily && !reportLoading && !reportError && selectedDailyPlanet && (
                 <>
+                  {/* 그림 이미지 */}
+                  {selectedDailyPlanet.drawingImageUrl && (
+                    <div className="rounded-xl border border-white/[0.12] overflow-hidden">
+                      <img
+                        src={selectedDailyPlanet.drawingImageUrl}
+                        alt="오늘의 그림"
+                        className="w-full object-contain max-h-64 bg-white/5"
+                      />
+                    </div>
+                  )}
+
                   {/* 기록 일시 + 감정 */}
                   <div className="flex items-center gap-3 rounded-xl border border-white/[0.12] bg-white/[0.03] px-4 py-3">
                     <div className="h-10 w-10 rounded-lg flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: selectedDailyPlanet.shell + "22" }}>

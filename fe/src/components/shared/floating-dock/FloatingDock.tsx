@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuthStore } from "../../../store/authStore";
-import { useUiStore, selectHasDeepStarThisWeek } from "../../../store/uiStore";
+import { useUiStore } from "../../../store/uiStore";
 
 export default function FloatingDock() {
     const user = useAuthStore((state) => state.user);
@@ -16,8 +16,6 @@ export default function FloatingDock() {
 
     const displayName = user?.nickname || user?.name || user?.email?.split("@")[0] || "사용자";
 
-    const hasWeeklyStar = useUiStore(selectHasDeepStarThisWeek);
-
     const handleWeeklyClick = async () => {
         if (isCheckingWeekly) {
             return;
@@ -25,11 +23,6 @@ export default function FloatingDock() {
 
         setIsCheckingWeekly(true);
         try {
-            if (hasWeeklyStar) {
-                window.alert("이번 주 위클리 별은 이미 생성되었어요. 다음 주에 새 별이 생성됩니다.");
-                return;
-            }
-
             setWeeklyHtpModalOpen(false);
             setWeeklyContentModalOpen(true);
         } catch {

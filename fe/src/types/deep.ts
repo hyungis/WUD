@@ -76,7 +76,14 @@ export interface DeepDetailResponse {
         questions?: string[];
         raw: Record<string, unknown>;
     };
-    psychAssessments: { testCode: string; scoreTotal: number; raw: Record<string, unknown> }[];
+    psychAssessments: {
+        testCode: string;
+        scoreTotal?: number;
+        scorePositive?: number;
+        scoreNegative?: number;
+        scoreBalance?: number;
+        raw: Record<string, unknown>;
+    }[];
 }
 
 export interface DeepHistoryItem {

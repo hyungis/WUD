@@ -673,10 +673,9 @@ function GalaxyStars({ freezeMotion = false }: { freezeMotion?: boolean }) {
   );
 }
 
-/* ── 별 탄생 파티클 효과: 중심별 → 새 별 위치로 별가루 나선 이동 ── */
+/* ── 별 탄생 파티클 효과: 타겟 주변에서 별가루 공전 → 분석 완료 → 합체 → 별 탄생 ── */
 const PARTICLE_COUNT = 80;
-const BIRTH_TRAVEL_DURATION = 6.0;   // 파티클 이동 시간 (천천히)
-const BIRTH_GATHER_DURATION = 2.0;   // 뽙글뽙글 모이는 시간
+const BIRTH_GATHER_DURATION = 2.5;   // 별가루 모이는 시간
 
 function StarBirthEffect({ target, color, isGathering = false, onComplete }: {
   target: [number, number, number];
@@ -690,25 +689,18 @@ function StarBirthEffect({ target, color, isGathering = false, onComplete }: {
   const gatherStart = useRef<number | null>(null);
 
   const particleData = useMemo(() => {
-    const data: { ox: number; oy: number; oz: number; delay: number; speed: number; angularSpeed: number; spinAxis: [number, number, number]; orbitRadius: number; orbitPhase: number }[] = [];
+    const data: { orbitRadius: number; angularSpeed: number; orbitPhase: number; spinAxis: [number, number, number]; tilt: number }[] = [];
     for (let i = 0; i < PARTICLE_COUNT; i++) {
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const r = 1.5 + Math.random() * 4.0;
       const ax = Math.random() - 0.5;
       const ay = Math.random() - 0.5;
       const az = Math.random() - 0.5;
       const len = Math.sqrt(ax * ax + ay * ay + az * az) || 1;
       data.push({
-        ox: r * Math.sin(phi) * Math.cos(theta),
-        oy: r * Math.sin(phi) * Math.sin(theta),
-        oz: r * Math.cos(phi),
-        delay: Math.random() * 1.0,
-        speed: 0.4 + Math.random() * 0.3,
-        angularSpeed: 0.8 + Math.random() * 1.2,
-        spinAxis: [ax / len, ay / len, az / len],
-        orbitRadius: 0.6 + Math.random() * 0.8,
+        orbitRadius: 1.5 + Math.random() * 3.0,
+        angularSpeed: 0.6 + Math.random() * 1.0,
         orbitPhase: Math.random() * Math.PI * 2,
+        spinAxis: [ax / len, ay / len, az / len],
+        tilt: (Math.random() - 0.5) * 0.6,
       });
     }
     return data;
@@ -721,8 +713,8 @@ function StarBirthEffect({ target, color, isGathering = false, onComplete }: {
     elapsed.current += delta;
     const t = elapsed.current;
 
-    // isGathering이 true로 전환되면 gather 시작 시점 기록
-    if (isGathering && gatherStart.current === null) {
+    // isGathering이 true이거나 궤도 시간이 15초를 초과하면 자동으로 합체 시작
+    if (gatherStart.current === null && (isGathering || t > 15)) {
       gatherStart.current = t;
     }
 
@@ -730,49 +722,28 @@ function StarBirthEffect({ target, color, isGathering = false, onComplete }: {
 
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const pd = particleData[i];
-      const localT = Math.max(0, (t - pd.delay) * pd.speed);
-
-      // 이동 단계: 랜덤 위치 → 타겟 근처 궤도로 천천히 이동
-      const travelT = Math.min(localT / BIRTH_TRAVEL_DURATION, 1);
-      const ease = travelT < 0.5
-        ? 4 * travelT * travelT * travelT
-        : 1 - Math.pow(-2 * travelT + 2, 3) / 2;
-
-      let px = pd.ox * (1 - ease) + target[0] * ease;
-      let py = pd.oy * (1 - ease) + target[1] * ease;
-      let pz = pd.oz * (1 - ease) + target[2] * ease;
-
-      // 궤도 회전
       const angle = t * pd.angularSpeed + pd.orbitPhase;
-      const [ax, ay, az] = pd.spinAxis;
 
       if (gatherStart.current !== null) {
-        // 모이는 단계: 뽙글뽙글 돌면서 중력처럼 중앙으로 수축
+        // 모이는 단계: 궤도 반경이 수축하며 타겟 중심으로 합체
         const gatherElapsed = t - gatherStart.current;
         const gatherT = Math.min(gatherElapsed / BIRTH_GATHER_DURATION, 1);
-        const gravity = gatherT * gatherT;
-        const shrink = 1 - gravity;
-        const currentOrbitR = pd.orbitRadius * shrink;
+        const shrink = 1 - gatherT * gatherT;
+        const r = pd.orbitRadius * shrink;
 
-        posAttr.array[i * 3]     = target[0] + (px - target[0]) * shrink + Math.cos(angle) * currentOrbitR;
-        posAttr.array[i * 3 + 1] = target[1] + (py - target[1]) * shrink + Math.sin(angle) * currentOrbitR;
-        posAttr.array[i * 3 + 2] = target[2] + (pz - target[2]) * shrink + Math.sin(angle * 0.7) * currentOrbitR * 0.5;
+        posAttr.array[i * 3]     = target[0] + Math.cos(angle) * r;
+        posAttr.array[i * 3 + 1] = target[1] + Math.sin(angle * 0.7) * r * 0.5 + pd.tilt * r;
+        posAttr.array[i * 3 + 2] = target[2] + Math.sin(angle) * r;
       } else {
-        // 궤도 단계: 타겟 주변을 천천히 공전
-        const orbitStrength = ease;
-        const currentOrbitR = pd.orbitRadius * orbitStrength;
-        px += Math.cos(angle) * currentOrbitR * (1 - ax * ax);
-        py += Math.sin(angle) * currentOrbitR * (1 - ay * ay);
-        pz += Math.cos(angle + 1.0) * currentOrbitR * (1 - az * az);
-
-        posAttr.array[i * 3] = px;
-        posAttr.array[i * 3 + 1] = py;
-        posAttr.array[i * 3 + 2] = pz;
+        // 공전 단계: 타겟 별 주변을 빙글빙글 궤도 회전
+        const r = pd.orbitRadius;
+        posAttr.array[i * 3]     = target[0] + Math.cos(angle) * r;
+        posAttr.array[i * 3 + 1] = target[1] + Math.sin(angle * 0.7) * r * 0.5 + pd.tilt * r;
+        posAttr.array[i * 3 + 2] = target[2] + Math.sin(angle) * r;
       }
     }
     posAttr.needsUpdate = true;
 
-    // gather 완료 후 onComplete 호출
     if (gatherStart.current !== null) {
       const gatherElapsed = t - gatherStart.current;
       if (gatherElapsed > BIRTH_GATHER_DURATION + 0.3 && !completed.current) {
@@ -1009,6 +980,9 @@ export function StarScene({
     return detailedItems.filter((item) => item.id === selectedStarId);
   }, [detailedItems, isReportOpen, selectedStarId, mypageStar.id]);
 
+  // 분석 완료 시 별가루 모으기 → 별 탄생 (데일리/위클리 동일 흐름)
+  const shouldGatherBirthEffect = Boolean(isAnalysisComplete);
+
   const detailedItemIds = useMemo(() => new Set(detailedItems.map(i => i.id)), [detailedItems]);
 
   return (
@@ -1121,7 +1095,7 @@ export function StarScene({
                 const s = dailyPlanets.find(p => p.id === newbornStarId) || deepStars.find(d => d.id === newbornStarId);
                 return (s as any)?.toneColor || (s as any)?.shell || (s as any)?.core || starTone;
               })()}
-              isGathering={Boolean(isAnalysisComplete)}
+              isGathering={shouldGatherBirthEffect}
               onComplete={onBirthComplete}
             />
           )}

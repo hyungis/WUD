@@ -134,7 +134,12 @@ export const useUiStore = create<UiState>((set) => ({
         const createdAt = createdAtRaw ? String(createdAtRaw) : new Date().toISOString();
         const weekStartDate = s.weekStartDate ?? s.week_start_date;
         
-        const rawTargetId = s.dailyEntryId ?? s.targetId ?? s.id;
+        const rawTargetId = s.dailyEntryId
+          ?? s.daily_entry_id
+          ?? s.deepSessionId
+          ?? s.deep_session_id
+          ?? s.targetId
+          ?? s.id;
         const targetId = typeof rawTargetId === "number" ? rawTargetId : Number(rawTargetId);
 
         const constellationId = typeof s.constellationId === "number" ? s.constellationId : Number(s.constellationId);

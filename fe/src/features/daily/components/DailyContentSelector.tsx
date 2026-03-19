@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useUiStore } from "../../../store/uiStore";
-import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntry } from "../../../utils/dailyLimit";
+import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntryByType } from "../../../utils/dailyLimit";
 import { AlertModal } from "../../../components/shared/AlertModal";
 
 const EMOTIONS = [
@@ -63,7 +63,7 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
 
     setIsCheckingDailyLimit(true);
     try {
-      const existsToday = await hasTodayDailyEntry();
+      const existsToday = await hasTodayDailyEntryByType("MANDALA");
       if (existsToday) {
         setAlert({ isOpen: true, message: DAILY_LIMIT_MESSAGE, type: "error" });
         return;
@@ -194,20 +194,45 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
                         return;
                       }
                       if (task.id === "coloring") {
-                        if (selectedEmotion) {
-                          localStorage.setItem("dailyMoodColor", selectedEmotion.color);
-                          localStorage.setItem("dailyMoodValue", String(selectedEmotion.value));
-                          localStorage.setItem("dailyMoodLabel", selectedEmotion.label);
-                        }
-                        setIsLeaving(true);
-                        setTimeout(() => {
-                          if (isDailyContentModalOpen) {
-                            setDailyContentModalOpen(false);
-                            setDailyColoringModalOpen(true);
+                        if (isCheckingDailyLimit) return;
+                        setIsCheckingDailyLimit(true);
+                        hasTodayDailyEntryByType("COLORING").then((exists) => {
+                          if (exists) {
+                            setAlert({ isOpen: true, message: DAILY_LIMIT_MESSAGE, type: "error" });
+                            setIsCheckingDailyLimit(false);
                             return;
                           }
-                          navigate("/daily/coloring");
-                        }, 280);
+                          if (selectedEmotion) {
+                            localStorage.setItem("dailyMoodColor", selectedEmotion.color);
+                            localStorage.setItem("dailyMoodValue", String(selectedEmotion.value));
+                            localStorage.setItem("dailyMoodLabel", selectedEmotion.label);
+                          }
+                          setIsLeaving(true);
+                          setTimeout(() => {
+                            if (isDailyContentModalOpen) {
+                              setDailyContentModalOpen(false);
+                              setDailyColoringModalOpen(true);
+                              return;
+                            }
+                            navigate("/daily/coloring");
+                          }, 280);
+                        }).catch(() => {
+                          // 조회 실패 시 허용
+                          if (selectedEmotion) {
+                            localStorage.setItem("dailyMoodColor", selectedEmotion.color);
+                            localStorage.setItem("dailyMoodValue", String(selectedEmotion.value));
+                            localStorage.setItem("dailyMoodLabel", selectedEmotion.label);
+                          }
+                          setIsLeaving(true);
+                          setTimeout(() => {
+                            if (isDailyContentModalOpen) {
+                              setDailyContentModalOpen(false);
+                              setDailyColoringModalOpen(true);
+                              return;
+                            }
+                            navigate("/daily/coloring");
+                          }, 280);
+                        }).finally(() => setIsCheckingDailyLimit(false));
                         return;
                       }
                       navigate(`/daily/${task.id}`);
