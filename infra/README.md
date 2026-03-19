@@ -200,6 +200,7 @@ docker compose run --rm certbot certificates
 | `http://도메인/*` | `https://도메인/*`로 301 리다이렉트 |
 | `https://도메인/` | `frontend:80`으로 프록시 (React SPA) |
 | `https://도메인/api/*` | `backend:8081/*`으로 프록시 (API prefix strip) |
+| `https://도메인/grafana/*` | `grafana:3000/*`으로 프록시 (Grafana UI, 서브패스) |
 | `http://도메인/.well-known/acme-challenge/` | certbot 인증서 발급용 |
 
 ### 프록시 헤더
@@ -218,6 +219,37 @@ docker compose run --rm certbot certificates
 |--------|----------|------|---------|--------|
 | redis | `redis-cli ping` | 5초 | 3초 | 5회 |
 | rabbitmq | `rabbitmq-diagnostics -q ping` | 10초 | 5초 | 5회 |
+
+---
+
+## 8. 모니터링 (Prometheus + Grafana + Loki)
+
+### 구성 파일
+
+- `docker-compose.monitoring.yml`
+- `monitoring/prometheus/prometheus.yml`
+- `monitoring/prometheus/alert.rules.yml`
+- `monitoring/loki/loki.yml`
+- `monitoring/promtail/promtail.yml`
+- `monitoring/alertmanager/alertmanager.yml`
+
+### 실행/중지
+
+모든 명령은 `infra/`에서 실행합니다.
+
+```bash
+# 실행
+docker compose -f docker-compose.monitoring.yml up -d
+
+# 중지
+docker compose -f docker-compose.monitoring.yml down
+```
+
+### 접속
+
+- Grafana: `https://도메인/grafana/`
+  - 초기 계정: `admin`
+  - 비밀번호: `.env`의 `GRAFANA_PASSWORD`
 
 `backend`는 redis, rabbitmq가 healthy 상태가 된 후에 시작됩니다.
 
