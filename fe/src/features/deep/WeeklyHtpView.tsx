@@ -370,8 +370,8 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
       if (isSurveySkipped) {
         // 1. 더미 데이터를 먼저 전송하여 분석 조건을 충족시킴
         await Promise.all([
-          deepApi.submitWho5Assessment(activeSessionId, { answers: [0, 0, 0, 0, 0] }),
-          deepApi.submitSpaneAssessment(activeSessionId, { answers: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] })
+          deepApi.submitWho5Assessment(activeSessionId, { answers: [0, 0, 0, 0, 0], isSkipped: true }),
+          deepApi.submitSpaneAssessment(activeSessionId, { answers: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], isSkipped: true })
         ]);
       }
 

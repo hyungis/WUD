@@ -3,7 +3,6 @@ package com.woojudraw.domain.deep.application.impl;
 import static java.util.stream.Collectors.*;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,7 +14,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.woojudraw.domain.constellation.application.ConstellationService;
 import com.woojudraw.domain.deep.api.dto.req.AiAnalyzeReq;
 import com.woojudraw.domain.deep.api.dto.req.CreateDeepSessionReq;
-import com.woojudraw.domain.deep.api.dto.req.HtpImagesAnalyzeReq;
 import com.woojudraw.domain.deep.api.dto.req.SpaneAnalyzeReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitDeepSubmissionsReq;
 import com.woojudraw.domain.deep.api.dto.req.SubmitHtpReq;
@@ -105,6 +103,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 				deepSession,
 				deepSession.getUser(),
 				request.getAnswers(),
+				request.getIsSkipped(),
 				weekStartDate,
 				objectMapper);
 		deepSession.addPsychAssessment(assessment);
@@ -135,6 +134,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 			deepSession,
 			deepSession.getUser(),
 			request.getAnswers(),
+			request.getIsSkipped(),
 			weekStartDate,
 			objectMapper);
 		deepSession.addPsychAssessment(assessment);
@@ -204,6 +204,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 					.who5(
 							Who5AnalyzeReq.builder()
 									.scoreTotal(who5Assessment.getScoreTotal())
+									.isSkipped(who5Assessment.getIsSkipped())
 									.raw(convertWho5Raw(who5Assessment))
 									.build())
 					.spane(
@@ -211,6 +212,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 							.scorePositive(spaneAssessment.getScorePositive())
 							.scoreNegative(spaneAssessment.getScoreNegative())
 							.scoreBalance(spaneAssessment.getScoreBalance())
+							.isSkipped(spaneAssessment.getIsSkipped())
 							.raw(convertSpaneRaw(spaneAssessment)) // 아래 유틸 메서드 필요
 							.build())
 					.images(imageMap)
@@ -281,6 +283,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 				.who5(
 					Who5AnalyzeReq.builder()
 						.scoreTotal(who5Assessment.getScoreTotal())
+						.isSkipped(who5Assessment.getIsSkipped())
 						.raw(convertWho5Raw(who5Assessment))
 						.build())
 				.spane(
@@ -288,6 +291,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 						.scorePositive(spaneAssessment.getScorePositive())
 						.scoreNegative(spaneAssessment.getScoreNegative())
 						.scoreBalance(spaneAssessment.getScoreBalance())
+						.isSkipped(spaneAssessment.getIsSkipped())
 						.raw(convertSpaneRaw(spaneAssessment))
 						.build())
 				.images(imageMap) // 위에서 구성한 범용 Map 주입

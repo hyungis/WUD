@@ -14,5 +14,6 @@ import lombok.NoArgsConstructor;
 public class Who5AnalyzeReq {
 
 	private Integer scoreTotal;
+	private Boolean isSkipped;
 	private Map<String, Integer> raw;
 }

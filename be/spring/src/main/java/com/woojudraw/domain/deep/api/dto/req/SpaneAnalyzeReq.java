@@ -15,5 +15,6 @@ public class SpaneAnalyzeReq {
 	private Short scorePositive;
 	private Short scoreNegative;
 	private Short scoreBalance;
+	private Boolean isSkipped;
 	private Map<String, Integer> raw;
 }
