@@ -12,6 +12,7 @@ import HomePage from "./features/home/HomePage";
 import WelcomePage from "./features/home/WelcomePage";
 import WeeklyContentView from "./features/deep/WeeklyContentView";
 import WeeklyHtpView from "./features/deep/WeeklyHtpView";
+import WeeklySingleDrawView from "./features/deep/WeeklySingleDrawView";
 // import MyPage from "./features/user/MyPage";
 import PrivateRoute from "./routes/PrivateRoute";
 import PublicRoute from "./routes/PublicRoute";
@@ -228,6 +229,22 @@ function App() {
           element={
             <PrivateRoute>
               <WeeklyHtpView />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/deep/pir"
+          element={
+            <PrivateRoute>
+              <WeeklySingleDrawView testType="PERSON_IN_RAIN" />
+            </PrivateRoute>
+          }
+        />
+        <Route
+          path="/deep/sw"
+          element={
+            <PrivateRoute>
+              <WeeklySingleDrawView testType="STAR_WAVE" />
             </PrivateRoute>
           }
         />

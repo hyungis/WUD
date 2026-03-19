@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { dailyApi } from "../../api/daily";
 import { deepApi } from "../../api/deep";
 import type { DailyPlanet, DeepStar } from "./utils/homeHelpers";
-import { getWeekKey, normalizeDeepReportText } from "./utils/homeHelpers";
+import { getWeekKey, normalizeDeepReportText, colorFromId } from "./utils/homeHelpers";
 import { StarScene } from "./components/scene/StarScene";
 import { useUiStore } from "../../store/uiStore";
 
@@ -14,6 +14,7 @@ import DailyDetailView from "../daily/DailyDetailView";
 import DailyCompleteView from "../daily/DailyCompleteView";
 import WeeklyContentView from "../deep/WeeklyContentView";
 import WeeklyHtpView from "../deep/WeeklyHtpView";
+import WeeklySingleDrawView from "../deep/WeeklySingleDrawView";
 
 // ==========================================
 // 5. 메인 페이지 (UI)
@@ -23,12 +24,16 @@ function HomePage() {
   const isMyUniverseOpen = useUiStore((state) => state.isMyUniverseOpen);
   const setIsMyUniverseOpen = useUiStore((state) => state.setIsMyUniverseOpen);
   const [selectedDeepStar, setSelectedDeepStar] = useState<any>(null);
+  const [deepPages, setDeepPages] = useState<any[]>([]);
   const [selectedDailyPlanet, setSelectedDailyPlanet] = useState<DailyPlanet | null>(null);
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
+  const [pendingSessionId, setPendingSessionId] = useState<number | null>(null);
+  const [analysisReady, setAnalysisReady] = useState(false);
   const stars = useUiStore((state) => state.stars);
   const fetchStarMap = useUiStore((state) => state.fetchStarMap);
+  const addTemporaryStar = useUiStore((state) => state.addTemporaryStar);
   const selectedStarId = useUiStore((state) => state.selectedStarId);
   const setSelectedStarId = useUiStore((state) => state.setSelectedStarId);
   const newbornStarId = useUiStore((state) => state.newbornStarId);
@@ -50,10 +55,16 @@ function HomePage() {
   const setWeeklyContentModalOpen = useUiStore((state) => state.setWeeklyContentModalOpen);
   const isWeeklyHtpModalOpen = useUiStore((state) => state.isWeeklyHtpModalOpen);
   const setWeeklyHtpModalOpen = useUiStore((state) => state.setWeeklyHtpModalOpen);
+  const isWeeklyPirModalOpen = useUiStore((state) => state.isWeeklyPirModalOpen);
+  const setWeeklyPirModalOpen = useUiStore((state) => state.setWeeklyPirModalOpen);
+  const isWeeklySwModalOpen = useUiStore((state) => state.isWeeklySwModalOpen);
+  const setWeeklySwModalOpen = useUiStore((state) => state.setWeeklySwModalOpen);
 
   const isMacro = viewMode === "macro";
   const hoverClearTimerRef = useRef<number | null>(null);
   const isTooltipHoverRef = useRef(false);
+  const pendingBirthReport = useRef<any>(null);
+  const openDeepReportRef = useRef<((payload: any) => void) | null>(null);
 
   useEffect(() => {
     const overlayOpen = isMyUniverseOpen
@@ -62,6 +73,8 @@ function HomePage() {
       || isDailyCompleteModalOpen
       || isWeeklyContentModalOpen
       || isWeeklyHtpModalOpen
+      || isWeeklyPirModalOpen
+      || isWeeklySwModalOpen
       || isSidePanelOpen;
     setOverlayOpen(overlayOpen);
     return () => setOverlayOpen(false);
@@ -72,6 +85,8 @@ function HomePage() {
     isDailyCompleteModalOpen,
     isWeeklyContentModalOpen,
     isWeeklyHtpModalOpen,
+    isWeeklyPirModalOpen,
+    isWeeklySwModalOpen,
     isSidePanelOpen,
     setOverlayOpen,
   ]);
@@ -126,18 +141,14 @@ function HomePage() {
     };
   }, [fetchStarMap]);
 
-  // 새로운 별이 생성되었을 때 자동 선택 및 애니메이션 처리
+  // 새로운 별이 생성되었을 때 자동 선택 + 카메라 포커스
+  // newbornStarId 클리어는 StarBirthEffect의 onBirthComplete에서 처리
   useEffect(() => {
     if (newbornStarId) {
       setSelectedStarId(newbornStarId);
-      
-      // 애니메이션이 어느 정도 진행된 후(예: 4초) newborn 상태 해제
-      const timer = setTimeout(() => {
-        setNewbornStarId(null);
-      }, 4000);
-      return () => clearTimeout(timer);
+      setTimelineFocusNonce(n => n + 1);
     }
-  }, [newbornStarId, setSelectedStarId, setNewbornStarId]);
+  }, [newbornStarId, setSelectedStarId]);
 
   const dailyPlanets = useMemo(
     () => stars
@@ -175,6 +186,7 @@ function HomePage() {
     setSelectedDeepStar(star);
     setSelectedDailyPlanet(null);
     setIsSidePanelOpen(true);
+    setDeepPages([]);
 
     const sessionId = Number(star.targetId ?? star.id);
     if (Number.isNaN(sessionId) || sessionId <= 0) {
@@ -184,17 +196,75 @@ function HomePage() {
 
     setReportLoading(true);
     try {
-      const res = await deepApi.getDeepResult(sessionId);
-      if (!res.success || !res.data) throw new Error("deep result API returned success=false");
+      // 모든 완료/분석중 세션을 가져와 검사별 탭으로 구성
+      const sessionsRes = await deepApi.getPastSessions();
+      const allSessions = sessionsRes.success && Array.isArray(sessionsRes.data) ? sessionsRes.data : [];
 
-      const data = res.data;
-      const aiSummary = normalizeDeepReportText(data.aiResult?.result || data.aiResult?.resultSummary || "");
-      const submissions = Array.isArray(data.submissions) ? data.submissions : [];
-      const psychAssessments = Array.isArray(data.psychAssessments) ? data.psychAssessments : [];
-      const deepType = data.deepType || "HTP";
-      const status = data.status || "DONE";
-      const createdAt = star.createdAt;
-      setSelectedDeepStar((prev: any) => ({ ...prev, aiSummary, submissions, psychAssessments, deepType, status, createdAt }));
+      // deepType별로 최신 세션만 1개씩 보여줌 (DRAFT/FAILED 제외)
+      const byType = new Map<string, any>();
+      for (const s of allSessions) {
+        if (s.status === "DRAFT" || s.status === "FAILED") continue;
+        const existing = byType.get(s.deepType);
+        if (!existing || new Date(s.createdAt) > new Date(existing.createdAt)) {
+          byType.set(s.deepType, s);
+        }
+      }
+      const weekSessions = Array.from(byType.values());
+
+      // 최소 대상 세션은 포함
+      if (weekSessions.length === 0) {
+        weekSessions.push({ sessionId, deepType: "HTP", status: "DONE", createdAt: star.createdAt });
+      }
+
+      // 병렬로 결과 조회
+      const results = await Promise.allSettled(
+        weekSessions.map((s: any) => deepApi.getDeepResult(s.sessionId))
+      );
+
+      const TYPE_ORDER: Record<string, number> = { HTP: 0, PERSON_IN_RAIN: 1, STAR_WAVE: 2 };
+      const pages: any[] = [];
+
+      weekSessions.forEach((session: any, i: number) => {
+        const result = results[i];
+        if (result.status === "fulfilled" && result.value.success && result.value.data) {
+          const data = result.value.data;
+          pages.push({
+            sessionId: session.sessionId,
+            deepType: data.deepType || session.deepType || "HTP",
+            aiSummary: normalizeDeepReportText(data.aiResult?.result || data.aiResult?.resultSummary || ""),
+            submissions: Array.isArray(data.submissions) ? data.submissions : [],
+            psychAssessments: Array.isArray(data.psychAssessments) ? data.psychAssessments : [],
+            status: data.status || session.status,
+            createdAt: session.createdAt,
+          });
+        } else {
+          pages.push({
+            sessionId: session.sessionId,
+            deepType: session.deepType || "HTP",
+            aiSummary: "",
+            submissions: [],
+            psychAssessments: [],
+            status: session.status || "ANALYZING",
+            createdAt: session.createdAt,
+          });
+        }
+      });
+
+      pages.sort((a, b) => (TYPE_ORDER[a.deepType] ?? 99) - (TYPE_ORDER[b.deepType] ?? 99));
+      setDeepPages(pages);
+
+      // 헤더용으로 대표 세션 데이터 설정
+      const primary = pages.find(p => p.sessionId === sessionId) || pages[0];
+      if (primary) {
+        setSelectedDeepStar((prev: any) => ({
+          ...prev,
+          aiSummary: primary.aiSummary,
+          submissions: primary.submissions,
+          psychAssessments: primary.psychAssessments,
+          deepType: primary.deepType,
+          status: primary.status,
+        }));
+      }
     } catch (e) {
       console.error("fetch deep result fail:", e);
       setReportError("위클리 리포트를 불러오지 못했습니다.");
@@ -202,6 +272,37 @@ function HomePage() {
       setReportLoading(false);
     }
   };
+
+  // 별 탄생 파티클 애니메이션 완료 시 newborn 상태 해제 + 분석 완료 폴링 시작
+  openDeepReportRef.current = openDeepReport;
+  const handleBirthComplete = useCallback(() => {
+    setNewbornStarId(null);
+    setAnalysisReady(false);
+    if (pendingBirthReport.current) {
+      const payload = pendingBirthReport.current;
+      pendingBirthReport.current = null;
+      openDeepReportRef.current?.(payload);
+    }
+  }, [setNewbornStarId]);
+
+  // 분석 완료 폴링: pendingSessionId가 있으면 8초마다 결과 조회, DONE이면 별가루 모으기 시작
+  useEffect(() => {
+    if (!pendingSessionId) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await deepApi.getDeepResult(pendingSessionId);
+        if (cancelled) return;
+        if (res.success && res.data && res.data.status === "DONE") {
+          setPendingSessionId(null);
+          setAnalysisReady(true);
+        }
+      } catch { /* retry next interval */ }
+    };
+    void poll();
+    const id = window.setInterval(poll, 8000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, [pendingSessionId]);
 
   const openDailyReport = async (planet: DailyPlanet & { targetId?: number; aiSummary?: string }) => {
     setReportError(null);
@@ -392,6 +493,8 @@ function HomePage() {
           isReportOpen={isSidePanelOpen}
           newbornStarId={newbornStarId}
           externalFocusNonce={timelineFocusNonce}
+          onBirthComplete={handleBirthComplete}
+          isAnalysisComplete={analysisReady}
         />
       </div>
 
@@ -441,6 +544,8 @@ function HomePage() {
         reportError={reportError}
         selectedDeepStar={selectedDeepStar}
         selectedDailyPlanet={selectedDailyPlanet}
+        deepPages={deepPages}
+        onRefresh={selectedDeepStar ? () => void openDeepReport(selectedDeepStar as any) : undefined}
       />
 
       <MyUniverseModal
@@ -478,7 +583,15 @@ function HomePage() {
         <DailyCompleteView
           isModal
           onClose={() => setDailyCompleteModalOpen(false)}
-          onSaved={() => {}} // Store에서 직접 처리하므로 비워둠 (혹은 refreshStarsAfterSave는 호출부에서 함)
+          onSaved={(dailyId) => {
+            setDailyCompleteModalOpen(false);
+            const planet = dailyPlanets.find((p: any) => p.targetId === dailyId);
+            if (planet) {
+              void openDailyReport(planet as any);
+            } else {
+              void openDailyReport({ id: String(dailyId), targetId: dailyId, shell: "#facc15", core: "#facc15", memo: "", createdAt: new Date().toISOString() } as any);
+            }
+          }}
           onBackToDetail={() => {
             setDailyCompleteModalOpen(false);
             setDailyDetailModalOpen(true);
@@ -494,6 +607,14 @@ function HomePage() {
             setWeeklyContentModalOpen(false);
             setWeeklyHtpModalOpen(true);
           }}
+          onStartPir={() => {
+            setWeeklyContentModalOpen(false);
+            setWeeklyPirModalOpen(true);
+          }}
+          onStartSw={() => {
+            setWeeklyContentModalOpen(false);
+            setWeeklySwModalOpen(true);
+          }}
         />
       )}
 
@@ -501,9 +622,73 @@ function HomePage() {
         <WeeklyHtpView
           isModal
           onClose={() => setWeeklyHtpModalOpen(false)}
-          onSaved={() => {}}
+          onSaved={async (sid) => {
+            const hadDeepStar = useUiStore.getState().stars.some(s => s.kind === "DEEP" && !s.isTemporary);
+            setWeeklyHtpModalOpen(false);
+            const starColor = colorFromId(String(sid), "DEEP");
+            const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "HTP" } as any;
+            if (!hadDeepStar) {
+              // 첫 검사: 즉시 임시별 추가 → 별가루 애니메이션 → 분석 완료 후 리포트
+              pendingBirthReport.current = reportPayload;
+              addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
+              setPendingSessionId(sid);
+            } else {
+              // 후속 검사: 리포트 즉시 열기 (분석 중 UI 표시)
+              void openDeepReport(reportPayload);
+            }
+          }}
           onBackToWeeklyContent={() => {
             setWeeklyHtpModalOpen(false);
+            setWeeklyContentModalOpen(true);
+          }}
+        />
+      )}
+
+      {isWeeklyPirModalOpen && (
+        <WeeklySingleDrawView
+          testType="PERSON_IN_RAIN"
+          isModal
+          onClose={() => setWeeklyPirModalOpen(false)}
+          onSaved={async (sid) => {
+            const hadDeepStar = useUiStore.getState().stars.some(s => s.kind === "DEEP" && !s.isTemporary);
+            setWeeklyPirModalOpen(false);
+            const starColor = colorFromId(String(sid), "DEEP");
+            const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "PIR" } as any;
+            if (!hadDeepStar) {
+              pendingBirthReport.current = reportPayload;
+              addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
+              setPendingSessionId(sid);
+            } else {
+              void openDeepReport(reportPayload);
+            }
+          }}
+          onBackToWeeklyContent={() => {
+            setWeeklyPirModalOpen(false);
+            setWeeklyContentModalOpen(true);
+          }}
+        />
+      )}
+
+      {isWeeklySwModalOpen && (
+        <WeeklySingleDrawView
+          testType="STAR_WAVE"
+          isModal
+          onClose={() => setWeeklySwModalOpen(false)}
+          onSaved={async (sid) => {
+            const hadDeepStar = useUiStore.getState().stars.some(s => s.kind === "DEEP" && !s.isTemporary);
+            setWeeklySwModalOpen(false);
+            const starColor = colorFromId(String(sid), "DEEP");
+            const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "SW" } as any;
+            if (!hadDeepStar) {
+              pendingBirthReport.current = reportPayload;
+              addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
+              setPendingSessionId(sid);
+            } else {
+              void openDeepReport(reportPayload);
+            }
+          }}
+          onBackToWeeklyContent={() => {
+            setWeeklySwModalOpen(false);
             setWeeklyContentModalOpen(true);
           }}
         />

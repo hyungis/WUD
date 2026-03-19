@@ -6,8 +6,8 @@ import { WEEKLY_LIMIT_MESSAGE, hasWeeklyDeepEntryByType } from "../../utils/dail
 
 const DEFAULT_FEATURES: DeepTestInfo[] = [
     { type: "HTP", title: "HTP 검사", description: "집, 나무, 사람을 그리며 현재 감정과 자기표현을 돌아보는 심층 콘텐츠", available: true },
-    { type: "PERSON_IN_RAIN", title: "빗속의 사람", description: "비와 사람의 구성을 통해 스트레스 상황에서의 감정을 돌아보는 콘텐츠", available: false },
-    { type: "STAR_WAVE", title: "별-파도 검사", description: "별과 파도의 이미지를 통해 내면 상태를 표현해보는 콘텐츠", available: false },
+    { type: "PERSON_IN_RAIN", title: "빗속의 사람", description: "비와 사람의 구성을 통해 스트레스 상황에서의 감정을 돌아보는 콘텐츠", available: true },
+    { type: "STAR_WAVE", title: "별-파도 검사", description: "별과 파도의 이미지를 통해 내면 상태를 표현해보는 콘텐츠", available: true },
 ];
 
 const DEFAULT_GUIDE: DeepTestGuide = {
@@ -30,6 +30,12 @@ function routeByType(type: string) {
     if (type === "HTP") {
         return "/deep/htp";
     }
+    if (type === "PERSON_IN_RAIN") {
+        return "/deep/pir";
+    }
+    if (type === "STAR_WAVE") {
+        return "/deep/sw";
+    }
     return "/deep/content";
 }
 
@@ -37,9 +43,11 @@ type WeeklyContentViewProps = {
     isModal?: boolean;
     onClose?: () => void;
     onStartHtp?: () => void;
+    onStartPir?: () => void;
+    onStartSw?: () => void;
 };
 
-function WeeklyContentView({ isModal = false, onClose, onStartHtp }: WeeklyContentViewProps) {
+function WeeklyContentView({ isModal = false, onClose, onStartHtp, onStartPir, onStartSw }: WeeklyContentViewProps) {
     const navigate = useNavigate();
     const [features, setFeatures] = useState<DeepTestInfo[]>(DEFAULT_FEATURES);
     const [guide, setGuide] = useState<DeepTestGuide>(DEFAULT_GUIDE);
@@ -58,8 +66,7 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp }: WeeklyConte
             try {
                 const testsRes = await deepApi.getTestTypes();
                 if (mounted && testsRes.success && testsRes.data?.length) {
-                    const locked = new Set(DEFAULT_FEATURES.filter(f => !f.available).map(f => f.type));
-                    setFeatures(testsRes.data.map(f => locked.has(f.type) ? { ...f, available: false } : f));
+                    setFeatures(testsRes.data.map(f => ({ ...f, available: true })));
                 }
 
                 const htpGuideRes = await deepApi.getTestGuide("HTP");
@@ -100,6 +107,14 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp }: WeeklyConte
     const handleOpenByType = (type: string) => {
         if (type === "HTP" && onStartHtp) {
             onStartHtp();
+            return;
+        }
+        if (type === "PERSON_IN_RAIN" && onStartPir) {
+            onStartPir();
+            return;
+        }
+        if (type === "STAR_WAVE" && onStartSw) {
+            onStartSw();
             return;
         }
 
@@ -187,9 +202,15 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp }: WeeklyConte
                 {/* ── 선택된 테스트 상세 ── */}
                 {selectedFeature?.available && (
                     <div className="mt-6 min-h-[220px] rounded-2xl bg-zinc-900 p-7 text-center sm:p-8">
-                        <h2 className="text-2xl font-bold text-white sm:text-3xl">HTP(HOUSE-TREE-PERSON)</h2>
+                        <h2 className="text-2xl font-bold text-white sm:text-3xl">
+                            {selectedFeature.type === "HTP" && "HTP(HOUSE-TREE-PERSON)"}
+                            {selectedFeature.type === "PERSON_IN_RAIN" && "빗속의 사람 검사"}
+                            {selectedFeature.type === "STAR_WAVE" && "별-파도 검사"}
+                        </h2>
                         <p className="mx-auto mt-2 text-sm text-zinc-400">
                             {selectedFeature.type === "HTP" && "집, 나무, 사람을 그리며 내면의 심리 상태를 탐색합니다."}
+                            {selectedFeature.type === "PERSON_IN_RAIN" && "비 오는 장면 속 사람을 그리며 스트레스 대처 방식을 탐색합니다."}
+                            {selectedFeature.type === "STAR_WAVE" && "별과 파도를 그리며 의식과 무의식의 균형을 탐색합니다."}
                         </p>
 
                         {/* 진행 흐름 */}
@@ -221,12 +242,32 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp }: WeeklyConte
                 )}
 
                 {/* ── 가이드 ── */}
-                {selected === "HTP" && (
+                {selectedFeature?.available && (
                     <div className="mt-5 grid gap-4 sm:grid-cols-2">
                         <div className="min-h-[170px] rounded-xl bg-zinc-900/80 p-5">
                             <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-zinc-500">안내사항</p>
                             <ul className="space-y-2 text-sm leading-relaxed text-zinc-300">
-                                {guide.instructions.map((inst, i) => (
+                                {selected === "HTP" && guide.instructions.map((inst, i) => (
+                                    <li key={i} className="flex gap-2">
+                                        <span className="mt-0.5 text-zinc-600">·</span>
+                                        <span>{inst}</span>
+                                    </li>
+                                ))}
+                                {selected === "PERSON_IN_RAIN" && [
+                                    "비가 오는 장면 속 사람을 자유롭게 그려주세요.",
+                                    "우산, 비옷 등 보호 도구를 포함해도 좋습니다.",
+                                    "잘 그리려고 하기보다 떠오르는 느낌대로 표현해 주세요.",
+                                ].map((inst, i) => (
+                                    <li key={i} className="flex gap-2">
+                                        <span className="mt-0.5 text-zinc-600">·</span>
+                                        <span>{inst}</span>
+                                    </li>
+                                ))}
+                                {selected === "STAR_WAVE" && [
+                                    "밤하늘의 별과 바다의 파도를 자유롭게 그려주세요.",
+                                    "별과 파도의 크기, 개수, 배치를 자유롭게 정해주세요.",
+                                    "정답은 없으니 편안하게 진행하시면 됩니다.",
+                                ].map((inst, i) => (
                                     <li key={i} className="flex gap-2">
                                         <span className="mt-0.5 text-zinc-600">·</span>
                                         <span>{inst}</span>
@@ -237,7 +278,11 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp }: WeeklyConte
                         <div className="min-h-[170px] rounded-xl bg-zinc-900/80 p-5">
                             <p className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-zinc-500">주의사항</p>
                             <ul className="space-y-2 text-sm leading-relaxed text-zinc-300">
-                                {guide.cautions.map((caut, i) => (
+                                {[
+                                    "이 결과는 의학적 또는 임상적 진단이 아닙니다.",
+                                    "현재 기분이나 상황에 따라 표현이 달라질 수 있습니다.",
+                                    "참고용 결과이며 필요 시 전문가 상담을 권장합니다.",
+                                ].map((caut, i) => (
                                     <li key={i} className="flex gap-2">
                                         <span className="mt-0.5 text-zinc-600">·</span>
                                         <span>{caut}</span>

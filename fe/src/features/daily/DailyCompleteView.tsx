@@ -18,15 +18,16 @@ type DailyCompleteViewProps = {
   isModal?: boolean;
   onClose?: () => void;
   onBackToDetail?: () => void;
-  onSaved?: () => void;
+  onSaved?: (dailyId: number) => void;
 };
 
 function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }: DailyCompleteViewProps) {
   const navigate = useNavigate();
   const addTemporaryStar = useUiStore((state) => state.addTemporaryStar);
-  const refreshStarsAfterSave = useUiStore((state) => state.refreshStarsAfterSave);
+  const fetchStarMap = useUiStore((state) => state.fetchStarMap);
   const [memo, setMemo] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [savedDailyId, setSavedDailyId] = useState<number | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const savedCloseRef = useRef<(() => void) | undefined>(undefined);
@@ -208,7 +209,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
   };
 
   const finishAndClose = () => {
-    onSaved?.();
+    if (savedDailyId) onSaved?.(savedDailyId);
     if (onClose) {
       onClose();
     } else {
@@ -252,6 +253,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
         const code = extractApiErrorCode(createError);
         if (code === "D002") {
           const dailyId = await updateExistingDailyForDate(entryDate);
+          setSavedDailyId(dailyId);
           
           addTemporaryStar({
             kind: "DAILY",
@@ -259,7 +261,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
             color: record.shellColor,
             targetId: dailyId,
           });
-          refreshStarsAfterSave(dailyId, "DAILY");
+          void fetchStarMap();
 
           showBirthAnimation();
           return;
@@ -282,7 +284,8 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
           color: record.shellColor,
           targetId: dailyId,
         });
-        refreshStarsAfterSave(dailyId, "DAILY");
+        void fetchStarMap();
+        setSavedDailyId(dailyId);
       }
 
       persistLocalPlanet();
