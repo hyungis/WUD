@@ -27,6 +27,7 @@ def analyze_daily_request(request: DailyAiAnalyzeReq) -> DailyAiAnalyzeResp:
         result_summary, raw_extra = _generate_feedback(request)
         raw = _build_raw_payload(request, result_summary, raw_extra=raw_extra)
 
+        print(f"[Daily Analyze] SUCCESS dailyId={request.dailyId} summary_len={len(result_summary)}")
         return DailyAiAnalyzeResp(
             dailyId=request.dailyId,
             status="SUCCESS",
@@ -37,7 +38,7 @@ def analyze_daily_request(request: DailyAiAnalyzeReq) -> DailyAiAnalyzeResp:
             ),
         )
     except Exception as exc:
-        print(f"[Daily Analyze] failed: {exc}")
+        print(f"[Daily Analyze] FAILED dailyId={request.dailyId}: {exc}")
         return DailyAiAnalyzeResp(
             dailyId=request.dailyId,
             status="ERROR",
@@ -50,27 +51,9 @@ def _generate_feedback(request: DailyAiAnalyzeReq) -> tuple[str, dict[str, Any]]
     if _use_mock_response():
         return _generate_mock_feedback(request), {"imageSource": {"type": "none"}}
 
-    image_source: dict[str, str] = {"type": "unknown"}
     local_path: str | None = None
     try:
-        # Prefer presigned URL to avoid large request bodies.
-        try:
-            presigned_url = s3_service.generate_presigned_url(request.s3ObjectKey, expires_in=600)
-            image_source = {"type": "presigned_url", "value": presigned_url}
-            feedback = llm_service.analyze_daily_inner_feedback(
-                daily_id=request.dailyId,
-                daily_type=request.dailyType,
-                emotion=request.emotion,
-                emotion_color=request.emotionColor,
-                content=request.content,
-                image_url=presigned_url,
-            )
-            return feedback, {"imageSource": image_source}
-        except Exception as url_exc:
-            print(f"[Daily Analyze] presigned url failed; fallback to download. dailyId={request.dailyId} err={url_exc}")
-
         local_path = s3_service.download_image(request.s3ObjectKey)
-        image_source = {"type": "download_path", "value": local_path}
         feedback = llm_service.analyze_daily_inner_feedback(
             daily_id=request.dailyId,
             daily_type=request.dailyType,
@@ -79,7 +62,7 @@ def _generate_feedback(request: DailyAiAnalyzeReq) -> tuple[str, dict[str, Any]]
             content=request.content,
             image_path=local_path,
         )
-        return feedback, {"imageSource": image_source}
+        return feedback, {"imageSource": {"type": "base64"}}
     finally:
         if local_path and os.path.exists(local_path):
             try:

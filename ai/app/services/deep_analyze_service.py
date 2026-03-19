@@ -5,7 +5,10 @@ from app.services.yolo_service import YoloService
 from app.services.llm_service import llm_service
 from app.services.htp_guide_service import htp_guide_service
 from app.services.drawing_guide_service import drawing_guide_service
-from app.services.cv_feature_service import extract_features as cv_extract_features
+from app.services.cv_feature_service import (
+    extract_features as cv_extract_features,
+    extract_cross_image_features as cv_extract_cross,
+)
 import os
 from pathlib import Path
 
@@ -188,12 +191,7 @@ def _analyze_htp(request: AiAnalyzeReq) -> AiAnalyzeResp:
                 key: pool.submit(s3_service.download_image, s3_keys[key])
                 for key in _IMAGE_KEYS
             }
-            url_futures = {
-                key: pool.submit(s3_service.generate_presigned_url, s3_keys[key])
-                for key in _IMAGE_KEYS
-            }
             image_paths = {key: f.result() for key, f in download_futures.items()}
-            image_urls = {key: f.result() for key, f in url_futures.items()}
 
         downloaded = [p for p in image_paths.values() if p]
 
@@ -211,6 +209,12 @@ def _analyze_htp(request: AiAnalyzeReq) -> AiAnalyzeResp:
             except Exception as cv_err:
                 print(f"[Deep Analyze] CV feature extract failed for {key}: {cv_err}")
                 cv_features[key] = {}
+
+        try:
+            cross_image_features = cv_extract_cross(cv_features)
+        except Exception as cross_err:
+            print(f"[Deep Analyze] Cross-image feature extract failed: {cross_err}")
+            cross_image_features = {}
 
         who5_payload, spane_payload = _build_who5_spane_payloads(request)
 
@@ -235,14 +239,20 @@ def _analyze_htp(request: AiAnalyzeReq) -> AiAnalyzeResp:
             spane=spane_payload,
             yolo=yolo_payload,
             image_paths=image_paths,
-            image_urls=image_urls,
             prompt_guide_text=guide_text,
             cv_features=cv_features if cv_features else None,
+            cross_image_features=cross_image_features if cross_image_features else None,
         )
 
-        extra_raw = {"cvFeatures": cv_features} if cv_features else None
-        data = _normalize_llm_response(llm_json, _DEFAULT_QUESTIONS_HTP, extra_raw)
+        extra_raw: dict = {}
+        if cv_features:
+            extra_raw["cvFeatures"] = cv_features
+        if cross_image_features:
+            extra_raw["crossImageFeatures"] = cross_image_features
+        data = _normalize_llm_response(llm_json, _DEFAULT_QUESTIONS_HTP, extra_raw or None)
 
+        print(f"[Deep Analyze HTP] SUCCESS session={request.sessionId} "
+              f"summary_len={len(data.resultSummary)} questions={len(data.questions)}")
         return AiAnalyzeResp(
             sessionId=request.sessionId,
             status="SUCCESS",
@@ -250,7 +260,7 @@ def _analyze_htp(request: AiAnalyzeReq) -> AiAnalyzeResp:
             data=data,
         )
     except Exception as e:
-        print(f"[Deep Analyze HTP] failed: {e}")
+        print(f"[Deep Analyze HTP] FAILED session={request.sessionId}: {e}")
         return AiAnalyzeResp(
             sessionId=request.sessionId,
             status="ERROR",
@@ -300,11 +310,7 @@ def _analyze_single_image(request: AiAnalyzeReq, *, deep_type: str) -> AiAnalyze
 
     downloaded_path: str | None = None
     try:
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            dl_future = pool.submit(s3_service.download_image, s3_key)
-            url_future = pool.submit(s3_service.generate_presigned_url, s3_key)
-            downloaded_path = dl_future.result()
-            image_url = url_future.result()
+        downloaded_path = s3_service.download_image(s3_key)
 
         who5_payload, spane_payload = _build_who5_spane_payloads(request)
 
@@ -315,7 +321,6 @@ def _analyze_single_image(request: AiAnalyzeReq, *, deep_type: str) -> AiAnalyze
             session_id=int(request.sessionId),
             who5=who5_payload,
             spane=spane_payload,
-            image_url=image_url,
             image_path=downloaded_path,
             prompt_guide_text=guide_text,
         )
@@ -323,6 +328,8 @@ def _analyze_single_image(request: AiAnalyzeReq, *, deep_type: str) -> AiAnalyze
         default_questions = _DEFAULT_QUESTIONS_MAP[deep_type]
         data = _normalize_llm_response(llm_json, default_questions)
 
+        print(f"[Deep Analyze {deep_type}] SUCCESS session={request.sessionId} "
+              f"summary_len={len(data.resultSummary)} questions={len(data.questions)}")
         return AiAnalyzeResp(
             sessionId=request.sessionId,
             status="SUCCESS",
@@ -330,7 +337,7 @@ def _analyze_single_image(request: AiAnalyzeReq, *, deep_type: str) -> AiAnalyze
             data=data,
         )
     except Exception as e:
-        print(f"[Deep Analyze {deep_type}] failed: {e}")
+        print(f"[Deep Analyze {deep_type}] FAILED session={request.sessionId}: {e}")
         return AiAnalyzeResp(
             sessionId=request.sessionId,
             status="ERROR",
