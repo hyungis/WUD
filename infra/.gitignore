@@ -1,3 +1,6 @@
 .env
 certbot/
 nginx/conf.d/
+
+# monitoring local state
+monitoring/**/data/
