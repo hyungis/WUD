@@ -5,12 +5,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +43,7 @@ import com.woojudraw.domain.user.entity.User;
 import com.woojudraw.domain.user.repository.UserRepository;
 import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
+import com.woojudraw.global.time.AppTime;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -65,6 +70,11 @@ class DailyFlowIntegrationTest {
 	@MockBean
 	private DailyAiService dailyAiService;
 
+	@AfterEach
+	void resetClock() {
+		AppTime.resetClock();
+	}
+
 	@Test
 	void dailyFlow_shouldCompleteFromAnalyzingToDone_whenAiResultIsConsumed() {
 		User user = userRepository.save(
@@ -80,7 +90,6 @@ class DailyFlowIntegrationTest {
 		CreateDailyReq createReq = asDto(
 			Map.of(
 				"dailyType", "MANDALA",
-				"entryDate", LocalDate.now(),
 				"content", "today drawing",
 				"emotion", "JOY",
 				"drawingImageId", drawingImageId
@@ -141,7 +150,7 @@ class DailyFlowIntegrationTest {
 		assertThat(stars.get(0).getDailyEntryId()).isEqualTo(dailyId);
 		assertThat(stars.get(0).getColor()).isEqualTo("#FFD54F");
 		assertThat(stars.get(0).getConstellation().getWeekStartDate())
-			.isEqualTo(LocalDate.now().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.SUNDAY)));
+			.isEqualTo(AppTime.todayKst().with(java.time.temporal.TemporalAdjusters.previousOrSame(java.time.DayOfWeek.SUNDAY)));
 	}
 
 	@Test
@@ -158,7 +167,6 @@ class DailyFlowIntegrationTest {
 
 		Map<String, Object> source = new HashMap<>();
 		source.put("dailyType", "FREE");
-		source.put("entryDate", LocalDate.now());
 		source.put("content", null);
 		source.put("emotion", "CALM");
 		source.put("drawingImageId", drawingImageId);
@@ -195,7 +203,6 @@ class DailyFlowIntegrationTest {
 		CreateDailyReq createReq = asDto(
 			Map.of(
 				"dailyType", "FREE",
-				"entryDate", LocalDate.now(),
 				"content", "delete me",
 				"emotion", "JOY",
 				"drawingImageId", drawingImageId
@@ -232,6 +239,151 @@ class DailyFlowIntegrationTest {
 			.isEqualTo(ResponseCode.DAILY_NOT_FOUND);
 	}
 
+	@Test
+	void createDaily_usesServerKstDateAndRejectsSecondEntryOnSameDay() {
+		AppTime.overrideClock(fixedClockAtKst(LocalDate.of(2026, 3, 20), 10, 15));
+
+		User user = userRepository.save(
+			User.builder()
+				.email("daily-kst-same-day-" + UUID.randomUUID().toString().substring(0, 8) + "@test.com")
+				.password("encoded-password")
+				.nickname("dailyKstSameDayTester")
+				.build()
+		);
+		Long userId = user.getId();
+		Long firstDrawingImageId = createReadyImage(user, "image/png", 12_000L, 800, 800);
+
+		CreateDailyReq createReq = asDto(
+			Map.of(
+				"dailyType", "FREE",
+				"entryDate", LocalDate.of(1999, 1, 1),
+				"content", "server date wins",
+				"emotion", "JOY",
+				"drawingImageId", firstDrawingImageId
+			),
+			CreateDailyReq.class
+		);
+
+		Long dailyId = dailyService.createDaily(userId, createReq).getDailyId();
+		DailyDetailResp dailyResp = dailyService.getDaily(userId, dailyId);
+		assertThat(dailyResp.getEntryDate()).isEqualTo(LocalDate.of(2026, 3, 20));
+
+		Long secondDrawingImageId = createReadyImage(user, "image/png", 12_000L, 800, 800);
+		CreateDailyReq duplicateReq = asDto(
+			Map.of(
+				"dailyType", "MANDALA",
+				"entryDate", LocalDate.of(2030, 12, 31),
+				"content", "duplicate",
+				"emotion", "CALM",
+				"drawingImageId", secondDrawingImageId
+			),
+			CreateDailyReq.class
+		);
+
+		assertThatThrownBy(() -> dailyService.createDaily(userId, duplicateReq))
+			.isInstanceOf(BusinessException.class)
+			.extracting("responseCode")
+			.isEqualTo(ResponseCode.DAILY_ALREADY_EXISTS);
+	}
+
+	@Test
+	void createDaily_allowsNewEntryAfterKstMidnight() {
+		User user = userRepository.save(
+			User.builder()
+				.email("daily-kst-midnight-" + UUID.randomUUID().toString().substring(0, 8) + "@test.com")
+				.password("encoded-password")
+				.nickname("dailyKstMidnightTester")
+				.build()
+		);
+		Long userId = user.getId();
+
+		AppTime.overrideClock(fixedClockAtKst(LocalDate.of(2026, 3, 20), 23, 59));
+		Long firstDrawingImageId = createReadyImage(user, "image/png", 12_000L, 800, 800);
+		Long firstDailyId = dailyService.createDaily(
+			userId,
+			asDto(
+				Map.of(
+					"dailyType", "FREE",
+					"content", "before midnight",
+					"emotion", "JOY",
+					"drawingImageId", firstDrawingImageId
+				),
+				CreateDailyReq.class
+			)
+		).getDailyId();
+
+		AppTime.overrideClock(fixedClockAtKst(LocalDate.of(2026, 3, 21), 0, 1));
+		Long secondDrawingImageId = createReadyImage(user, "image/png", 12_000L, 800, 800);
+		Long secondDailyId = dailyService.createDaily(
+			userId,
+			asDto(
+				Map.of(
+					"dailyType", "MANDALA",
+					"content", "after midnight",
+					"emotion", "CALM",
+					"drawingImageId", secondDrawingImageId
+				),
+				CreateDailyReq.class
+			)
+		).getDailyId();
+
+		assertThat(dailyService.getDaily(userId, firstDailyId).getEntryDate()).isEqualTo(LocalDate.of(2026, 3, 20));
+		assertThat(dailyService.getDaily(userId, secondDailyId).getEntryDate()).isEqualTo(LocalDate.of(2026, 3, 21));
+		assertThat(dailyService.getDailies(userId, null, null))
+			.extracting(DailyListItemResp::getEntryDate)
+			.containsExactly(LocalDate.of(2026, 3, 21), LocalDate.of(2026, 3, 20));
+	}
+
+	@Test
+	void createDaily_ignoresPreviousUtcDateDuringEarlyMorningKst() {
+		User user = userRepository.save(
+			User.builder()
+				.email("daily-utc-kst-boundary-" + UUID.randomUUID().toString().substring(0, 8) + "@test.com")
+				.password("encoded-password")
+				.nickname("dailyUtcKstBoundaryTester")
+				.build()
+		);
+		Long userId = user.getId();
+
+		AppTime.overrideClock(fixedClockAtKst(LocalDate.of(2026, 3, 20), 23, 50));
+		Long yesterdayImageId = createReadyImage(user, "image/png", 12_000L, 800, 800);
+		Long yesterdayDailyId = dailyService.createDaily(
+			userId,
+			asDto(
+				Map.of(
+					"dailyType", "FREE",
+					"content", "late night entry",
+					"emotion", "JOY",
+					"drawingImageId", yesterdayImageId
+				),
+				CreateDailyReq.class
+			)
+		).getDailyId();
+
+		AppTime.overrideClock(fixedClockAtKst(LocalDate.of(2026, 3, 21), 8, 30));
+		Long earlyMorningImageId = createReadyImage(user, "image/png", 12_000L, 800, 800);
+		Long earlyMorningDailyId = dailyService.createDaily(
+			userId,
+			asDto(
+				Map.of(
+					"dailyType", "MANDALA",
+					"entryDate", LocalDate.of(2026, 3, 20),
+					"content", "early morning entry",
+					"emotion", "CALM",
+					"drawingImageId", earlyMorningImageId
+				),
+				CreateDailyReq.class
+			)
+		).getDailyId();
+
+		assertThat(yesterdayDailyId).isNotEqualTo(earlyMorningDailyId);
+		assertThat(dailyService.getDaily(userId, yesterdayDailyId).getEntryDate()).isEqualTo(LocalDate.of(2026, 3, 20));
+		assertThat(dailyService.getDaily(userId, earlyMorningDailyId).getEntryDate()).isEqualTo(LocalDate.of(2026, 3, 21));
+		assertThat(dailyService.getDailies(userId, null, null))
+			.extracting(DailyListItemResp::getEntryDate)
+			.containsExactly(LocalDate.of(2026, 3, 21), LocalDate.of(2026, 3, 20));
+	}
+
 	private Long createReadyImage(User user, String mimeType, Long byteSize, Integer width, Integer height) {
 		Image image = Image.builder()
 			.user(user)
@@ -248,5 +400,12 @@ class DailyFlowIntegrationTest {
 
 	private <T> T asDto(Map<String, Object> source, Class<T> dtoType) {
 		return objectMapper.convertValue(source, dtoType);
+	}
+
+	private Clock fixedClockAtKst(LocalDate date, int hour, int minute) {
+		return Clock.fixed(
+			ZonedDateTime.of(date, LocalTime.of(hour, minute), AppTime.KST_ZONE_ID).toInstant(),
+			AppTime.KST_ZONE_ID
+		);
 	}
 }
