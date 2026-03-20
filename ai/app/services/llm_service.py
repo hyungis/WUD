@@ -37,8 +37,8 @@ class LLMService:
         - 그대로 base64를 올리면 요청 바디가 커져 게이트웨이에서 실패할 수 있어
           기본적으로 리사이즈/압축(JPEG)합니다.
         """
-        max_side = 640
-        jpeg_quality = 65
+        max_side = 480
+        jpeg_quality = 60
 
         img = Image.open(path)
         img = img.convert("RGB")
