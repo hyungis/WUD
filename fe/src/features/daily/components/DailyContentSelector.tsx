@@ -45,6 +45,7 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
   const navigate = useNavigate();
   const [step, setStep] = useState(0); // 0: 감정 선택, 1: 컨텐츠 선택
   const [selectedEmotion, setSelectedEmotion] = useState<{ label: string; color: string; value: number } | null>(null);
+  const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
   const [isCheckingDailyLimit, setIsCheckingDailyLimit] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [alert, setAlert] = useState<{ isOpen: boolean; message: string; type: "success" | "error" }>({
@@ -58,12 +59,33 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
   const setDailyDetailModalOpen = useUiStore((state) => state.setDailyDetailModalOpen);
   const setDailyColoringModalOpen = useUiStore((state) => state.setDailyColoringModalOpen);
 
+  const markSelectedDailyContent = (content: "MANDALA" | "COLORING") => {
+    localStorage.setItem("dailySelectedContent", content);
+  };
+
+  const checkDailyLimitWithTimeout = async (dailyType: "MANDALA" | "COLORING") => {
+    const timeoutMs = 3500;
+    const timeoutPromise = new Promise<boolean>((resolve) => {
+      setTimeout(() => resolve(false), timeoutMs);
+    });
+
+    try {
+      return await Promise.race([
+        hasTodayDailyEntryByType(dailyType),
+        timeoutPromise,
+      ]);
+    } catch {
+      // 조회 실패 시에는 사용성을 위해 진행을 허용한다.
+      return false;
+    }
+  };
+
   const handleOpenDailyDetail = async () => {
     if (isCheckingDailyLimit) return;
 
     setIsCheckingDailyLimit(true);
     try {
-      const existsToday = await hasTodayDailyEntryByType("MANDALA");
+      const existsToday = await checkDailyLimitWithTimeout("MANDALA");
       if (existsToday) {
         setAlert({ isOpen: true, message: DAILY_LIMIT_MESSAGE, type: "error" });
         return;
@@ -74,6 +96,7 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
         localStorage.setItem("dailyMoodValue", String(selectedEmotion.value));
         localStorage.setItem("dailyMoodLabel", selectedEmotion.label);
       }
+      markSelectedDailyContent("MANDALA");
 
       setIsLeaving(true);
       setTimeout(() => {
@@ -89,10 +112,61 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
     }
   };
 
+  const handleOpenDailyColoring = async () => {
+    if (isCheckingDailyLimit) return;
+
+    setIsCheckingDailyLimit(true);
+    try {
+      const existsToday = await checkDailyLimitWithTimeout("COLORING");
+      if (existsToday) {
+        setAlert({ isOpen: true, message: DAILY_LIMIT_MESSAGE, type: "error" });
+        return;
+      }
+
+      if (selectedEmotion) {
+        localStorage.setItem("dailyMoodColor", selectedEmotion.color);
+        localStorage.setItem("dailyMoodValue", String(selectedEmotion.value));
+        localStorage.setItem("dailyMoodLabel", selectedEmotion.label);
+      }
+      markSelectedDailyContent("COLORING");
+
+      setIsLeaving(true);
+      setTimeout(() => {
+        if (isDailyContentModalOpen) {
+          setDailyContentModalOpen(false);
+          setDailyColoringModalOpen(true);
+          return;
+        }
+        navigate("/daily/coloring");
+      }, 280);
+    } finally {
+      setIsCheckingDailyLimit(false);
+    }
+  };
+
+  const handleStartSelectedContent = async () => {
+    if (!selectedContentId) return;
+
+    if (selectedContentId === "mandala") {
+      await handleOpenDailyDetail();
+      return;
+    }
+
+    if (selectedContentId === "coloring") {
+      await handleOpenDailyColoring();
+      return;
+    }
+
+    navigate(`/daily/${selectedContentId}`);
+  };
+
   const handleSelectEmotion = (emotion: typeof EMOTIONS[0]) => {
     setSelectedEmotion(emotion);
     setStep(1);
+    setSelectedContentId(null);
   };
+
+  const selectedContent = DAILY_FEATURES.find((task) => task.id === selectedContentId) ?? null;
 
   return (
     <div className={`relative flex flex-col w-full h-full max-h-full overflow-hidden bg-zinc-950 text-zinc-100 transition-all duration-300 ${isLeaving ? "scale-95 opacity-0" : "scale-100 opacity-100"} ${!isModal ? "rounded-[30px] border border-white/10 shadow-[0_24px_90px_rgba(0,0,0,0.62)]" : ""}`}>
@@ -189,63 +263,21 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
                     disabled={!task.enabled}
                     onClick={() => {
                       if (!task.enabled) return;
-                      if (task.id === "mandala") {
-                        void handleOpenDailyDetail();
-                        return;
-                      }
-                      if (task.id === "coloring") {
-                        if (isCheckingDailyLimit) return;
-                        setIsCheckingDailyLimit(true);
-                        hasTodayDailyEntryByType("COLORING").then((exists) => {
-                          if (exists) {
-                            setAlert({ isOpen: true, message: DAILY_LIMIT_MESSAGE, type: "error" });
-                            setIsCheckingDailyLimit(false);
-                            return;
-                          }
-                          if (selectedEmotion) {
-                            localStorage.setItem("dailyMoodColor", selectedEmotion.color);
-                            localStorage.setItem("dailyMoodValue", String(selectedEmotion.value));
-                            localStorage.setItem("dailyMoodLabel", selectedEmotion.label);
-                          }
-                          setIsLeaving(true);
-                          setTimeout(() => {
-                            if (isDailyContentModalOpen) {
-                              setDailyContentModalOpen(false);
-                              setDailyColoringModalOpen(true);
-                              return;
-                            }
-                            navigate("/daily/coloring");
-                          }, 280);
-                        }).catch(() => {
-                          // 조회 실패 시 허용
-                          if (selectedEmotion) {
-                            localStorage.setItem("dailyMoodColor", selectedEmotion.color);
-                            localStorage.setItem("dailyMoodValue", String(selectedEmotion.value));
-                            localStorage.setItem("dailyMoodLabel", selectedEmotion.label);
-                          }
-                          setIsLeaving(true);
-                          setTimeout(() => {
-                            if (isDailyContentModalOpen) {
-                              setDailyContentModalOpen(false);
-                              setDailyColoringModalOpen(true);
-                              return;
-                            }
-                            navigate("/daily/coloring");
-                          }, 280);
-                        }).finally(() => setIsCheckingDailyLimit(false));
-                        return;
-                      }
-                      navigate(`/daily/${task.id}`);
+                      setSelectedContentId(task.id);
                     }}
                     className={`group relative flex flex-col items-start rounded-xl border px-4 py-4 text-left transition-all duration-150 ${!task.enabled
                       ? "cursor-not-allowed border-zinc-800/60 bg-zinc-900/40 opacity-60"
-                      : "border-zinc-800/80 bg-zinc-900/60 hover:border-zinc-700 hover:bg-zinc-900"
+                      : selectedContentId === task.id
+                        ? "border-white/30 bg-zinc-800"
+                        : "border-zinc-800/80 bg-zinc-900/60 hover:border-zinc-700 hover:bg-zinc-900"
                       }`}
                   >
                     <div className="flex w-full items-center justify-between mb-1.5">
                       <span className="text-base font-bold text-white">{task.title}</span>
                       {task.enabled
-                        ? <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 border-zinc-600" />
+                        ? <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 ${selectedContentId === task.id ? "border-white" : "border-zinc-600"}`}>
+                          {selectedContentId === task.id && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                        </span>
                         : <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-[9px] font-medium text-zinc-500">SOON</span>
                       }
                     </div>
@@ -270,8 +302,8 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
                     <div className="absolute inset-0 rounded-full blur-2xl opacity-20" style={{ backgroundColor: selectedEmotion.color }} />
                   )}
                 </div>
-                <h2 className="text-xl font-bold text-white sm:text-2xl">만다라 그리기</h2>
-                <p className="mt-1 text-xs text-zinc-400 text-center">기하학 대칭 패턴으로 감정을 표현하고 별을 채워보세요.</p>
+                <h2 className="text-xl font-bold text-white sm:text-2xl">{selectedContent?.title || "컨텐츠를 선택해주세요"}</h2>
+                <p className="mt-1 text-xs text-zinc-400 text-center">{selectedContent?.description || "위에서 원하는 데일리 컨텐츠를 먼저 선택한 뒤 시작할 수 있어요."}</p>
 
                 <div className="mt-5 flex shrink-0 items-center justify-center gap-2.5 w-full max-w-sm">
                   <button
@@ -283,11 +315,11 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
                   </button>
                   <button
                     type="button"
-                    onClick={() => void handleOpenDailyDetail()}
-                    disabled={isCheckingDailyLimit}
+                    onClick={() => void handleStartSelectedContent()}
+                    disabled={isCheckingDailyLimit || !selectedContentId}
                     className="flex-1 h-10 rounded-xl bg-white px-6 text-xs font-bold text-zinc-950 shadow-lg shadow-white/10 transition hover:bg-zinc-200 disabled:opacity-50"
                   >
-                    {isCheckingDailyLimit ? "확인 중..." : "그리기 시작하기"}
+                    {isCheckingDailyLimit ? "확인 중..." : selectedContentId ? "시작하기" : "컨텐츠를 선택하세요"}
                   </button>
                 </div>
               </div>
