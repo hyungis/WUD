@@ -40,6 +40,7 @@ services:
     env_file:
       - ./.env
     environment:
+      - SPRING_PROFILES_ACTIVE=prod
       - RABBITMQ_HOST=rabbitmq
       - RABBITMQ_PORT=5672
     expose:
