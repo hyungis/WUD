@@ -617,7 +617,6 @@ function HomePage() {
         setIsTimelineOpen={setIsTimelineOpen}
         timelineItems={timelineItems}
         dailyPlanets={dailyPlanets}
-        mypageStar={mypageStar}
         selectedStarId={selectedStarId}
         selectedWeekKey={selectedWeekKey}
         onItemClick={(id) => {

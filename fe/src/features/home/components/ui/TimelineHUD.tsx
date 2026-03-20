@@ -10,7 +10,6 @@ interface TimelineHUDProps {
   setIsTimelineOpen: (open: boolean) => void;
   timelineItems: any[];
   dailyPlanets: DailyPlanet[];
-  mypageStar: { id: string; toneColor: string; label: string };
   selectedStarId: string | null;
   selectedWeekKey?: string | null;
   onItemClick: (id: string) => void;
@@ -22,7 +21,6 @@ export function TimelineHUD({
   setIsTimelineOpen,
   timelineItems,
   dailyPlanets,
-  mypageStar,
   selectedStarId,
   selectedWeekKey,
   onItemClick,
@@ -352,16 +350,6 @@ export function TimelineHUD({
             <div>Daily {dailyPlanets.length}</div>
             <div>Weekly {weeklyCount}</div>
           </div>
-
-          <button
-            onClick={() => onItemClick(mypageStar.id)}
-            className={`flex w-full items-center justify-between rounded-[12px] px-2 py-2 mb-4 text-[13px] transition-colors hover:bg-white/10 ${selectedStarId === mypageStar.id ? "bg-white/15 ring-1 ring-white/20" : ""}`}
-          >
-            <span className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full shadow-[0_0_8px_rgba(255,255,255,0.8)]" style={{ backgroundColor: mypageStar.toneColor }} />
-              <span className="font-bold">MY PLANET</span>
-            </span>
-          </button>
 
           <div key={activeWeekKey} className="flex flex-col space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
             {activeGroup ? (
