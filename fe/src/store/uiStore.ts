@@ -54,7 +54,7 @@ type UiState = {
   setWeeklyHtpModalOpen: (isOpen: boolean) => void;
   setWeeklyPirModalOpen: (isOpen: boolean) => void;
   setWeeklySwModalOpen: (isOpen: boolean) => void;
-  
+
   // Actions
   setStars: (stars: HomeStar[]) => void;
   fetchStarMap: () => Promise<void>;
@@ -84,7 +84,7 @@ export const useUiStore = create<UiState>((set) => ({
   isWeeklyHtpModalOpen: false,
   isWeeklyPirModalOpen: false,
   isWeeklySwModalOpen: false,
-  
+
   globalPhase: "landing",
   stars: [],
   pendingBirth: null,
@@ -108,7 +108,7 @@ export const useUiStore = create<UiState>((set) => ({
   setWeeklyHtpModalOpen: (isWeeklyHtpModalOpen) => set({ isWeeklyHtpModalOpen }),
   setWeeklyPirModalOpen: (isWeeklyPirModalOpen) => set({ isWeeklyPirModalOpen }),
   setWeeklySwModalOpen: (isWeeklySwModalOpen) => set({ isWeeklySwModalOpen }),
-  
+
   setGlobalPhase: (globalPhase) => set({ globalPhase }),
   setStars: (stars) => set({ stars }),
 
@@ -133,7 +133,7 @@ export const useUiStore = create<UiState>((set) => ({
         const createdAtRaw = s.createdAt ?? s.created_at ?? s.timestamp ?? s.weekStartDate;
         const createdAt = createdAtRaw ? String(createdAtRaw) : new Date().toISOString();
         const weekStartDate = s.weekStartDate ?? s.week_start_date;
-        
+
         const rawTargetId = s.dailyEntryId
           ?? s.daily_entry_id
           ?? s.deepSessionId
@@ -150,7 +150,7 @@ export const useUiStore = create<UiState>((set) => ({
           kind,
           createdAt,
           weekStartDate,
-          color: s.starColor || colorFromId(id, kind),
+          color: s.color || s.starColor || colorFromId(id, kind),
         } as HomeStar;
       }).filter((s: HomeStar) => s.id);
 
@@ -186,7 +186,7 @@ export const useUiStore = create<UiState>((set) => ({
           }
         }
 
-        return { 
+        return {
           stars: [...remainingTemps, ...fetchedStars],
           newbornStarId: nextNewbornId,
           pendingBirth: nextPendingBirth,
@@ -205,7 +205,7 @@ export const useUiStore = create<UiState>((set) => ({
       id,
       isTemporary: true,
     };
-    set((state) => ({ 
+    set((state) => ({
       stars: [tempStar, ...state.stars],
       newbornStarId: id,
     }));
@@ -226,7 +226,7 @@ export const useUiStore = create<UiState>((set) => ({
 
 // Selector optimization
 export const selectHasDeepStarThisWeek = (state: UiState) => {
-  return state.stars.some(s => 
+  return state.stars.some(s =>
     s.kind === "DEEP" && !s.isTemporary
   );
 };
