@@ -21,6 +21,7 @@ import type {
 export const deepApi = {
     createSession: () => api.post<any, ApiResponse<DeepSessionResponse>>("/deep-sessions", {}),
     getPastSessions: () => api.get<any, ApiResponse<DeepHistoryItem[]>>("/deep-sessions"),
+    deleteSession: (sessionId: number) => api.delete<any, ApiResponse<void>>(`/deep-sessions/${sessionId}`),
 
     submitWho5Assessment: (sessionId: number, data: PsyTestRequest) => api.post<any, ApiResponse<PsyTestResponse>>(`/deep-sessions/${sessionId}/psych-assessments/who5`, data),
     submitSpaneAssessment: (sessionId: number, data: SpaneTestRequest) => api.post<any, ApiResponse<SpaneTestResponse>>(`/deep-sessions/${sessionId}/psych-assessments/spane`, data),

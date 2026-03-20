@@ -204,7 +204,9 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
       return;
     }
 
-    navigate("/daily/detail");
+    const backTo = record.dailyType === "COLORING" ? "/daily/coloring" : "/daily/detail";
+    localStorage.setItem("dailySelectedContent", record.dailyType === "COLORING" ? "COLORING" : "MANDALA");
+    navigate(backTo);
   };
 
   const finishAndClose = (dailyIdOverride?: number) => {

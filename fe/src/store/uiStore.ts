@@ -62,6 +62,7 @@ type UiState = {
   setNewbornStarId: (id: string | null) => void;
   /** 별 생성 대기 등록: fetchStarMap이 새 별을 감지하면 자동으로 newbornStarId 설정 */
   setPendingBirth: (targetId: number, kind: "DAILY" | "DEEP") => void;
+  removeStarsByTarget: (targetId: number, kind: "DAILY" | "DEEP") => void;
 
   setGlobalPhase: (phase: "landing" | "login" | "dashboard" | "success") => void;
   setIsMyUniverseOpen: (open: boolean) => void;
@@ -155,9 +156,16 @@ export const useUiStore = create<UiState>((set) => ({
       }).filter((s: HomeStar) => s.id);
 
       set((state) => {
+        const TEMP_STAR_TTL_MS = 60_000;
+        const now = Date.now();
         const tempStars = state.stars.filter((s) => s.isTemporary);
+        const freshTempStars = tempStars.filter((ts) => {
+          const createdAt = new Date(ts.createdAt).getTime();
+          return Number.isFinite(createdAt) && now - createdAt <= TEMP_STAR_TTL_MS;
+        });
         const remainingTemps = tempStars.filter(
-          (ts) => !fetchedStars.some((fs) => fs.targetId === ts.targetId && fs.kind === ts.kind)
+          (ts) => freshTempStars.some((fresh) => fresh.id === ts.id)
+            && !fetchedStars.some((fs) => fs.targetId === ts.targetId && fs.kind === ts.kind)
         );
 
         // newbornStarId 동기화: temp → 실제 별 ID 교체
@@ -215,6 +223,22 @@ export const useUiStore = create<UiState>((set) => ({
 
   setPendingBirth: (targetId, kind) => {
     set({ pendingBirth: { targetId, kind } });
+  },
+
+  removeStarsByTarget: (targetId, kind) => {
+    set((state) => {
+      const removedIds = new Set(
+        state.stars
+          .filter((s) => s.targetId === targetId && s.kind === kind)
+          .map((s) => s.id)
+      );
+
+      return {
+        stars: state.stars.filter((s) => !(s.targetId === targetId && s.kind === kind)),
+        selectedStarId: removedIds.has(state.selectedStarId ?? "") ? null : state.selectedStarId,
+        newbornStarId: removedIds.has(state.newbornStarId ?? "") ? null : state.newbornStarId,
+      };
+    });
   },
 
   setIsMyUniverseOpen: (isMyUniverseOpen) => set({ isMyUniverseOpen }),

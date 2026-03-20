@@ -63,7 +63,30 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
 
   const drawing = useCanvasDrawing({ paintColor, brushSize, tool, symmetry: 1 });
 
+  const canEnterColoringFromSelection = () => {
+    const selectedContent = localStorage.getItem("dailySelectedContent");
+    if (selectedContent === "COLORING") {
+      localStorage.removeItem("dailySelectedContent");
+      return true;
+    }
+
+    const pendingRaw = localStorage.getItem("pendingDailyRecord");
+    if (!pendingRaw) return false;
+
+    try {
+      const pending = JSON.parse(pendingRaw) as { dailyType?: string };
+      return pending.dailyType === "COLORING";
+    } catch {
+      return false;
+    }
+  };
+
   useEffect(() => {
+    if (!isModal && !canEnterColoringFromSelection()) {
+      navigate("/daily/content", { replace: true });
+      return;
+    }
+
     let alive = true;
 
     const guardByDailyLimit = async () => {
@@ -86,7 +109,7 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
     return () => {
       alive = false;
     };
-  }, [navigate, onClose]);
+  }, [isModal, navigate, onClose]);
 
   const handleClose = () => {
     if (onClose) { onClose(); return; }

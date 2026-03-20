@@ -47,7 +47,7 @@ function WeeklyPage() {
             한 주의 별자리를 완성해요
           </h1>
           <p className="text-sm text-slate-300">
-            일주일 기록이 연결되면 위클리 별이 탄생합니다.
+            일주일 기록이 연결되면 WEEKLY PLANET이 탄생합니다.
           </p>
         </div>
 

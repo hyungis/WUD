@@ -30,6 +30,7 @@ interface StarSidePanelProps {
   selectedDailyPlanet: (DailyPlanet & { aiSummary?: string }) | null;
   deepPages?: any[];
   onRefresh?: () => void;
+  onDeleteDaily?: (dailyId: number) => Promise<void> | void;
 }
 
 export function StarSidePanel({
@@ -41,8 +42,10 @@ export function StarSidePanel({
   selectedDailyPlanet,
   deepPages = [],
   onRefresh,
+  onDeleteDaily,
 }: StarSidePanelProps) {
   const [pageIdx, setPageIdx] = useState(0);
+  const [deletingDailyId, setDeletingDailyId] = useState<number | null>(null);
 
   // deepPages 갱신 시 사용자가 보던 탭을 유지하고, 범위를 벗어나면 마지막 탭으로 보정
   useEffect(() => {
@@ -111,19 +114,19 @@ export function StarSidePanel({
   };
 
   const resolveDailyFallbackMessage = (status?: string) => {
-    if (status === "FAILED") return "데일리 AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.";
-    if (status === "PENDING" || status === "ANALYZING") return "데일리 AI 분석이 진행 중입니다. 잠시 후 다시 확인해주세요.";
-    return "데일리 AI 분석 결과가 아직 준비되지 않았습니다.";
+    if (status === "FAILED") return "DAILY AI 분석에 실패했습니다. 잠시 후 다시 시도해주세요.";
+    if (status === "PENDING" || status === "ANALYZING") return "DAILY AI 분석이 진행 중입니다. 잠시 후 다시 확인해주세요.";
+    return "DAILY AI 분석 결과가 아직 준비되지 않았습니다.";
   };
 
   if (!isOpen) return null;
 
   /* ── 리포트 타입 라벨 ── */
   const reportLabel = isDeep
-    ? deepPages.length > 1 ? "Weekly Deep Report" : `${currentPage?.deepType ?? "HTP"} Deep Report`
-    : "Daily Report";
+    ? deepPages.length > 1 ? "WEEKLY REPORT" : `${currentPage?.deepType ?? "HTP"} WEEKLY REPORT`
+    : "DAILY REPORT";
   const reportTitle = isDeep
-    ? deepPages.length > 1 ? "위클리 심층 분석" : `${DEEP_TYPE_LABELS[currentPage?.deepType] ?? currentPage?.deepType ?? "HTP"} 심층 분석`
+    ? deepPages.length > 1 ? "WEEKLY 분석" : `${DEEP_TYPE_LABELS[currentPage?.deepType] ?? currentPage?.deepType ?? "HTP"} WEEKLY 분석`
     : "감정 분석 리포트";
 
   return (
@@ -245,15 +248,17 @@ export function StarSidePanel({
                         {currentPage.createdAt ? formatDateTimeKST(currentPage.createdAt) : ""}
                       </p>
                     </div>
-                    {who5Assessment && typeof who5Assessment.scoreTotal === "number" && (
-                      <div className="text-center flex-shrink-0 rounded-xl bg-indigo-500/[0.08] border border-indigo-500/[0.12] px-4 py-2">
-                        <p className="text-[9px] uppercase tracking-widest text-slate-500">WHO-5</p>
-                        <p className="text-2xl font-bold text-indigo-300">
-                          {who5Assessment.scoreTotal}
-                          <span className="text-sm text-slate-500">/25</span>
-                        </p>
-                      </div>
-                    )}
+                    <div className="flex items-start gap-2">
+                      {who5Assessment && typeof who5Assessment.scoreTotal === "number" && (
+                        <div className="text-center flex-shrink-0 rounded-xl bg-indigo-500/[0.08] border border-indigo-500/[0.12] px-4 py-2">
+                          <p className="text-[9px] uppercase tracking-widest text-slate-500">WHO-5</p>
+                          <p className="text-2xl font-bold text-indigo-300">
+                            {who5Assessment.scoreTotal}
+                            <span className="text-sm text-slate-500">/25</span>
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* 분석 중 상태 */}
@@ -387,6 +392,27 @@ export function StarSidePanel({
                       <p className="text-xs font-semibold text-slate-200">{emotionFromColor(selectedDailyPlanet.shell)}</p>
                       <p className="text-[11px] text-slate-500 mt-0.5">{formatDateTimeKST(selectedDailyPlanet.createdAt)}</p>
                     </div>
+                    {onDeleteDaily && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const dailyId = Number((selectedDailyPlanet as any).targetId ?? selectedDailyPlanet.id ?? 0);
+                          if (!dailyId) return;
+                          const ok = window.confirm("이 데일리 리포트를 삭제하시겠습니까?");
+                          if (!ok) return;
+                          try {
+                            setDeletingDailyId(dailyId);
+                            await onDeleteDaily(dailyId);
+                          } finally {
+                            setDeletingDailyId(null);
+                          }
+                        }}
+                        disabled={deletingDailyId === Number((selectedDailyPlanet as any).targetId ?? selectedDailyPlanet.id ?? 0)}
+                        className="h-9 rounded-lg border border-rose-400/25 bg-rose-500/10 px-3 text-xs font-semibold text-rose-200 transition hover:bg-rose-500/20 disabled:opacity-60"
+                      >
+                        {deletingDailyId === Number((selectedDailyPlanet as any).targetId ?? selectedDailyPlanet.id ?? 0) ? "삭제 중..." : "삭제"}
+                      </button>
+                    )}
                   </div>
 
                   {/* AI 인사이트 */}
