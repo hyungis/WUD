@@ -8,6 +8,7 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 import com.woojudraw.domain.daily.api.dto.req.CreateDailyReq;
@@ -53,26 +54,34 @@ public class DailyServiceImpl implements DailyService {
 
 	@Override
 	public CreateDailyResp createDaily(Long userId, CreateDailyReq request) {
-		validateEntryDate(request.getEntryDate());
 		DailyType dailyType = parseDailyType(request.getDailyType());
+		LocalDate entryDate = AppTime.todayKst();
 
-		if (dailyRepository.existsByUser_IdAndEntryDateAndDeletedAtIsNull(userId, request.getEntryDate())) {
+		if (dailyRepository.existsByUser_IdAndEntryDateAndDeletedAtIsNull(userId, entryDate)) {
 			throw new BusinessException(ResponseCode.DAILY_ALREADY_EXISTS);
 		}
 
 		Image drawingImage = getOwnedReadyImageOrThrow(request.getDrawingImageId(), userId);
 
-		Daily saved = dailyRepository.save(
-			Daily.create(
-				drawingImage.getUser(),
-				dailyType,
-				request.getEntryDate(),
-				request.getContent(),
-				request.getEmotion().getValue(),
-				request.getEmotion().getColor(),
-				drawingImage
-			)
-		);
+		Daily saved;
+		try {
+			saved = dailyRepository.save(
+				Daily.create(
+					drawingImage.getUser(),
+					dailyType,
+					entryDate,
+					request.getContent(),
+					request.getEmotion().getValue(),
+					request.getEmotion().getColor(),
+					drawingImage
+				)
+			);
+		} catch (DataIntegrityViolationException e) {
+			if (isDailyEntryDateConflict(e)) {
+				throw new BusinessException(ResponseCode.DAILY_ALREADY_EXISTS);
+			}
+			throw e;
+		}
 		saved.markAnalyzing();
 
 		try {
@@ -212,12 +221,6 @@ public class DailyServiceImpl implements DailyService {
 		daily.markDeleted();
 	}
 
-	private void validateEntryDate(LocalDate entryDate) {
-		if (entryDate.isAfter(AppTime.todayKst())) {
-			throw new BusinessException(ResponseCode.DAILY_DATE_INVALID, entryDate);
-		}
-	}
-
 	private DailyType parseDailyType(String rawDailyType) {
 		try {
 			return DailyType.from(rawDailyType);
@@ -268,6 +271,18 @@ public class DailyServiceImpl implements DailyService {
 			return DailyAnalysisStatus.DONE;
 		}
 		return status;
+	}
+
+	private boolean isDailyEntryDateConflict(DataIntegrityViolationException exception) {
+		Throwable current = exception;
+		while (current != null) {
+			String message = current.getMessage();
+			if (message != null && message.contains("uk_daily_entries_active_user_entry_date")) {
+				return true;
+			}
+			current = current.getCause();
+		}
+		return false;
 	}
 
 	private record DateRange(LocalDate startDate, LocalDate endDate) {
