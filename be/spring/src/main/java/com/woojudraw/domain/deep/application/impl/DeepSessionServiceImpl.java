@@ -96,7 +96,6 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 
 		validateWho5Answers(request);
 
-
 		LocalDate weekStartDate = getWeekStartDate(deepSession.getCreatedAt().toLocalDate());
 
 		DeepPsychAssessment assessment = DeepPsychAssessment.createWho5(
@@ -126,8 +125,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 		}
 
 		validateSpaneAnswers(request);
-
-
+		
 		LocalDate weekStartDate = getWeekStartDate(deepSession.getCreatedAt().toLocalDate());
 
 		DeepPsychAssessment assessment = DeepPsychAssessment.createSpane(
@@ -359,6 +357,7 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 			.map(assessment -> DeepPsychAssessmentItemResp.builder()
 				.testCode(assessment.getTestCode())
 				.scoreTotal(assessment.getScoreTotal())
+				.isSkipped(assessment.getIsSkipped())
 				.raw(parseAssessmentRaw(assessment.getRaw()))
 				.build())
 			.toList();

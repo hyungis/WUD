@@ -13,5 +13,6 @@ public class DeepPsychAssessmentItemResp {
 
 	private PsychTestCode testCode;
 	private Integer scoreTotal;
+	private Boolean isSkipped;
 	private Map<String, Object> raw;
 }
