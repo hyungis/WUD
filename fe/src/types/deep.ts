@@ -82,6 +82,7 @@ export interface DeepDetailResponse {
         scorePositive?: number;
         scoreNegative?: number;
         scoreBalance?: number;
+        isSkipped: boolean;
         raw: Record<string, unknown>;
     }[];
 }

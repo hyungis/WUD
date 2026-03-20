@@ -245,7 +245,7 @@ export function StarSidePanel({
                         {currentPage.createdAt ? formatDateTimeKST(currentPage.createdAt) : ""}
                       </p>
                     </div>
-                    {who5Assessment && typeof who5Assessment.scoreTotal === "number" && (
+                    {who5Assessment && typeof who5Assessment.scoreTotal === "number" && !who5Assessment.isSkipped && (
                       <div className="text-center flex-shrink-0 rounded-xl bg-indigo-500/[0.08] border border-indigo-500/[0.12] px-4 py-2">
                         <p className="text-[9px] uppercase tracking-widest text-slate-500">WHO-5</p>
                         <p className="text-2xl font-bold text-indigo-300">
@@ -322,10 +322,10 @@ export function StarSidePanel({
                   )}
 
                   {/* WHO-5 상세 */}
-                  {Array.isArray(currentPage.psychAssessments) && currentPage.psychAssessments.length > 0 && (
+                  {Array.isArray(currentPage.psychAssessments) && currentPage.psychAssessments.some((pa: any) => !pa.isSkipped) && (
                     <div className="rounded-xl border border-white/[0.12] bg-white/[0.03] p-4">
                       <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">심리검사 결과</p>
-                      {currentPage.psychAssessments.map((pa: any, idx: number) => {
+                      {currentPage.psychAssessments.filter((pa: any) => !pa.isSkipped).map((pa: any, idx: number, filtered: any[]) => {
                         const testCode = String(pa?.testCode ?? "").toUpperCase();
                         const isSpane = testCode === "SPANE";
 
@@ -348,7 +348,7 @@ export function StarSidePanel({
                           : `${scoreTotal}점`;
 
                         return (
-                          <div key={idx} className={idx < currentPage.psychAssessments.length - 1 ? "mb-2.5" : ""}>
+                          <div key={idx} className={idx < filtered.length - 1 ? "mb-2.5" : ""}>
                             <div className="flex items-center justify-between mb-1">
                               <span className="text-xs text-slate-300">{testCode || "WHO-5"}</span>
                               <span className="text-xs text-slate-400">{level} · {scoreLabel}</span>

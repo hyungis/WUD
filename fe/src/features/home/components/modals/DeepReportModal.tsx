@@ -86,7 +86,7 @@ export function DeepReportModal({
               return formatDateTimeKST(selectedDeepStar.createdAt);
             })()}
           </p>
-          {Array.isArray(selectedDeepStar.psychAssessments) && selectedDeepStar.psychAssessments.length > 0 && (
+          {Array.isArray(selectedDeepStar.psychAssessments) && selectedDeepStar.psychAssessments.length > 0 && !selectedDeepStar.psychAssessments[0].isSkipped && (
             <div style={{ marginTop: 24, display: "flex", alignItems: "center", gap: 8, borderRadius: 9999, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", padding: "8px 16px" }}>
               <span style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: "#64748b" }}>WHO-5</span>
               <span style={{ fontSize: 20, fontWeight: 700, color: "#a5b4fc" }}>{selectedDeepStar.psychAssessments[0].scoreTotal}</span>
@@ -198,15 +198,15 @@ export function DeepReportModal({
                 )}
 
                 {/* WHO-5 심리검사 상세 */}
-                {Array.isArray(selectedDeepStar.psychAssessments) && selectedDeepStar.psychAssessments.length > 0 && (
+                {Array.isArray(selectedDeepStar.psychAssessments) && selectedDeepStar.psychAssessments.some((pa: any) => !pa.isSkipped) && (
                   <div style={{ borderRadius: 16, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.03)", padding: 20 }}>
                     <p style={{ fontSize: 12, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.2em", color: "#94a3b8", marginBottom: 12 }}>심리검사 결과</p>
-                    {selectedDeepStar.psychAssessments.map((pa: any, idx: number) => {
+                    {selectedDeepStar.psychAssessments.filter((pa: any) => !pa.isSkipped).map((pa: any, idx: number, filtered: any[]) => {
                       const pct = Math.min(100, (pa.scoreTotal / 25) * 100);
                       const level = pct >= 72 ? "양호" : pct >= 52 ? "보통" : "주의";
                       const barBg = pct >= 72 ? "#34d399" : pct >= 52 ? "#fbbf24" : "#fb7185";
                       return (
-                        <div key={idx} style={{ marginBottom: idx < selectedDeepStar.psychAssessments!.length - 1 ? 12 : 0 }}>
+                        <div key={idx} style={{ marginBottom: idx < filtered.length - 1 ? 12 : 0 }}>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                             <span style={{ fontSize: 14, color: "#cbd5e1" }}>{pa.testCode || "WHO-5"}</span>
                             <span style={{ fontSize: 14, fontWeight: 600, color: barBg }}>{level} · {pa.scoreTotal}점</span>
