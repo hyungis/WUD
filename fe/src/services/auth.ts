@@ -18,11 +18,18 @@ export type RegisterPayload = {
   password: string;
 };
 
-/** API reject 객체에서 서버가 보낸 에러 메시지를 그대로 추출한다. */
 function extractErrorMessage(err: any, fallback: string): string {
-  // err가 Error 인스턴스일 경우 (프론트 자체 throw)
   if (err instanceof Error) return err.message || fallback;
-  // 서버 응답 데이터 구조: { error: { message } } 또는 { message }
+
+  // error.details가 있으면 그 중 첫 번째 상세 에러 메시지를 반환하도록 수정
+  const details = err?.error?.details;
+  if (details && typeof details === "object") {
+    const messages = Object.values(details);
+    if (messages.length > 0 && typeof messages[0] === "string") {
+      return messages[0];
+    }
+  }
+
   const serverMsg = err?.error?.message || err?.message;
   if (serverMsg && typeof serverMsg === "string") return serverMsg;
   return fallback;
