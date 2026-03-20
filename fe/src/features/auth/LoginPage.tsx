@@ -65,7 +65,8 @@ export default function LoginPage() {
         }, 3000);
       }
     } catch (err: any) {
-      setError(err.message || "오류가 발생했습니다.");
+      const msg = err instanceof Error ? err.message : (err?.error?.message || err?.message || "오류가 발생했습니다.");
+      setError(msg);
       setIsSubmitting(false);
       useAuthStore.getState().setAuthTransitioning(false);
     }

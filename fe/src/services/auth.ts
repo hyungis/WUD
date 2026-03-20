@@ -18,13 +18,27 @@ export type RegisterPayload = {
   password: string;
 };
 
+/** API reject 객체에서 서버가 보낸 에러 메시지를 그대로 추출한다. */
+function extractErrorMessage(err: any, fallback: string): string {
+  // err가 Error 인스턴스일 경우 (프론트 자체 throw)
+  if (err instanceof Error) return err.message || fallback;
+  // 서버 응답 데이터 구조: { error: { message } } 또는 { message }
+  const serverMsg = err?.error?.message || err?.message;
+  if (serverMsg && typeof serverMsg === "string") return serverMsg;
+  return fallback;
+}
+
 export async function login(payload: LoginPayload, options: AuthOptions = {}) {
-  // 실제 로그인 API 호출
-  const response = await authApi.login(payload);
+  let response;
+  try {
+    response = await authApi.login(payload);
+  } catch (err: any) {
+    throw new Error(extractErrorMessage(err, "로그인에 실패했습니다."));
+  }
 
   // 에러 처리: success 필드가 false이거나 data가 없으면 예외 발생
   if (!response.success || !response.data) {
-    throw new Error(response.message || "로그인에 실패했습니다.");
+    throw new Error(response.error?.message || response.message || "로그인에 실패했습니다.");
   }
 
   // 백엔드 login 응답: accessToken, expiresInSec
@@ -48,16 +62,20 @@ export async function login(payload: LoginPayload, options: AuthOptions = {}) {
 }
 
 export async function register(payload: RegisterPayload) {
-  // SignUpRequest 인터페이스에 맞게 필드 맵핑
-  const response = await authApi.signup({
-    email: payload.email,
-    password: payload.password,
-    name: payload.name,
-    nickname: payload.nickname,
-  });
+  let response;
+  try {
+    response = await authApi.signup({
+      email: payload.email,
+      password: payload.password,
+      name: payload.name,
+      nickname: payload.nickname,
+    });
+  } catch (err: any) {
+    throw new Error(extractErrorMessage(err, "회원가입에 실패했습니다."));
+  }
 
   if (!response.success) {
-    throw new Error(response.message || "회원가입에 실패했습니다.");
+    throw new Error(response.error?.message || response.message || "회원가입에 실패했습니다.");
   }
   return response.data;
 }
