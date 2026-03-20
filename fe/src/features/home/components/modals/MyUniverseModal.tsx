@@ -186,10 +186,10 @@ export function MyUniverseModal({
   };
 
   const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
-    { key: "overview", label: "개요", icon: <IconGrid /> },
-    { key: "daily", label: "데일리", icon: <IconPlanet /> },
-    { key: "deep", label: "심층", icon: <IconStar /> },
-    { key: "profile", label: "프로필", icon: <IconUser /> },
+    { key: "overview", label: "OVERVIEW", icon: <IconGrid /> },
+    { key: "daily", label: "DAILY", icon: <IconPlanet /> },
+    { key: "deep", label: "WEEKLY", icon: <IconStar /> },
+    { key: "profile", label: "PROFILE", icon: <IconUser /> },
   ];
 
   const switchTab = (key: TabKey) => { setTab(key); setSelectedItem(null); };
@@ -281,8 +281,8 @@ export function MyUniverseModal({
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { label: "전체", value: totalRecords, color: mypageStar.toneColor },
-                  { label: "데일리", value: dailyPlanets.length, color: "#38bdf8" },
-                  { label: "심층", value: deepStars.length, color: "#a78bfa" },
+                  { label: "DAILY", value: dailyPlanets.length, color: "#38bdf8" },
+                  { label: "WEEKLY", value: deepStars.length, color: "#a78bfa" },
                 ].map((s) => (
                   <div key={s.label} className={`${cardCls} text-center`}>
                     <p className="text-3xl font-bold text-white tracking-tight">{s.value}</p>
@@ -315,8 +315,8 @@ export function MyUniverseModal({
                   <p className={labelCls}>최근 활동</p>
                   <div className="space-y-1">
                     {[
-                      ...dailyPlanets.map((p) => ({ type: "daily" as const, id: p.id, color: p.shell, label: p.memo || "데일리 기록", date: p.createdAt, raw: p })),
-                      ...deepStars.map((s) => ({ type: "deep" as const, id: s.id, color: s.toneColor, label: s.label || "심층 기록", date: s.createdAt, raw: s })),
+                      ...dailyPlanets.map((p) => ({ type: "daily" as const, id: p.id, color: p.shell, label: p.memo || "DAILY PLANET", date: p.createdAt, raw: p })),
+                      ...deepStars.map((s) => ({ type: "deep" as const, id: s.id, color: s.toneColor, label: s.label || "WEEKLY 기록", date: s.createdAt, raw: s })),
                     ]
                       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                       .slice(0, 5)
@@ -336,7 +336,7 @@ export function MyUniverseModal({
                           <span className={`text-[9px] px-1.5 py-0.5 rounded flex-shrink-0 ${
                             item.type === "deep" ? "bg-violet-500/15 text-violet-400" : "bg-sky-500/15 text-sky-400"
                           }`}>
-                            {item.type === "deep" ? "심층" : "데일리"}
+                            {item.type === "deep" ? "WEEKLY" : "DAILY"}
                           </span>
                           <IconChevron className="h-3 w-3 text-zinc-700 group-hover:text-zinc-400 flex-shrink-0 transition-colors" />
                         </button>
@@ -349,7 +349,7 @@ export function MyUniverseModal({
                 <div className="rounded-2xl border border-dashed border-white/[0.06] p-10 text-center">
                   <div className="text-3xl mb-3 opacity-30">✦</div>
                   <p className="text-zinc-400 text-sm">아직 기록이 없어요</p>
-                  <p className="text-zinc-600 text-xs mt-1">데일리 또는 HTP 기록을 시작해보세요</p>
+                  <p className="text-zinc-600 text-xs mt-1">DAILY 또는 WEEKLY 기록을 시작해보세요</p>
                 </div>
               )}
             </div>
@@ -361,7 +361,7 @@ export function MyUniverseModal({
               {dailyPlanets.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-white/[0.06] p-10 text-center">
                   <div className="text-3xl mb-3 opacity-30">◇</div>
-                  <p className="text-zinc-400 text-sm">데일리 기록이 없어요</p>
+                  <p className="text-zinc-400 text-sm">DAILY PLANET이 없어요</p>
                 </div>
               ) : (
                 [...dailyPlanets]
@@ -383,7 +383,7 @@ export function MyUniverseModal({
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-[13px] text-zinc-200 truncate group-hover:text-white transition-colors">
-                          {planet.memo ? planet.memo.slice(0, 40) + (planet.memo.length > 40 ? "…" : "") : "데일리 행성"}
+                          {planet.memo ? planet.memo.slice(0, 40) + (planet.memo.length > 40 ? "…" : "") : "DAILY PLANET"}
                         </p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[10px] text-zinc-600">{formatDate(planet.createdAt)}</span>
@@ -403,8 +403,8 @@ export function MyUniverseModal({
               {deepStars.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-white/[0.06] p-10 text-center">
                   <div className="text-3xl mb-3 opacity-30">✧</div>
-                  <p className="text-zinc-400 text-sm">심층 기록이 없어요</p>
-                  <p className="text-zinc-600 text-xs mt-1">HTP 검사를 통해 심층 별을 만들어보세요</p>
+                  <p className="text-zinc-400 text-sm">WEEKLY 기록이 없어요</p>
+                  <p className="text-zinc-600 text-xs mt-1">WEEKLY 검사를 통해 WEEKLY STAR를 만들어보세요</p>
                 </div>
               ) : (
                 [...deepStars]
@@ -422,7 +422,7 @@ export function MyUniverseModal({
                         <div className="h-3.5 w-3.5 rotate-45 rounded-[3px]" style={{ backgroundColor: star.toneColor }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[13px] text-zinc-200 group-hover:text-white transition-colors">{star.label || "심층 별"}</p>
+                        <p className="text-[13px] text-zinc-200 group-hover:text-white transition-colors">{star.label || "WEEKLY STAR"}</p>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-[10px] text-zinc-600">{formatDate(star.createdAt)}</span>
                           {star.weekKey && <span className="text-[10px] px-1.5 py-px rounded bg-violet-500/10 text-violet-400/80">{star.weekKey}</span>}
@@ -589,12 +589,12 @@ export function MyUniverseModal({
                 </button>
                 <div className="flex-1 min-w-0">
                   <p className="text-[10px] uppercase tracking-[0.3em] text-zinc-500">
-                    {selectedItem.type === "daily" ? "Daily Report" : "Deep Star Report"}
+                    {selectedItem.type === "daily" ? "DAILY REPORT" : "WEEKLY REPORT"}
                   </p>
                   <h3 className="text-sm font-semibold text-white truncate mt-0.5">
                     {selectedItem.type === "daily"
-                      ? selectedItem.data.memo?.slice(0, 30) || "데일리 행성"
-                      : (selectedItem.data as any).label || "심층 별"}
+                      ? selectedItem.data.memo?.slice(0, 30) || "DAILY PLANET"
+                      : (selectedItem.data as any).label || "WEEKLY STAR"}
                   </h3>
                 </div>
                 <span className="text-[10px] text-zinc-600 flex-shrink-0">{formatDate(selectedItem.data.createdAt)}</span>

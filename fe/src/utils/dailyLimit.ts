@@ -36,17 +36,17 @@ export const toKstDate = (value?: string | Date) => {
 };
 
 export const hasTodayDailyEntry = async () => {
-  const res = await dailyApi.getDailyList();
-  const list = (res.data ?? []) as Array<{ entryDate?: string }>;
   const today = getTodayKstDate();
+  const res = await dailyApi.getDailyList({ period: "DAY", date: today });
+  const list = (res.data ?? []) as Array<{ entryDate?: string }>;
 
   return list.some((item) => item.entryDate === today);
 };
 
 export const hasTodayDailyEntryByType = async (dailyType: string) => {
-  const res = await dailyApi.getDailyList();
-  const list = (res.data ?? []) as Array<{ entryDate?: string; dailyType?: string }>;
   const today = getTodayKstDate();
+  const res = await dailyApi.getDailyList({ period: "DAY", date: today });
+  const list = (res.data ?? []) as Array<{ entryDate?: string; dailyType?: string }>;
   const targetType = dailyType.toUpperCase();
 
   return list.some((item) => item.entryDate === today && String(item.dailyType ?? "").toUpperCase() === targetType);

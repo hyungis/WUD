@@ -36,6 +36,7 @@ function HomePage() {
   const stars = useUiStore((state) => state.stars);
   const fetchStarMap = useUiStore((state) => state.fetchStarMap);
   const addTemporaryStar = useUiStore((state) => state.addTemporaryStar);
+  const removeStarsByTarget = useUiStore((state) => state.removeStarsByTarget);
   const selectedStarId = useUiStore((state) => state.selectedStarId);
   const setSelectedStarId = useUiStore((state) => state.setSelectedStarId);
   const newbornStarId = useUiStore((state) => state.newbornStarId);
@@ -183,7 +184,7 @@ function HomePage() {
         toneColor: s.color,
         createdAt: s.createdAt,
         weekKey: s.weekStartDate ? getWeekKey(new Date(s.weekStartDate)) : getWeekKey(new Date(s.createdAt)),
-        label: s.isTemporary ? "분석 중..." : "위클리 별",
+        label: s.isTemporary ? "분석 중..." : "WEEKLY PLANET",
         isTemporary: s.isTemporary,
       })),
     [stars],
@@ -525,6 +526,24 @@ function HomePage() {
     if (dailyPlanet) await openDailyReport(dailyPlanet as any);
   };
 
+  const handleDeleteDaily = async (dailyId: number) => {
+    try {
+      setReportError(null);
+      setReportLoading(true);
+      await dailyApi.deleteDaily(dailyId);
+      removeStarsByTarget(dailyId, "DAILY");
+      await fetchStarMap();
+      setSelectedDailyPlanet(null);
+      setSelectedDeepStar(null);
+      setDeepPages([]);
+      setIsSidePanelOpen(false);
+    } catch (e) {
+      setReportError(getApiErrorMessage(e, "데일리 리포트를 삭제하지 못했습니다."));
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!selectedStarId && mypageStar) {
       setSelectedStarId(mypageStar.id);
@@ -612,6 +631,11 @@ function HomePage() {
           const item = timelineItems.find((i) => i.id === id);
           if (item) void handleTimelineItemClick(item);
         }}
+        onWeekRowClick={(id) => {
+          // 주(행) 클릭은 리포트 오픈 없이 카메라/별자리 포커스만 이동
+          setTimelineFocusNonce((prev) => prev + 1);
+          setSelectedStarId(id);
+        }}
       />
 
       {/* HUD 우측 사이드 패널 (상세 리포트) */}
@@ -624,6 +648,7 @@ function HomePage() {
         selectedDailyPlanet={selectedDailyPlanet}
         deepPages={deepPages}
         onRefresh={selectedDeepStar ? () => void openDeepReport(selectedDeepStar as any, { silent: true }) : undefined}
+        onDeleteDaily={handleDeleteDaily}
       />
 
       <MyUniverseModal

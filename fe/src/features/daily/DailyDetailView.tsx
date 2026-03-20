@@ -63,7 +63,30 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
 
   const drawing = useCanvasDrawing({ paintColor, brushSize, tool, symmetry });
 
+  const canEnterMandalaFromSelection = () => {
+    const selectedContent = localStorage.getItem("dailySelectedContent");
+    if (selectedContent === "MANDALA") {
+      localStorage.removeItem("dailySelectedContent");
+      return true;
+    }
+
+    const pendingRaw = localStorage.getItem("pendingDailyRecord");
+    if (!pendingRaw) return false;
+
+    try {
+      const pending = JSON.parse(pendingRaw) as { dailyType?: string };
+      return !pending.dailyType || pending.dailyType === "MANDALA";
+    } catch {
+      return false;
+    }
+  };
+
   useEffect(() => {
+    if (!isModal && !canEnterMandalaFromSelection()) {
+      navigate("/daily/content", { replace: true });
+      return;
+    }
+
     let alive = true;
 
     const guardByDailyLimit = async () => {
@@ -86,7 +109,7 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
     return () => {
       alive = false;
     };
-  }, [navigate, onClose]);
+  }, [isModal, navigate, onClose]);
 
   const handleClose = () => {
     if (onClose) { onClose(); return; }

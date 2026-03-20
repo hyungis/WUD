@@ -14,6 +14,7 @@ interface TimelineHUDProps {
   selectedStarId: string | null;
   selectedWeekKey?: string | null;
   onItemClick: (id: string) => void;
+  onWeekRowClick?: (id: string) => void;
 }
 
 export function TimelineHUD({
@@ -25,6 +26,7 @@ export function TimelineHUD({
   selectedStarId,
   selectedWeekKey,
   onItemClick,
+  onWeekRowClick,
 }: TimelineHUDProps) {
   const isOverlayOpen = useUiStore((state) => state.isOverlayOpen);
   const [activeWeekKey, setActiveWeekKey] = useState<string | null>(null);
@@ -265,11 +267,24 @@ export function TimelineHUD({
               const rowKey = getRowKey(week);
               const isActive = activeWeekKey === rowKey;
               const hasData = rowGroups.has(rowKey);
+              const group = rowGroups.get(rowKey) || null;
 
               return (
                 <button
                   key={idx}
-                  onClick={(e) => { e.stopPropagation(); setActiveWeekKey(rowKey); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveWeekKey(rowKey);
+
+                    if (!group || !onWeekRowClick) return;
+
+                    // 주 클릭 시 대표 항목으로 이동: WEEKLY 우선, 없으면 가장 최근 DAILY
+                    const latestDaily = group.dailies.length
+                      ? [...group.dailies].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+                      : null;
+                    const target = group.deep || latestDaily;
+                    if (target?.id) onWeekRowClick(target.id);
+                  }}
                   /* 🚨 [핵심 수정] w-full 추가! 이걸 넣어야 버튼이 부모 넓이만큼 늘어나서 그리드 열이 요일과 일치합니다. */
                   className={`w-full grid grid-cols-7 text-center py-1.5 rounded-[12px] transition-all duration-150 relative group z-10
                     ${isActive
