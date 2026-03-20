@@ -187,7 +187,7 @@ class LLMService:
         self,
         *,
         session_id: int,
-        who5: Dict[str, Any],
+        who5: Dict[str, Any] | None,
         spane: Dict[str, Any] | None = None,
         yolo: Dict[str, Any],
         image_paths: Dict[str, str] | None = None,
@@ -277,9 +277,11 @@ class LLMService:
             include_wellbeing_raw: bool,
             cv_feats: Dict[str, Any] | None = None,
         ) -> List[Dict[str, Any]]:
-            wellbeing = {"scoreTotal": who5.get("scoreTotal")}
-            if include_wellbeing_raw:
-                wellbeing["raw"] = who5.get("raw")
+            wellbeing = None
+            if who5:
+                wellbeing = {"scoreTotal": who5.get("scoreTotal")}
+                if include_wellbeing_raw:
+                    wellbeing["raw"] = who5.get("raw")
 
             spane_survey = None
             if spane:
@@ -299,9 +301,10 @@ class LLMService:
             parts.extend(
                 [
                     {"type": "text", "text": "입력 데이터(구조화):"},
-                    {"type": "text", "text": f"WHO5_survey: {wellbeing}"},
                 ]
             )
+            if wellbeing is not None:
+                parts.append({"type": "text", "text": f"WHO5_survey: {wellbeing}"})
             if spane_survey:
                 parts.append({"type": "text", "text": f"SPANE_survey: {spane_survey}"})
             yolo_compact = {
@@ -464,7 +467,7 @@ class LLMService:
         self,
         *,
         session_id: int,
-        who5: Dict[str, Any],
+        who5: Dict[str, Any] | None,
         spane: Dict[str, Any] | None,
         image_path: str | None,
         developer_prompt: str,
@@ -478,7 +481,9 @@ class LLMService:
         client = self._get_client()
         model_name = (settings.gms_model or "").strip() or "gpt-4o"
 
-        wellbeing: Dict[str, Any] = {"scoreTotal": who5.get("scoreTotal"), "raw": who5.get("raw")}
+        wellbeing: Dict[str, Any] | None = None
+        if who5:
+            wellbeing = {"scoreTotal": who5.get("scoreTotal"), "raw": who5.get("raw")}
         spane_survey: Dict[str, Any] | None = None
         if spane:
             spane_survey = {
@@ -516,8 +521,9 @@ class LLMService:
 
         parts.extend([
             {"type": "text", "text": "입력 데이터(구조화):"},
-            {"type": "text", "text": f"WHO5_survey: {wellbeing}"},
         ])
+        if wellbeing is not None:
+            parts.append({"type": "text", "text": f"WHO5_survey: {wellbeing}"})
         if spane_survey:
             parts.append({"type": "text", "text": f"SPANE_survey: {spane_survey}"})
 
@@ -583,7 +589,7 @@ class LLMService:
         self,
         *,
         session_id: int,
-        who5: Dict[str, Any],
+        who5: Dict[str, Any] | None,
         spane: Dict[str, Any] | None = None,
         image_path: str | None = None,
         prompt_guide_text: str = "",
@@ -630,7 +636,7 @@ class LLMService:
         self,
         *,
         session_id: int,
-        who5: Dict[str, Any],
+        who5: Dict[str, Any] | None,
         spane: Dict[str, Any] | None = None,
         image_path: str | None = None,
         prompt_guide_text: str = "",

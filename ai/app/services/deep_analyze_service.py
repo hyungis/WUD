@@ -68,19 +68,21 @@ def analyze_deep_session_request(request: AiAnalyzeReq) -> AiAnalyzeResp:
 # ------------------------------------------------------------------
 
 def _build_who5_spane_payloads(request: AiAnalyzeReq):
-    who5_payload = {
+    who5_skipped = bool(getattr(request.who5, "isSkipped", False))
+    who5_payload = None if who5_skipped else {
         "scoreTotal": request.who5.scoreTotal,
         "raw": request.who5.raw,
     }
     spane_payload = None
-    if request.spane:
+    if request.spane and not bool(getattr(request.spane, "isSkipped", False)):
         spane_payload = {
             "scorePositive": request.spane.scorePositive,
             "scoreNegative": request.spane.scoreNegative,
             "scoreBalance": request.spane.scoreBalance,
             "raw": request.spane.raw,
         }
-    return who5_payload, spane_payload
+    is_skipped = who5_skipped or bool(getattr(request.spane, "isSkipped", False))
+    return who5_payload, spane_payload, is_skipped
 
 
 def _normalize_llm_response(
@@ -216,7 +218,7 @@ def _analyze_htp(request: AiAnalyzeReq) -> AiAnalyzeResp:
             print(f"[Deep Analyze] Cross-image feature extract failed: {cross_err}")
             cross_image_features = {}
 
-        who5_payload, spane_payload = _build_who5_spane_payloads(request)
+        who5_payload, spane_payload, is_skipped = _build_who5_spane_payloads(request)
 
         yolo_payload = {
             "summary": yolo_summary,
@@ -249,6 +251,8 @@ def _analyze_htp(request: AiAnalyzeReq) -> AiAnalyzeResp:
             extra_raw["cvFeatures"] = cv_features
         if cross_image_features:
             extra_raw["crossImageFeatures"] = cross_image_features
+        if is_skipped:
+            extra_raw["isSkipped"] = True
         data = _normalize_llm_response(llm_json, _DEFAULT_QUESTIONS_HTP, extra_raw or None)
 
         print(f"[Deep Analyze HTP] SUCCESS session={request.sessionId} "
@@ -312,7 +316,7 @@ def _analyze_single_image(request: AiAnalyzeReq, *, deep_type: str) -> AiAnalyze
     try:
         downloaded_path = s3_service.download_image(s3_key)
 
-        who5_payload, spane_payload = _build_who5_spane_payloads(request)
+        who5_payload, spane_payload, is_skipped = _build_who5_spane_payloads(request)
 
         guide_text = drawing_guide_service.build_prompt_context(deep_type, max_chars=4500)
 
@@ -326,7 +330,8 @@ def _analyze_single_image(request: AiAnalyzeReq, *, deep_type: str) -> AiAnalyze
         )
 
         default_questions = _DEFAULT_QUESTIONS_MAP[deep_type]
-        data = _normalize_llm_response(llm_json, default_questions)
+        extra_raw = {"isSkipped": True} if is_skipped else None
+        data = _normalize_llm_response(llm_json, default_questions, extra_raw)
 
         print(f"[Deep Analyze {deep_type}] SUCCESS session={request.sessionId} "
               f"summary_len={len(data.resultSummary)} questions={len(data.questions)}")

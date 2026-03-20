@@ -14,12 +14,14 @@ class AnalyzeResponse(BaseModel):
 
 class Who5Data(BaseModel):
     scoreTotal: int
+    isSkipped: Optional[bool] = None
     raw: Dict[str, int]
 
 class SpaneData(BaseModel):
     scorePositive: int
     scoreNegative: int
     scoreBalance: int
+    isSkipped: Optional[bool] = None
     raw: Dict[str, int]
 
 class AiAnalyzeReq(BaseModel):
