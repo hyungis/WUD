@@ -1,0 +1,7 @@
+# 배포 환경 전용 설정
+# Swagger UI 및 API 문서 비활성화 (보안)
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
