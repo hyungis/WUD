@@ -13,7 +13,7 @@ public class SignupReq {
 	private String email;
 
 	@NotBlank
-	@Size(min = 8, max = 64)
+	@Size(min = 8, max = 64, message = "비밀번호는 8자리 이상입니다.")
 	private String password;
 
 	@NotBlank
