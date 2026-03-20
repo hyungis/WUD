@@ -87,7 +87,11 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-black text-white flex items-center justify-center">
+    <div
+      className={`relative min-h-screen overflow-hidden bg-black text-white flex items-center justify-center ${phase === "idle" ? "cursor-pointer" : ""
+        }`}
+      onClick={phase === "idle" ? handleStarClick : undefined}
+    >
       {/* 3D 배경 */}
       <div className="absolute inset-0 z-0">
         <LoginStarScene phase={phase} onStarClick={handleStarClick} />
@@ -95,7 +99,7 @@ export default function LoginPage() {
 
       {/* 로고 (idle 상태) */}
       {phase === "idle" && (
-        <div className="relative z-10 text-center transition-opacity duration-700">
+        <div className="relative z-10 text-center transition-opacity duration-700 select-none">
           <h1 className="text-4xl font-bold text-white tracking-wide drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]">
             Would You Draw
           </h1>
