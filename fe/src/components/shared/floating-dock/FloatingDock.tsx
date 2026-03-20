@@ -1,17 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "../../../store/authStore";
 import { useUiStore } from "../../../store/uiStore";
+import { hasTodayDailyEntry } from "../../../utils/dailyLimit";
+import { AlertModal } from "../../../components/shared/AlertModal"; // 🚨 AlertModal 임포트
 
 export default function FloatingDock() {
     const user = useAuthStore((state) => state.user);
     const isDockHidden = useUiStore((state) => state.isDockHidden);
     const isOverlayOpen = useUiStore((state) => state.isOverlayOpen);
+    const isDailyContentModalOpen = useUiStore((state) => state.isDailyContentModalOpen);
+    const isDailyDetailModalOpen = useUiStore((state) => state.isDailyDetailModalOpen);
     const setDailyContentModalOpen = useUiStore((state) => state.setDailyContentModalOpen);
     const setDailyDetailModalOpen = useUiStore((state) => state.setDailyDetailModalOpen);
     const setWeeklyContentModalOpen = useUiStore((state) => state.setWeeklyContentModalOpen);
     const setWeeklyHtpModalOpen = useUiStore((state) => state.setWeeklyHtpModalOpen);
     const setIsMyUniverseOpen = useUiStore((state) => state.setIsMyUniverseOpen);
+
     const [isCheckingWeekly, setIsCheckingWeekly] = useState(false);
+    const [isDailyCompleted, setIsDailyCompleted] = useState(false);
+
+    // 🚨 알림(Toast/Modal) 상태 추가
+    const [alert, setAlert] = useState<{ isOpen: boolean; message: string; type: "success" | "error" }>({
+        isOpen: false,
+        message: "",
+        type: "error",
+    });
+
+    useEffect(() => {
+        const checkDailyStatus = async () => {
+            try {
+                const done = await hasTodayDailyEntry();
+                setIsDailyCompleted(done);
+            } catch (error) {
+                console.error("데일리 상태 확인 실패:", error);
+            }
+        };
+
+        if (!isOverlayOpen && !isDailyContentModalOpen && !isDailyDetailModalOpen) {
+            void checkDailyStatus();
+        }
+    }, [isOverlayOpen, isDailyContentModalOpen, isDailyDetailModalOpen]);
+
     const glassButtonClass = "inline-flex h-8 sm:h-9 lg:h-10 items-center justify-center rounded-[12px] border border-white/22 bg-white/14 px-2.5 sm:px-3 lg:px-4 text-[11px] sm:text-xs lg:text-sm font-semibold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.42)] backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-white/24 hover:border-white/45 hover:backdrop-blur-xl hover:shadow-[0_8px_24px_rgba(148,163,184,0.26),inset_0_1px_0_rgba(255,255,255,0.58)]";
 
     const displayName = user?.nickname || user?.name || user?.email?.split("@")[0] || "사용자";
@@ -26,12 +55,25 @@ export default function FloatingDock() {
             setWeeklyHtpModalOpen(false);
             setWeeklyContentModalOpen(true);
         } catch {
-            // 네트워크 확인 실패 시에는 기존 흐름을 유지해 기능 차단을 피한다.
             setWeeklyHtpModalOpen(false);
             setWeeklyContentModalOpen(true);
         } finally {
             setIsCheckingWeekly(false);
         }
+    };
+
+    // 🚨 데일리 클릭 핸들러 추가
+    const handleDailyClick = () => {
+        if (isDailyCompleted) {
+            setAlert({
+                isOpen: true,
+                message: "이미 빛나는 별 하나를 심으셨네요! 내일 또 다른 별을 만들어봐요.",
+                type: "success", // 에러 느낌이 싫으시면 "success" 로 변경하셔도 좋습니다.
+            });
+            return;
+        }
+        setDailyDetailModalOpen(false);
+        setDailyContentModalOpen(true);
     };
 
     return (
@@ -43,7 +85,6 @@ export default function FloatingDock() {
                     : "translate-y-0 opacity-100 pointer-events-auto"
                     }`}
             >
-                {/* 1. 주요 액션 (위클리, 데일리) */}
                 <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 flex-shrink-0">
                     <button
                         onClick={handleWeeklyClick}
@@ -52,18 +93,16 @@ export default function FloatingDock() {
                     >
                         {isCheckingWeekly ? "CHECKING..." : "WEEKLY"}
                     </button>
+
+                    {/* 🚨 버튼 스타일은 원래대로 복구하고 onClick만 변경 */}
                     <button
-                        onClick={() => {
-                            setDailyDetailModalOpen(false);
-                            setDailyContentModalOpen(true);
-                        }}
+                        onClick={handleDailyClick}
                         className={`${glassButtonClass} min-w-[64px] sm:min-w-[76px] lg:min-w-[90px]`}
                     >
                         DAILY
                     </button>
                 </div>
 
-                {/* 2. 사용자 프로필 */}
                 <div className="flex items-center">
                     <button
                         type="button"
@@ -79,7 +118,13 @@ export default function FloatingDock() {
                 </div>
             </div>
 
-
+            {/* 🚨 AlertModal 컴포넌트 추가 */}
+            <AlertModal
+                isOpen={alert.isOpen}
+                message={alert.message}
+                type={alert.type}
+                onClose={() => setAlert((prev) => ({ ...prev, isOpen: false }))}
+            />
         </>
     );
 }
