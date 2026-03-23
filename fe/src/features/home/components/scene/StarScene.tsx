@@ -719,7 +719,7 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = fal
       // -1 ~ 1 사이를 진동하는 사인파
       const wave = Math.sin(time * speed + phase);
 
-      // 상위 20% 구간(약 0.6 이상)에서만 반응하도록 임계값 설정
+      // 상위 30% 구간(약 0.6 이상)에서만 반응하도록 임계값 설정
       const threshold = 0.6;
 
       if (wave > threshold) {
@@ -1130,17 +1130,19 @@ export function StarScene({
 
             <GalacticDust count={dynamicDustCount} maxRadius={maxRadius} freezeMotion={freezeSceneMotion} />
 
-            <SpreadScaleGroup>
-              {constellationLines.map(({ weekKey, pts }) => (
-                <AnimatedConstellationLine
-                  key={`constellation-${weekKey}`}
-                  weekKey={weekKey}
-                  pts={pts}
-                  isHovered={highlightedWeekKey === weekKey}
-                  freezeMotion={freezeSceneMotion}
-                />
-              ))}
-            </SpreadScaleGroup>
+              <SpreadScaleGroup>
+                {constellationLines
+                  .filter((line) => hashSeed(line.weekKey) % 10 < 3)
+                  .map(({ weekKey, pts }) => (
+                    <AnimatedConstellationLine
+                      key={`constellation-${weekKey}`}
+                      weekKey={weekKey}
+                      pts={pts}
+                      isHovered={highlightedWeekKey === weekKey}
+                      freezeMotion={freezeSceneMotion}
+                    />
+                  ))}
+              </SpreadScaleGroup>
 
             <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={detailedItemIds} freezeMotion={freezeSceneMotion} />
 
