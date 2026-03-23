@@ -80,6 +80,7 @@ export default function FloatingDock() {
     return (
         <>
             <div
+                id="floating-dock-container"
                 className={`fixed bottom-3 sm:bottom-4 lg:bottom-6 left-1/2 z-50 flex w-[min(calc(100vw-0.75rem),44rem)] sm:w-[min(calc(100vw-1rem),48rem)] lg:w-auto -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 sm:gap-2 lg:gap-3 px-1 transition-all duration-700 ${isDockHidden
                     || isOverlayOpen
                     ? "translate-y-[150%] opacity-0 pointer-events-none"
@@ -88,6 +89,7 @@ export default function FloatingDock() {
             >
                 <div className="flex items-center gap-1.5 sm:gap-2 lg:gap-3 flex-shrink-0">
                     <button
+                        id="weekly-star-btn"
                         onClick={handleWeeklyClick}
                         disabled={isCheckingWeekly}
                         className={`${glassButtonClass} min-w-[64px] sm:min-w-[76px] lg:min-w-[90px]`}
@@ -97,6 +99,7 @@ export default function FloatingDock() {
 
                     {/* 🚨 버튼 스타일은 원래대로 복구하고 onClick만 변경 */}
                     <button
+                        id="daily-star-btn"
                         onClick={handleDailyClick}
                         className={`${glassButtonClass} min-w-[64px] sm:min-w-[76px] lg:min-w-[90px]`}
                     >
@@ -106,6 +109,7 @@ export default function FloatingDock() {
 
                 <div className="flex items-center">
                     <button
+                        id="mypage-btn"
                         type="button"
                         onClick={() => { setSelectedStarId("center-mypage-star"); setIsMyUniverseOpen(true); }}
                         className="inline-flex h-8 sm:h-9 lg:h-10 max-w-[44vw] sm:max-w-[40vw] lg:max-w-none items-center gap-1.5 sm:gap-2 rounded-[12px] border border-white/22 bg-white/14 px-2.5 sm:px-3 lg:px-4 text-[11px] sm:text-xs lg:text-sm font-semibold text-white cursor-pointer shadow-[inset_0_1px_0_rgba(255,255,255,0.38)] backdrop-blur-md transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-white/24 hover:border-white/45 hover:backdrop-blur-xl hover:shadow-[0_8px_24px_rgba(148,163,184,0.26),inset_0_1px_0_rgba(255,255,255,0.58)]"
