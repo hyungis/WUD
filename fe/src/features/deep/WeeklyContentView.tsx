@@ -301,9 +301,14 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp, onStartPir, o
     }
 
     return (
-        <div className="fixed inset-0 z-[100] flex justify-end pointer-events-none">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+            <button
+                type="button"
+                onClick={onClose}
+                className="absolute inset-0 h-full w-full cursor-default pointer-events-auto"
+            />
             <div
-                className="pointer-events-auto h-full w-full max-w-[800px] border-l border-white/10 bg-zinc-950 shadow-2xl animate-in slide-in-from-right duration-500 ease-in-out"
+                className="pointer-events-auto relative z-10 h-full w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl animate-in zoom-in-95 duration-300"
             >
                 {content}
             </div>
