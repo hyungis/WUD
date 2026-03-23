@@ -40,6 +40,7 @@ type UiState = {
   isMyUniverseOpen: boolean;
   selectedDailyPlanet: DailyPlanet | null;
   selectedDeepStar: DeepStar | null;
+  timelineFocusNonce: number;
 
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
@@ -70,6 +71,7 @@ type UiState = {
   setHoveredPlanet: (planet: { id: string; x: number; y: number } | null) => void;
   setSelectedDailyPlanet: (planet: DailyPlanet | null) => void;
   setSelectedDeepStar: (star: DeepStar | null) => void;
+  incrementTimelineFocusNonce: () => void;
 };
 
 export const useUiStore = create<UiState>((set) => ({
@@ -95,6 +97,7 @@ export const useUiStore = create<UiState>((set) => ({
   isMyUniverseOpen: false,
   selectedDailyPlanet: null,
   selectedDeepStar: null,
+  timelineFocusNonce: 0,
 
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
@@ -246,6 +249,7 @@ export const useUiStore = create<UiState>((set) => ({
   setHoveredPlanet: (hoveredPlanet) => set({ hoveredPlanet }),
   setSelectedDailyPlanet: (selectedDailyPlanet) => set({ selectedDailyPlanet }),
   setSelectedDeepStar: (selectedDeepStar) => set({ selectedDeepStar }),
+  incrementTimelineFocusNonce: () => set((state) => ({ timelineFocusNonce: state.timelineFocusNonce + 1 })),
 }));
 
 // Selector optimization

@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import type { DailyPlanet, DeepStar } from "../../utils/homeHelpers";
 import { getWeekKey, formatDate, formatDateTimeKST } from "../../utils/homeHelpers";
 import { useAuthStore } from "../../../../store/authStore";
+import { useCustomStarStore, STAR_SHAPES, STAR_COLORS } from "../../../../store/customStarStore";
 import { userApi } from "../../../../api/user";
 import { logout } from "../../../../services/auth";
 import type { UserProfileResponse } from "../../../../types/user";
 
-type TabKey = "overview" | "daily" | "deep" | "profile";
+type TabKey = "overview" | "daily" | "deep" | "customize" | "profile";
 
 interface MyUniverseModalProps {
   isOpen: boolean;
@@ -60,6 +61,125 @@ const IconLogout = ({ className = "h-4 w-4" }: { className?: string }) => (
     <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14 5-5-5-5m5 5H9" />
   </svg>
 );
+const IconCustomize = ({ className = "h-4 w-4" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
+    <path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z" />
+  </svg>
+);
+
+/* ── 커스터마이징 탭 내용 ── */
+function CustomizeTabContent({ cardCls, labelCls }: { cardCls: string; labelCls: string }) {
+  const { currentShape, currentColor, setShape, setColor, saveToStorage } = useCustomStarStore();
+  const [saved, setSaved] = useState(false);
+
+  const handleSave = () => {
+    saveToStorage();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* 모양 선택 */}
+      <div className={cardCls}>
+        <p className={labelCls}>모양 선택</p>
+        <div className="grid grid-cols-4 gap-2">
+          {STAR_SHAPES.map((s) => {
+            const isActive = currentShape === s.key;
+            return (
+              <button
+                key={s.key}
+                onClick={() => setShape(s.key)}
+                className={`relative flex flex-col items-center gap-1.5 rounded-xl border p-3 transition-all duration-200 ${isActive
+                  ? "border-white/30 bg-white/[0.08] shadow-[0_0_16px_rgba(255,255,255,0.08)]"
+                  : "border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12]"
+                  }`}
+              >
+                <span className={`text-xl transition-transform duration-200 ${isActive ? "scale-125" : ""}`}>
+                  {s.icon}
+                </span>
+                <span className={`text-[10px] font-medium tracking-wide ${isActive ? "text-white" : "text-zinc-500"}`}>
+                  {s.label}
+                </span>
+                {isActive && (
+                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-white shadow-[0_0_6px_rgba(255,255,255,0.5)]" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 색상 선택 */}
+      <div className={cardCls}>
+        <p className={labelCls}>색상 선택</p>
+        <div className="grid grid-cols-4 gap-3">
+          {STAR_COLORS.map((c) => {
+            const isActive = currentColor === c.hex;
+            return (
+              <button
+                key={c.hex}
+                onClick={() => setColor(c.hex)}
+                className="group flex flex-col items-center gap-2"
+              >
+                <div className="relative">
+                  <div
+                    className={`h-10 w-10 rounded-full transition-all duration-200 ${isActive
+                      ? "ring-2 ring-white/60 ring-offset-2 ring-offset-[#0a0a0f] scale-110"
+                      : "hover:scale-105"
+                      }`}
+                    style={{
+                      backgroundColor: c.hex,
+                      boxShadow: isActive ? `0 0 20px ${c.hex}66` : `0 0 8px ${c.hex}22`,
+                    }}
+                  />
+                  {isActive && (
+                    <svg className="absolute inset-0 m-auto h-4 w-4 drop-shadow-md" viewBox="0 0 24 24" fill="none" stroke="#0a0a0f" strokeWidth="3">
+                      <path d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <span className={`text-[10px] transition-colors ${isActive ? "text-white font-medium" : "text-zinc-600 group-hover:text-zinc-400"}`}>
+                  {c.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 현재 선택 미리보기 + 저장 */}
+      <div className={cardCls}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className="h-8 w-8 rounded-lg"
+              style={{
+                backgroundColor: currentColor,
+                boxShadow: `0 0 16px ${currentColor}44`,
+              }}
+            />
+            <div>
+              <p className="text-xs text-white font-medium">
+                {STAR_SHAPES.find((s) => s.key === currentShape)?.label} · {STAR_COLORS.find((c) => c.hex === currentColor)?.label}
+              </p>
+              <p className="text-[10px] text-zinc-600 mt-0.5">변경사항은 저장 후 유지됩니다</p>
+            </div>
+          </div>
+          <button
+            onClick={handleSave}
+            className={`rounded-lg px-4 py-2 text-xs font-medium transition-all duration-300 ${saved
+              ? "bg-emerald-500/20 border border-emerald-400/30 text-emerald-300"
+              : "bg-white/[0.08] border border-white/[0.1] text-white hover:bg-white/[0.14] hover:border-white/[0.2]"
+              }`}
+          >
+            {saved ? "✓ 저장됨" : "저장하기"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function MyUniverseModal({
   isOpen,
@@ -189,6 +309,7 @@ export function MyUniverseModal({
     { key: "overview", label: "OVERVIEW", icon: <IconGrid /> },
     { key: "daily", label: "DAILY", icon: <IconPlanet /> },
     { key: "deep", label: "WEEKLY", icon: <IconStar /> },
+    { key: "customize", label: "CUSTOMIZE", icon: <IconCustomize /> },
     { key: "profile", label: "PROFILE", icon: <IconUser /> },
   ];
 
@@ -200,10 +321,17 @@ export function MyUniverseModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md pointer-events-auto"
+      className="fixed inset-0 z-50 flex pointer-events-auto"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="relative mx-3 flex max-h-[96vh] w-full max-w-[920px] flex-col overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#0a0a0f]/95 shadow-[0_32px_64px_rgba(0,0,0,0.7)] backdrop-blur-2xl">
+      {/* 좌측 투명 영역 (별이 보임) */}
+      <div className="flex-1" onClick={onClose} />
+
+      {/* 우측 슬라이드인 패널 */}
+      <div
+        className="relative flex h-full w-full max-w-[800px] flex-col overflow-hidden border-l border-white/[0.08] bg-[#0a0a0f]/90 shadow-[−32px_0_64px_rgba(0,0,0,0.7)] backdrop-blur-2xl animate-[slideInRight_0.35s_ease-out]"
+        style={{ animation: "slideInRight 0.35s ease-out" }}
+      >
 
         {/* ━━━ 헤더 ━━━ */}
         <div className="relative flex-shrink-0 px-6 pt-5 pb-0">
@@ -250,11 +378,10 @@ export function MyUniverseModal({
               <button
                 key={t.key}
                 onClick={() => switchTab(t.key)}
-                className={`group relative flex items-center gap-1.5 px-4 pb-3 pt-1 text-xs font-medium transition-all ${
-                  tab === t.key
-                    ? "text-white"
-                    : "text-zinc-500 hover:text-zinc-300"
-                }`}
+                className={`group relative flex items-center gap-1.5 px-4 pb-3 pt-1 text-xs font-medium transition-all ${tab === t.key
+                  ? "text-white"
+                  : "text-zinc-500 hover:text-zinc-300"
+                  }`}
               >
                 <span className={tab === t.key ? "text-white" : "text-zinc-600 group-hover:text-zinc-400"}>{t.icon}</span>
                 <span>{t.label}</span>
@@ -333,9 +460,8 @@ export function MyUniverseModal({
                           <div className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                           <span className="flex-1 text-[13px] text-zinc-300 truncate group-hover:text-white transition-colors">{item.label}</span>
                           <span className="text-[10px] text-zinc-600 flex-shrink-0">{formatDate(item.date)}</span>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded flex-shrink-0 ${
-                            item.type === "deep" ? "bg-violet-500/15 text-violet-400" : "bg-sky-500/15 text-sky-400"
-                          }`}>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded flex-shrink-0 ${item.type === "deep" ? "bg-violet-500/15 text-violet-400" : "bg-sky-500/15 text-sky-400"
+                            }`}>
                             {item.type === "deep" ? "WEEKLY" : "DAILY"}
                           </span>
                           <IconChevron className="h-3 w-3 text-zinc-700 group-hover:text-zinc-400 flex-shrink-0 transition-colors" />
@@ -434,6 +560,9 @@ export function MyUniverseModal({
               )}
             </div>
           )}
+
+          {/* ── 커스터마이징 ── */}
+          {tab === "customize" && <CustomizeTabContent cardCls={cardCls} labelCls={labelCls} />}
 
           {/* ── 프로필 ── */}
           {tab === "profile" && (

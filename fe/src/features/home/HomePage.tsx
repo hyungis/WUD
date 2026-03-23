@@ -47,7 +47,8 @@ function HomePage() {
   const [hoveredPlanet, setHoveredPlanet] = useState<{ id: string; x: number; y: number } | null>(null);
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [isTimelineOpen, setIsTimelineOpen] = useState(true);
-  const [timelineFocusNonce, setTimelineFocusNonce] = useState(0);
+  const timelineFocusNonce = useUiStore((state) => state.timelineFocusNonce);
+  const setTimelineFocusNonce = useUiStore((state) => state.incrementTimelineFocusNonce);
   const setDockHidden = useUiStore((state) => state.setDockHidden);
   const setOverlayOpen = useUiStore((state) => state.setOverlayOpen);
   const isDailyContentModalOpen = useUiStore((state) => state.isDailyContentModalOpen);
@@ -157,7 +158,7 @@ function HomePage() {
   useEffect(() => {
     if (newbornStarId) {
       setSelectedStarId(newbornStarId);
-      setTimelineFocusNonce(n => n + 1);
+      setTimelineFocusNonce();
     }
   }, [newbornStarId, setSelectedStarId]);
 
@@ -674,6 +675,7 @@ function HomePage() {
           }}
           onViewModeChange={setViewMode}
           isReportOpen={isSidePanelOpen}
+          isMyUniverseOpen={isMyUniverseOpen}
           newbornStarId={newbornStarId}
           externalFocusNonce={timelineFocusNonce}
           onBirthComplete={handleBirthComplete}
@@ -706,7 +708,7 @@ function HomePage() {
         selectedStarId={selectedStarId}
         selectedWeekKey={selectedWeekKey}
         onItemClick={(id) => {
-          setTimelineFocusNonce((prev) => prev + 1);
+          setTimelineFocusNonce();
           if (id === mypageStar.id) {
             setSelectedStarId(id);
             return;
@@ -718,7 +720,7 @@ function HomePage() {
         }}
         onWeekRowClick={(id) => {
           // 주(행) 클릭은 리포트 오픈 없이 카메라/별자리 포커스만 이동
-          setTimelineFocusNonce((prev) => prev + 1);
+          setTimelineFocusNonce();
           setSelectedStarId(id);
         }}
       />
