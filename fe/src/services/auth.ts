@@ -92,7 +92,7 @@ export async function fetchMe() {
 
   if (response.success && response.data) {
     const p = response.data;
-    const mappedUser: User = { id: String(p.id), email: p.email, name: p.nickname, nickname: p.nickname };
+    const mappedUser: User = { id: String(p.id), email: p.email, name: p.nickname, nickname: p.nickname, tutorialCompleted: p.tutorialCompleted };
     useAuthStore.getState().setUser(mappedUser);
     return mappedUser;
   }
