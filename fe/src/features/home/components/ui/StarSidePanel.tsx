@@ -94,6 +94,10 @@ export function StarSidePanel({
     ? currentPage.psychAssessments.find((pa: any) => String(pa?.testCode ?? "").toUpperCase() === "WHO5")
     : null;
 
+  const spaneAssessment = Array.isArray(currentPage?.psychAssessments)
+    ? currentPage.psychAssessments.find((pa: any) => String(pa?.testCode ?? "").toUpperCase() === "SPANE")
+    : null;
+
   const parseSpaneFromRaw = (raw: any) => {
     if (!raw || typeof raw !== "object") {
       return { positive: 0, negative: 0, balance: 0 };
@@ -102,11 +106,11 @@ export function StarSidePanel({
     const negative = Number(raw.scoreNegative ?? raw.negative ?? 0);
     const balance = Number(raw.scoreBalance ?? raw.balance ?? (positive - negative));
 
-    // raw에 answers만 있는 경우 계산 (앞 6문항 긍정, 뒤 6문항 부정)
+    // raw에 answers만 있는 경우 계산 (정규 인덱스 적용)
     if (!positive && !negative && Array.isArray(raw.answers) && raw.answers.length >= 12) {
       const nums = raw.answers.map((v: any) => Number(v) || 0);
-      const p = nums.slice(0, 6).reduce((acc: number, cur: number) => acc + cur, 0);
-      const n = nums.slice(6, 12).reduce((acc: number, cur: number) => acc + cur, 0);
+      const p = nums[0] + nums[2] + nums[4] + nums[6] + nums[9] + nums[11];
+      const n = nums[1] + nums[3] + nums[5] + nums[7] + nums[8] + nums[10];
       return { positive: p, negative: n, balance: p - n };
     }
 
@@ -248,15 +252,39 @@ export function StarSidePanel({
                         {currentPage.createdAt ? formatDateTimeKST(currentPage.createdAt) : ""}
                       </p>
                     </div>
-                    {who5Assessment && typeof who5Assessment.scoreTotal === "number" && !who5Assessment.isSkipped && (
-                      <div className="text-center flex-shrink-0 rounded-xl bg-indigo-500/[0.08] border border-indigo-500/[0.12] px-4 py-2">
-                        <p className="text-[9px] uppercase tracking-widest text-slate-500">WHO-5</p>
-                        <p className="text-2xl font-bold text-indigo-300">
-                          {who5Assessment.scoreTotal}
-                          <span className="text-sm text-slate-500">/25</span>
-                        </p>
-                      </div>
-                    )}
+                    <div className="flex gap-2">
+                      {who5Assessment && typeof who5Assessment.scoreTotal === "number" && !who5Assessment.isSkipped && (
+                        <div className="text-center flex-shrink-0 rounded-xl bg-indigo-500/[0.08] border border-indigo-500/[0.12] px-4 py-2">
+                          <p className="text-[9px] uppercase tracking-widest text-slate-500">WHO-5</p>
+                          <p className="text-2xl font-bold text-indigo-300">
+                            {who5Assessment.scoreTotal}
+                            <span className="text-sm text-slate-500">/25</span>
+                          </p>
+                        </div>
+                      )}
+                      {spaneAssessment && !spaneAssessment.isSkipped && (
+                        <div className="text-center flex-shrink-0 rounded-xl bg-emerald-500/[0.08] border border-emerald-500/[0.12] px-3 py-2">
+                          <p className="text-[9px] uppercase tracking-widest text-slate-500">SPANE</p>
+                          <div className="flex items-baseline gap-1.5 justify-center">
+                            <span className="text-xl font-bold text-emerald-300">
+                              {(() => {
+                                const sp = parseSpaneFromRaw(spaneAssessment.raw);
+                                const b = spaneAssessment.scoreBalance ?? sp.balance;
+                                return b > 0 ? `+${b}` : b;
+                              })()}
+                            </span>
+                          </div>
+                          <p className="text-[8px] text-slate-500 mt-0.5">
+                            {(() => {
+                              const sp = parseSpaneFromRaw(spaneAssessment.raw);
+                              const p = spaneAssessment.scorePositive ?? sp.positive;
+                              const n = spaneAssessment.scoreNegative ?? sp.negative;
+                              return `P ${p} · N ${n}`;
+                            })()}
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* 분석 중 상태 */}
