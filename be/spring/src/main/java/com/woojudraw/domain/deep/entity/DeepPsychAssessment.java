@@ -144,9 +144,13 @@ public class DeepPsychAssessment {
 		LocalDate weekStartDate,
 		ObjectMapper objectMapper
 	) {
-		// 문항 순서에 따라 처리 (앞의 6개가 긍정, 뒤의 6개가 부정)
-		short positive = (short)answers.subList(0, 6).stream().mapToInt(Integer::intValue).sum();
-		short negative = (short)answers.subList(6, 12).stream().mapToInt(Integer::intValue).sum();
+		// 프런트엔드 문항 순서(P/N 섞임)에 따른 정확한 인덱스별 합산
+		// P: 긍정적인(0), 좋은(2), 즐거운(4), 행복한(6), 기쁜(9), 만족스러운(11)
+		// N: 부정적인(1), 나쁜(3), 불쾌한(5), 슬픈(7), 두려운(8), 화난(10)
+		short positive = (short) (answers.get(0) + answers.get(2) + answers.get(4) + 
+								  answers.get(6) + answers.get(9) + answers.get(11));
+		short negative = (short) (answers.get(1) + answers.get(3) + answers.get(5) + 
+								  answers.get(7) + answers.get(8) + answers.get(10));
 		short balance = (short)(positive - negative); // SPANE-B 계산
 
 		OffsetDateTime now = AppTime.nowKst();
