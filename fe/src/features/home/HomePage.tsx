@@ -19,12 +19,15 @@ import WeeklyHtpView from "../deep/WeeklyHtpView";
 import WeeklySingleDrawView from "../deep/WeeklySingleDrawView";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
+import { useAuthStore } from "../../store/authStore";
+import { userApi } from "../../api/user";
 
 // ==========================================
 // 5. 메인 페이지 (UI)
 // ==========================================
 
 function HomePage() {
+  const user = useAuthStore((state) => state.user);
   const isMyUniverseOpen = useUiStore((state) => state.isMyUniverseOpen);
   const setIsMyUniverseOpen = useUiStore((state) => state.setIsMyUniverseOpen);
   const [selectedDeepStar, setSelectedDeepStar] = useState<any>(null);
@@ -228,21 +231,32 @@ function HomePage() {
           },
         },
       ],
+      onDestroyed: () => {
+        // 코치마크 종료 시 무조건 백엔드에 완료 상태 전송 및 스토어 업데이트
+        userApi.completeTutorial().catch((e) => console.error("튜토리얼 완료 처리 실패:", e));
+        const currentUser = useAuthStore.getState().user;
+        if (currentUser && currentUser.tutorialCompleted !== true) {
+          useAuthStore.getState().setUser({ ...currentUser, tutorialCompleted: true });
+        }
+      },
     });
     driverObj.drive();
   }, []);
 
   useEffect(() => {
-    const showTutorial = localStorage.getItem("showTutorial");
-    if (showTutorial === "true") {
+    // 프론트엔드 자체 localStorage fallback (가입 직후) 또는 백엔드 상태(tutorialCompleted) 활용
+    const showTutorialParam = localStorage.getItem("showTutorial");
+    const needsTutorial = (showTutorialParam === "true") || (user && user.tutorialCompleted === false);
+
+    if (needsTutorial) {
       const timer = setTimeout(() => {
         handleStartTutorial();
-        localStorage.removeItem("showTutorial"); // 한 번만 보여주기 위해 제거
+        if (showTutorialParam) localStorage.removeItem("showTutorial");
       }, 1500);
 
       return () => clearTimeout(timer);
     }
-  }, [handleStartTutorial]);
+  }, [user, handleStartTutorial]);
 
   const dailyPlanets = useMemo(
     () => stars

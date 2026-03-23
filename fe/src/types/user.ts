@@ -6,6 +6,7 @@ export interface UserProfileResponse {
     status: string; // "ACTIVE" 등
     joinedAt: string;
     lastLoginAt: string;
+    tutorialCompleted: boolean;
 }
 
 export interface UpdateProfileRequest {

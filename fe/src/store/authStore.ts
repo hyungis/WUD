@@ -5,6 +5,7 @@ export type User = {
   email?: string;
   name?: string;
   nickname?: string;
+  tutorialCompleted?: boolean;
 };
 
 type AuthState = {
