@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.woojudraw.domain.user.entity.AuthProvider;
 import com.woojudraw.domain.user.entity.User;
+import com.woojudraw.domain.user.entity.UserStatus;
 import com.woojudraw.domain.user.repository.AuthProviderRepository;
 import com.woojudraw.domain.user.repository.UserRepository;
 import com.woojudraw.global.exception.ResponseCode;
@@ -64,7 +65,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 	}
 
 	private void processOAuth2User(String provider, String providerUserId, String email, String name) {
-		Optional<AuthProvider> authProviderOptional = authProviderRepository.findByProviderAndProviderUserId(provider,
+		Optional<AuthProvider> authProviderOptional = authProviderRepository.findByProviderAndProviderUserIdAndUnlinkedAtIsNull(provider,
 			providerUserId);
 
 		if (authProviderOptional.isPresent()) {
@@ -75,7 +76,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 		}
 
 		// 해당 제공자의 식별정보가 없으면 이메일로 기존 유저 확인
-		User user = userRepository.findByEmail(email)
+		User user = userRepository.findByEmailAndStatus(email, UserStatus.ACTIVATE)
 			.orElseGet(() -> {
 				User newUser = User.builder()
 					.email(email)
