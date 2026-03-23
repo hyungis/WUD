@@ -670,7 +670,7 @@ function HomePage() {
           dailyPlanets={dailyPlanets}
           deepStars={deepStars}
           mypageStar={mypageStar}
-          onStarClick={() => setIsMyUniverseOpen(true)}
+          onStarClick={() => { setIsMyUniverseOpen(true); setSelectedStarId(mypageStar.id); }}
           onDeepStarClick={(star) => void openDeepReport(star as any)}
           onPlanetClick={(p) => void openDailyReport(p as any)}
           onStarSelect={setSelectedStarId}
@@ -690,6 +690,8 @@ function HomePage() {
           onViewModeChange={setViewMode}
           isReportOpen={isSidePanelOpen}
           isMyUniverseOpen={isMyUniverseOpen}
+          isDailyDetailOpen={isDailyDetailModalOpen || isDailyColoringModalOpen}
+          isWeeklyOpen={isWeeklyContentModalOpen || isWeeklyHtpModalOpen || isWeeklyPirModalOpen || isWeeklySwModalOpen}
           newbornStarId={newbornStarId}
           externalFocusNonce={timelineFocusNonce}
           onBirthComplete={handleBirthComplete}

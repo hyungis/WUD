@@ -134,32 +134,18 @@ export function StarSidePanel({
     : "감정 분석 리포트";
 
   return (
-    <div className="fixed inset-0 z-50 flex">
-      {/* 왼쪽: 별이 보이는 투명 영역 — 클릭하면 닫힘 */}
-      <button
-        type="button"
-        aria-label="close report"
-        className="hidden md:block md:w-[30%] lg:w-[28%] flex-shrink-0 bg-transparent border-none cursor-default"
-        onClick={onClose}
-      />
-      {/* 모바일에서는 전체 배경 클릭으로 닫기 */}
-      <button
-        type="button"
-        aria-label="close report"
-        className="md:hidden fixed inset-0 bg-black/40"
-        onClick={onClose}
-      />
+    <div
+      className="fixed inset-0 z-[100] flex pointer-events-auto"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {/* 좌측 투명 영역 (별이 보임) */}
+      <div className="flex-1" onClick={onClose} />
 
-      {/* 오른쪽: 리포트 패널 */}
-      <div className="relative flex-1 flex items-center justify-center p-2 sm:p-3 md:p-4 pointer-events-none">
-        <div
-          className="pointer-events-auto relative flex w-full max-w-[960px] flex-col overflow-hidden rounded-2xl border border-white/[0.12] shadow-[0_32px_80px_rgba(0,0,0,0.6)]"
-          style={{
-            height: "min(96vh, 960px)",
-            background: "linear-gradient(165deg, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.96) 100%)",
-            backdropFilter: "blur(40px) saturate(1.2)",
-          }}
-        >
+      {/* 우측 슬라이드인 패널 */}
+      <div
+        className="relative flex h-full w-full max-w-[800px] flex-col overflow-hidden border-l border-white/[0.08] bg-[#0a0a0f]/90 shadow-[-32px_0_64px_rgba(0,0,0,0.7)] backdrop-blur-2xl transition-all duration-300 animate-in slide-in-from-right"
+        style={{ animation: "slideInRight 0.35s ease-out" }}
+      >
           {/* ── 헤더 ── */}
           <div className="flex items-center justify-between px-5 py-3 sm:px-7 sm:py-3.5 border-b border-white/[0.06] flex-shrink-0">
             <div className="flex items-center gap-3">
@@ -472,7 +458,6 @@ export function StarSidePanel({
                   )}
                 </>
               )}
-            </div>
           </div>
         </div>
       </div>

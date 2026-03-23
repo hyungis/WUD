@@ -273,9 +273,10 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
   if (!isModal) return content;
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/78 backdrop-blur-sm px-4 py-4 text-zinc-100">
-      <button type="button" aria-label="모달 닫기" onClick={handleClose} className="absolute inset-0 h-full w-full cursor-default" />
-      <div className="relative z-10 w-full max-w-6xl h-[94vh] overflow-hidden rounded-3xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.6)]">
+    <div className="fixed inset-0 z-[100] flex justify-end pointer-events-none">
+      <div
+        className="pointer-events-auto h-full w-full max-w-[800px] border-l border-white/10 bg-zinc-950 shadow-2xl animate-in slide-in-from-right duration-500 ease-in-out"
+      >
         {content}
       </div>
     </div>

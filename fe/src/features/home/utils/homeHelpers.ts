@@ -41,6 +41,9 @@ export type StarSceneProps = {
   onStarHover?: (data: { id: string | null; x?: number; y?: number }) => void;
   onViewModeChange?: (mode: "macro" | "micro") => void;
   isReportOpen: boolean;
+  isMyUniverseOpen?: boolean;
+  isDailyDetailOpen?: boolean;
+  isWeeklyOpen?: boolean;
   newbornStarId?: string | null;
   externalFocusNonce?: number;
   onBirthComplete?: () => void;

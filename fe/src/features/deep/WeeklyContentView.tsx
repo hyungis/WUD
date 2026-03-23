@@ -301,14 +301,10 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp, onStartPir, o
     }
 
     return (
-        <div className="custom-scrollbar fixed inset-0 z-[88] flex items-center justify-center overflow-y-auto overflow-x-hidden bg-black/78 px-4 py-4 text-zinc-100 backdrop-blur-sm">
-            <button
-                type="button"
-                aria-label="모달 닫기"
-                onClick={handleClose}
-                className="absolute inset-0 h-full w-full cursor-default"
-            />
-            <div className="relative z-10 mx-auto w-full max-w-7xl h-[94vh] overflow-hidden rounded-3xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.65)]">
+        <div className="fixed inset-0 z-[100] flex justify-end pointer-events-none">
+            <div
+                className="pointer-events-auto h-full w-full max-w-[800px] border-l border-white/10 bg-zinc-950 shadow-2xl animate-in slide-in-from-right duration-500 ease-in-out"
+            >
                 {content}
             </div>
         </div>
