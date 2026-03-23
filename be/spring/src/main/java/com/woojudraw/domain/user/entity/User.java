@@ -44,6 +44,9 @@ public class User {
 	@Enumerated(EnumType.STRING)
 	private UserStatus status = UserStatus.ACTIVATE;
 
+	@Column(nullable = false)
+	private boolean tutorialCompleted;
+
 	private OffsetDateTime lastLoginAt;
 
 	@Column(nullable = false)
@@ -68,6 +71,10 @@ public class User {
 
 	public void updatePassword(String encodePassword) {
 		this.password = encodePassword;
+	}
+
+	public void completeTutorial() {
+		this.tutorialCompleted = true;
 	}
 
 	public void withdraw() {

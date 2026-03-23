@@ -68,7 +68,7 @@ public class AuthServiceImpl implements AuthService {
 
 		user.updateLastLogin();
 		String sessionId = UUID.randomUUID().toString();
-		return issueTokens(user.getId(), sessionId);
+		return issueTokens(user, sessionId);
 	}
 
 	@Override
@@ -90,7 +90,10 @@ public class AuthServiceImpl implements AuthService {
 			throw new BusinessException(ResponseCode.INVALID_TOKEN);
 		}
 
-		return issueTokens(memberId, sessionId);
+		User user = userRepository.findById(memberId)
+			.orElseThrow(() -> new BusinessException(ResponseCode.USER_NOT_FOUND));
+
+		return issueTokens(user, sessionId);
 	}
 
 	@Override
@@ -121,19 +124,20 @@ public class AuthServiceImpl implements AuthService {
 		}
 	}
 
-	private IssuedTokens issueTokens(Long memberId, String sessionId) {
-		String accessToken = jwtTokenProvider.createAccessToken(memberId, DEFAULT_ROLE, sessionId);
-		String refreshToken = jwtTokenProvider.createRefreshToken(memberId, sessionId);
+	private IssuedTokens issueTokens(User user, String sessionId) {
+		String accessToken = jwtTokenProvider.createAccessToken(user.getId(), DEFAULT_ROLE, sessionId);
+		String refreshToken = jwtTokenProvider.createRefreshToken(user.getId(), sessionId);
 		long accessTokenExpiresInSec = jwtTokenProvider.getAccessTokenExpiresInSec();
 		long refreshTokenExpiresInSec = jwtTokenProvider.getRefreshTokenExpiresInSec();
 
-		redisTokenStore.saveRefreshToken(memberId, sessionId, refreshToken, refreshTokenExpiresInSec);
+		redisTokenStore.saveRefreshToken(user.getId(), sessionId, refreshToken, refreshTokenExpiresInSec);
 
 		return IssuedTokens.builder()
 			.accessToken(accessToken)
 			.refreshToken(refreshToken)
 			.accessTokenExpiresInSec(accessTokenExpiresInSec)
 			.refreshTokenExpiresInSec(refreshTokenExpiresInSec)
+			.tutorialCompleted(user.isTutorialCompleted())
 			.build();
 	}
 }

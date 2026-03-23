@@ -3,6 +3,7 @@ package com.woojudraw.domain.user.api.controller;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -54,6 +55,15 @@ public class UserController {
 		@Valid @RequestBody ChangePasswordReq req
 	){
 		userService.changePassword(resolveMemberId(authentication), req);
+		return ApiResponse.ok();
+	}
+
+	@PatchMapping("/me/tutorial-completed")
+	@Operation(security = @SecurityRequirement(name = "bearerAuth"))
+	public ApiResponse<Void> completeTutorial(
+		@Parameter(hidden = true) Authentication authentication
+	){
+		userService.completeTutorial(resolveMemberId(authentication));
 		return ApiResponse.ok();
 	}
 

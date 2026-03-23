@@ -76,16 +76,25 @@ class AuthServiceImplTest {
 		assertThat(response.getAccessToken()).isEqualTo("access-token");
 		assertThat(response.getRefreshToken()).isEqualTo("refresh-token");
 		assertThat(response.getAccessTokenExpiresInSec()).isEqualTo(1800L);
+		assertThat(response.isTutorialCompleted()).isFalse();
 		verify(redisTokenStore).saveRefreshToken(eq(1L), anyString(), eq("refresh-token"), eq(1209600L));
 	}
 
 	@Test
 	void refreshRotatesTokensWhenRefreshTokenMatchesRedis() {
+		User user = User.builder()
+			.id(1L)
+			.email("test@example.com")
+			.password("encoded-password")
+			.nickname("tester")
+			.tutorialCompleted(true)
+			.build();
 		Claims claims = mock(Claims.class);
 		when(jwtTokenProvider.parseClaims("refresh-token")).thenReturn(claims);
 		when(claims.getSubject()).thenReturn("1");
 		when(claims.get("sid", String.class)).thenReturn("session-1");
 		when(redisTokenStore.isRefreshTokenMatched(1L, "session-1", "refresh-token")).thenReturn(true);
+		when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 		when(jwtTokenProvider.createAccessToken(1L, "ROLE_USER", "session-1")).thenReturn("new-access-token");
 		when(jwtTokenProvider.createRefreshToken(1L, "session-1")).thenReturn("new-refresh-token");
 		when(jwtTokenProvider.getAccessTokenExpiresInSec()).thenReturn(1800L);
@@ -95,6 +104,7 @@ class AuthServiceImplTest {
 
 		assertThat(response.getAccessToken()).isEqualTo("new-access-token");
 		assertThat(response.getRefreshToken()).isEqualTo("new-refresh-token");
+		assertThat(response.isTutorialCompleted()).isTrue();
 		verify(redisTokenStore).saveRefreshToken(1L, "session-1", "new-refresh-token", 1209600L);
 	}
 

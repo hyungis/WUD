@@ -8,4 +8,5 @@ import lombok.Getter;
 public class LoginResp {
 	private final String accessToken;
 	private final long expiresInSec;
+	private final boolean tutorialCompleted;
 }

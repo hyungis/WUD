@@ -11,5 +11,7 @@ public interface UserService {
 
 	void changePassword(Long userId, ChangePasswordReq req);
 
+	void completeTutorial(Long userId);
+
 	void withdraw(Long userId);
 }
