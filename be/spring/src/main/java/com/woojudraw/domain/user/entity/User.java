@@ -73,5 +73,8 @@ public class User {
 	public void withdraw() {
 		this.status = UserStatus.DELETED;
 		this.deletedAt = AppTime.nowKst();
+		String randomId = java.util.UUID.randomUUID().toString().substring(0, 8);
+		this.email = "del_" + randomId + "@deleted.com";
+		this.nickname = "del_" + randomId;
 	}
 }

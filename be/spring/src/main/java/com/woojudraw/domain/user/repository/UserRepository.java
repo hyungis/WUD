@@ -6,11 +6,15 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.woojudraw.domain.user.entity.User;
 
+import com.woojudraw.domain.user.entity.UserStatus;
+
 public interface UserRepository extends JpaRepository<User, Long> {
 
 	boolean existsByEmail(String email);
 
 	Optional<User> findByEmail(String email);
+
+	Optional<User> findByEmailAndStatus(String email, UserStatus status);
 
 	boolean existsByNickname(String nickname);
 }

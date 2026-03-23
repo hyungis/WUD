@@ -8,8 +8,10 @@ import com.woojudraw.domain.user.api.dto.req.ChangePasswordReq;
 import com.woojudraw.domain.user.api.dto.req.UpdateUserProfileReq;
 import com.woojudraw.domain.user.api.dto.resp.GetUserProfileResp;
 import com.woojudraw.domain.user.application.UserService;
+import com.woojudraw.domain.user.entity.AuthProvider;
 import com.woojudraw.domain.user.entity.User;
 import com.woojudraw.domain.user.entity.UserStatus;
+import com.woojudraw.domain.user.repository.AuthProviderRepository;
 import com.woojudraw.domain.user.repository.UserRepository;
 import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
@@ -23,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 public class UserServiceImpl implements UserService {
 
 	private final UserRepository userRepository;
+	private final AuthProviderRepository authProviderRepository;
 	private final PasswordEncoder passwordEncoder;
 
 	@Transactional(readOnly = true)
@@ -77,5 +80,10 @@ public class UserServiceImpl implements UserService {
 		}
 
 		user.withdraw();
+
+		java.util.List<AuthProvider> providers = authProviderRepository.findByUserId(userId);
+		for (AuthProvider provider : providers) {
+			provider.unlink();
+		}
 	}
 }
