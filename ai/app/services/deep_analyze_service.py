@@ -11,6 +11,9 @@ from app.services.cv_feature_service import (
 )
 import os
 from pathlib import Path
+import json
+from typing import Any
+import re
 
 _IMAGE_KEYS = ("house", "tree", "person")
 
@@ -95,6 +98,46 @@ def _normalize_llm_response(
     questions: list[str] = []
     raw: dict = {}
 
+    def _stringify_insight(insight: Any) -> str:
+        """
+        LLM이 coreInsights를 '문장 문자열'로 주지 않고 dict/object로 주는 경우가 있어
+        화면에 JSON 그대로 보이지 않도록 텍스트로 펼쳐줍니다.
+        """
+        if insight is None:
+            return ""
+        if isinstance(insight, str):
+            return insight.strip()
+        if isinstance(insight, dict):
+            # 자주 나오는 키 우선 추출
+            for key in ("text", "insight", "content", "analysis", "interpretation", "observation", "summary"):
+                v = insight.get(key)
+                if isinstance(v, str) and v.strip():
+                    return v.strip()
+
+            obs = insight.get("observation")
+            interp = insight.get("interpretation")
+            if isinstance(obs, str) and isinstance(interp, str) and obs.strip() and interp.strip():
+                return f"{obs.strip()} {interp.strip()}"
+
+            # dict 내부의 문자열 값들을 모아서 사람이 읽는 형태로 조합
+            string_values = [str(v).strip() for v in insight.values() if isinstance(v, str) and v.strip()]
+            if string_values:
+                # 너무 길어질 때를 대비해 앞쪽만 사용
+                return " / ".join(string_values[:3])
+
+            # 마지막 수단: JSON 문자열로라도 반환(단, 화면에서는 보기 어려울 수 있음)
+            try:
+                return json.dumps(insight, ensure_ascii=False)
+            except Exception:
+                return str(insight)
+
+        if isinstance(insight, list):
+            parts = [_stringify_insight(x) for x in insight]
+            parts = [p for p in parts if p]
+            return " / ".join(parts)
+
+        return str(insight).strip()
+
     if isinstance(llm_json, dict):
         intro = str(llm_json.get("intro", "") or "").strip()
         core_insights = llm_json.get("coreInsights", [])
@@ -105,7 +148,9 @@ def _normalize_llm_response(
         if core_insights and isinstance(core_insights, list):
             summary_parts.append("\n\nCore Insights")
             for insight in core_insights:
-                summary_parts.append(str(insight))
+                flattened = _stringify_insight(insight)
+                if flattened:
+                    summary_parts.append(flattened)
         result_summary = "\n".join(summary_parts).strip()
 
         questions = [str(q) for q in (llm_json.get("questions") or []) if q]
