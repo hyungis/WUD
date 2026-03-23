@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useUiStore } from "../../../store/uiStore";
 import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntryByType } from "../../../utils/dailyLimit";
@@ -360,15 +361,24 @@ export default function DailyContentSelector({ isModal = false, onClose }: Daily
   if (isModal) {
     return (
       <div className="custom-scrollbar fixed inset-0 z-[80] flex items-center justify-center bg-black/80 px-4 py-4 text-zinc-100 backdrop-blur-md">
-        <button
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           type="button"
           aria-label="모달 닫기"
           onClick={onClose}
           className="absolute inset-0 h-full w-full cursor-default"
         />
-        <div className="relative z-10 mx-auto w-full max-w-5xl h-full max-h-[85vh] overflow-hidden rounded-3xl border border-white/10 shadow-2xl flex flex-col bg-zinc-950">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="relative z-10 mx-auto w-full max-w-5xl h-full max-h-[85vh] overflow-hidden rounded-3xl border border-white/10 shadow-2xl flex flex-col bg-zinc-950"
+        >
           <DailyContentInner onClose={onClose} isModal />
-        </div>
+        </motion.div>
       </div>
     );
   }

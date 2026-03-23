@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { AnimatePresence } from "framer-motion";
 import { dailyApi } from "../../api/daily";
 import { deepApi } from "../../api/deep";
 import type { DailyPlanet, DeepStar } from "./utils/homeHelpers";
@@ -775,215 +776,239 @@ function HomePage() {
         onDeepStarClick={(star) => { setIsMyUniverseOpen(false); void openDeepReport(star as any); }}
       />
 
-      {isDailyContentModalOpen && (
-        <DailyContentSelector
-          isModal
-          onClose={() => setDailyContentModalOpen(false)}
-        />
-      )}
+      <AnimatePresence>
+        {isDailyContentModalOpen && (
+          <DailyContentSelector
+            key="daily-content-selector"
+            isModal
+            onClose={() => setDailyContentModalOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
-      {isDailyDetailModalOpen && (
-        <DailyDetailView
-          isModal
-          onClose={() => setDailyDetailModalOpen(false)}
-          onBackToContent={() => {
-            setDailyDetailModalOpen(false);
-            setDailyContentModalOpen(true);
-          }}
-          onComplete={() => {
-            setDailyDetailModalOpen(false);
-            setDailyCompleteModalOpen(true);
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {isDailyDetailModalOpen && (
+          <DailyDetailView
+            key="daily-detail-view"
+            isModal
+            onClose={() => setDailyDetailModalOpen(false)}
+            onBackToContent={() => {
+              setDailyDetailModalOpen(false);
+              setDailyContentModalOpen(true);
+            }}
+            onComplete={() => {
+              setDailyDetailModalOpen(false);
+              setDailyCompleteModalOpen(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
-      {isDailyCompleteModalOpen && (
-        <DailyCompleteView
-          isModal
-          onClose={() => setDailyCompleteModalOpen(false)}
-          onSaved={(dailyId) => {
-            setDailyCompleteModalOpen(false);
-            // 데일리도 위클리와 동일한 별 탄생 흐름: 별가루 → 분석 대기 → 모임 → 별 탄생 → 리포트
-            const starColor = (() => {
-              const stored = localStorage.getItem("dailyPlanetShellColor");
-              return stored || "#facc15";
-            })();
-            const reportPayload = { id: String(dailyId), targetId: dailyId, shell: starColor, core: starColor, memo: "", createdAt: new Date().toISOString() } as any;
-            pendingBirthReport.current = reportPayload;
-            pendingBirthKind.current = "daily";
-            setPendingDailyId(dailyId);
-          }}
-          onBackToDetail={() => {
-            setDailyCompleteModalOpen(false);
-            setDailyDetailModalOpen(true);
-          }}
-        />
-      )}
-
-      {isDailyColoringModalOpen && (
-        <DailyColoringView
-          isModal
-          onClose={() => setDailyColoringModalOpen(false)}
-          onBackToContent={() => {
-            setDailyColoringModalOpen(false);
-            setDailyContentModalOpen(true);
-          }}
-          onComplete={() => {
-            setDailyColoringModalOpen(false);
-            setDailyCompleteModalOpen(true);
-          }}
-        />
-      )}
-
-      {isWeeklyContentModalOpen && (
-        <WeeklyContentView
-          isModal
-          onClose={() => setWeeklyContentModalOpen(false)}
-          onStartHtp={() => {
-            setWeeklyContentModalOpen(false);
-            setWeeklyHtpModalOpen(true);
-          }}
-          onStartPir={() => {
-            setWeeklyContentModalOpen(false);
-            setWeeklyPirModalOpen(true);
-          }}
-          onStartSw={() => {
-            setWeeklyContentModalOpen(false);
-            setWeeklySwModalOpen(true);
-          }}
-        />
-      )}
-
-      {isWeeklyHtpModalOpen && (
-        <WeeklyHtpView
-          isModal
-          onClose={() => setWeeklyHtpModalOpen(false)}
-          onSaved={async (sid) => {
-            const existingDeepStar = useUiStore.getState().stars.find(s => s.kind === "DEEP" && !s.isTemporary);
-            setWeeklyHtpModalOpen(false);
-            const starColor = colorFromId(String(sid), "DEEP");
-            const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "HTP", deepType: "HTP" } as any;
-            if (!existingDeepStar) {
+      <AnimatePresence>
+        {isDailyCompleteModalOpen && (
+          <DailyCompleteView
+            key="daily-complete-view"
+            isModal
+            onClose={() => setDailyCompleteModalOpen(false)}
+            onSaved={(dailyId) => {
+              setDailyCompleteModalOpen(false);
+              // 데일리도 위클리와 동일한 별 탄생 흐름: 별가루 → 분석 대기 → 모임 → 별 탄생 → 리포트
+              const starColor = (() => {
+                const stored = localStorage.getItem("dailyPlanetShellColor");
+                return stored || "#facc15";
+              })();
+              const reportPayload = { id: String(dailyId), targetId: dailyId, shell: starColor, core: starColor, memo: "", createdAt: new Date().toISOString() } as any;
               pendingBirthReport.current = reportPayload;
-              pendingBirthKind.current = "deep";
-              addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
-              setPendingSessionId(sid);
-            } else {
-              setDeepPages([{
-                sessionId: sid,
-                deepType: "HTP",
-                aiSummary: "",
-                submissions: [],
-                psychAssessments: [],
-                status: "ANALYZING",
-                createdAt: new Date().toISOString(),
-              }]);
-              setSelectedDeepStar((prev: any) => ({
-                ...(prev ?? {}),
-                ...reportPayload,
-                status: "ANALYZING",
-                submissions: [],
-                psychAssessments: [],
-                aiSummary: "",
-              }));
-              setSelectedStarId(existingDeepStar.id);
-              void openDeepReport(reportPayload);
-            }
-          }}
-          onBackToWeeklyContent={() => {
-            setWeeklyHtpModalOpen(false);
-            setWeeklyContentModalOpen(true);
-          }}
-        />
-      )}
+              pendingBirthKind.current = "daily";
+              setPendingDailyId(dailyId);
+            }}
+            onBackToDetail={() => {
+              setDailyCompleteModalOpen(false);
+              setDailyDetailModalOpen(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
-      {isWeeklyPirModalOpen && (
-        <WeeklySingleDrawView
-          testType="PERSON_IN_RAIN"
-          isModal
-          onClose={() => setWeeklyPirModalOpen(false)}
-          onSaved={async (sid) => {
-            const existingDeepStar = useUiStore.getState().stars.find(s => s.kind === "DEEP" && !s.isTemporary);
-            setWeeklyPirModalOpen(false);
-            const starColor = colorFromId(String(sid), "DEEP");
-            const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "PIR", deepType: "PERSON_IN_RAIN" } as any;
-            if (!existingDeepStar) {
-              pendingBirthReport.current = reportPayload;
-              pendingBirthKind.current = "deep";
-              addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
-              setPendingSessionId(sid);
-            } else {
-              setDeepPages([{
-                sessionId: sid,
-                deepType: "PERSON_IN_RAIN",
-                aiSummary: "",
-                submissions: [],
-                psychAssessments: [],
-                status: "ANALYZING",
-                createdAt: new Date().toISOString(),
-              }]);
-              setSelectedDeepStar((prev: any) => ({
-                ...(prev ?? {}),
-                ...reportPayload,
-                status: "ANALYZING",
-                submissions: [],
-                psychAssessments: [],
-                aiSummary: "",
-              }));
-              setSelectedStarId(existingDeepStar.id);
-              void openDeepReport(reportPayload);
-            }
-          }}
-          onBackToWeeklyContent={() => {
-            setWeeklyPirModalOpen(false);
-            setWeeklyContentModalOpen(true);
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {isDailyColoringModalOpen && (
+          <DailyColoringView
+            key="daily-coloring-view"
+            isModal
+            onClose={() => setDailyColoringModalOpen(false)}
+            onBackToContent={() => {
+              setDailyColoringModalOpen(false);
+              setDailyContentModalOpen(true);
+            }}
+            onComplete={() => {
+              setDailyColoringModalOpen(false);
+              setDailyCompleteModalOpen(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
-      {isWeeklySwModalOpen && (
-        <WeeklySingleDrawView
-          testType="STAR_WAVE"
-          isModal
-          onClose={() => setWeeklySwModalOpen(false)}
-          onSaved={async (sid) => {
-            const existingDeepStar = useUiStore.getState().stars.find(s => s.kind === "DEEP" && !s.isTemporary);
-            setWeeklySwModalOpen(false);
-            const starColor = colorFromId(String(sid), "DEEP");
-            const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "SW", deepType: "STAR_WAVE" } as any;
-            if (!existingDeepStar) {
-              pendingBirthReport.current = reportPayload;
-              pendingBirthKind.current = "deep";
-              addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
-              setPendingSessionId(sid);
-            } else {
-              setDeepPages([{
-                sessionId: sid,
-                deepType: "STAR_WAVE",
-                aiSummary: "",
-                submissions: [],
-                psychAssessments: [],
-                status: "ANALYZING",
-                createdAt: new Date().toISOString(),
-              }]);
-              setSelectedDeepStar((prev: any) => ({
-                ...(prev ?? {}),
-                ...reportPayload,
-                status: "ANALYZING",
-                submissions: [],
-                psychAssessments: [],
-                aiSummary: "",
-              }));
-              setSelectedStarId(existingDeepStar.id);
-              void openDeepReport(reportPayload);
-            }
-          }}
-          onBackToWeeklyContent={() => {
-            setWeeklySwModalOpen(false);
-            setWeeklyContentModalOpen(true);
-          }}
-        />
-      )}
+      <AnimatePresence>
+        {isWeeklyContentModalOpen && (
+          <WeeklyContentView
+            key="weekly-content-view"
+            isModal
+            onClose={() => setWeeklyContentModalOpen(false)}
+            onStartHtp={() => {
+              setWeeklyContentModalOpen(false);
+              setWeeklyHtpModalOpen(true);
+            }}
+            onStartPir={() => {
+              setWeeklyContentModalOpen(false);
+              setWeeklyPirModalOpen(true);
+            }}
+            onStartSw={() => {
+              setWeeklyContentModalOpen(false);
+              setWeeklySwModalOpen(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isWeeklyHtpModalOpen && (
+          <WeeklyHtpView
+            key="weekly-htp-view"
+            isModal
+            onClose={() => setWeeklyHtpModalOpen(false)}
+            onSaved={async (sid) => {
+              const existingDeepStar = useUiStore.getState().stars.find(s => s.kind === "DEEP" && !s.isTemporary);
+              setWeeklyHtpModalOpen(false);
+              const starColor = colorFromId(String(sid), "DEEP");
+              const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "HTP", deepType: "HTP" } as any;
+              if (!existingDeepStar) {
+                pendingBirthReport.current = reportPayload;
+                pendingBirthKind.current = "deep";
+                addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
+                setPendingSessionId(sid);
+              } else {
+                setDeepPages([{
+                  sessionId: sid,
+                  deepType: "HTP",
+                  aiSummary: "",
+                  submissions: [],
+                  psychAssessments: [],
+                  status: "ANALYZING",
+                  createdAt: new Date().toISOString(),
+                }]);
+                setSelectedDeepStar((prev: any) => ({
+                  ...(prev ?? {}),
+                  ...reportPayload,
+                  status: "ANALYZING",
+                  submissions: [],
+                  psychAssessments: [],
+                  aiSummary: "",
+                }));
+                setSelectedStarId(existingDeepStar.id);
+                void openDeepReport(reportPayload);
+              }
+            }}
+            onBackToWeeklyContent={() => {
+              setWeeklyHtpModalOpen(false);
+              setWeeklyContentModalOpen(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isWeeklyPirModalOpen && (
+          <WeeklySingleDrawView
+            key="weekly-pir-view"
+            testType="PERSON_IN_RAIN"
+            isModal
+            onClose={() => setWeeklyPirModalOpen(false)}
+            onSaved={async (sid) => {
+              const existingDeepStar = useUiStore.getState().stars.find(s => s.kind === "DEEP" && !s.isTemporary);
+              setWeeklyPirModalOpen(false);
+              const starColor = colorFromId(String(sid), "DEEP");
+              const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "PIR", deepType: "PERSON_IN_RAIN" } as any;
+              if (!existingDeepStar) {
+                pendingBirthReport.current = reportPayload;
+                pendingBirthKind.current = "deep";
+                addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
+                setPendingSessionId(sid);
+              } else {
+                setDeepPages([{
+                  sessionId: sid,
+                  deepType: "PERSON_IN_RAIN",
+                  aiSummary: "",
+                  submissions: [],
+                  psychAssessments: [],
+                  status: "ANALYZING",
+                  createdAt: new Date().toISOString(),
+                }]);
+                setSelectedDeepStar((prev: any) => ({
+                  ...(prev ?? {}),
+                  ...reportPayload,
+                  status: "ANALYZING",
+                  submissions: [],
+                  psychAssessments: [],
+                  aiSummary: "",
+                }));
+                setSelectedStarId(existingDeepStar.id);
+                void openDeepReport(reportPayload);
+              }
+            }}
+            onBackToWeeklyContent={() => {
+              setWeeklyPirModalOpen(false);
+              setWeeklyContentModalOpen(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isWeeklySwModalOpen && (
+          <WeeklySingleDrawView
+            key="weekly-sw-view"
+            testType="STAR_WAVE"
+            isModal
+            onClose={() => setWeeklySwModalOpen(false)}
+            onSaved={async (sid) => {
+              const existingDeepStar = useUiStore.getState().stars.find(s => s.kind === "DEEP" && !s.isTemporary);
+              setWeeklySwModalOpen(false);
+              const starColor = colorFromId(String(sid), "DEEP");
+              const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "SW", deepType: "STAR_WAVE" } as any;
+              if (!existingDeepStar) {
+                pendingBirthReport.current = reportPayload;
+                pendingBirthKind.current = "deep";
+                addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
+                setPendingSessionId(sid);
+              } else {
+                setDeepPages([{
+                  sessionId: sid,
+                  deepType: "STAR_WAVE",
+                  aiSummary: "",
+                  submissions: [],
+                  psychAssessments: [],
+                  status: "ANALYZING",
+                  createdAt: new Date().toISOString(),
+                }]);
+                setSelectedDeepStar((prev: any) => ({
+                  ...(prev ?? {}),
+                  ...reportPayload,
+                  status: "ANALYZING",
+                  submissions: [],
+                  psychAssessments: [],
+                  aiSummary: "",
+                }));
+                setSelectedStarId(existingDeepStar.id);
+                void openDeepReport(reportPayload);
+              }
+            }}
+            onBackToWeeklyContent={() => {
+              setWeeklySwModalOpen(false);
+              setWeeklyContentModalOpen(true);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
