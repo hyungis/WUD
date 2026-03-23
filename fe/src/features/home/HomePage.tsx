@@ -17,6 +17,8 @@ import DailyCompleteView from "../daily/DailyCompleteView";
 import WeeklyContentView from "../deep/WeeklyContentView";
 import WeeklyHtpView from "../deep/WeeklyHtpView";
 import WeeklySingleDrawView from "../deep/WeeklySingleDrawView";
+import { driver } from "driver.js";
+import "driver.js/dist/driver.css";
 
 // ==========================================
 // 5. 메인 페이지 (UI)
@@ -158,6 +160,88 @@ function HomePage() {
       setTimelineFocusNonce(n => n + 1);
     }
   }, [newbornStarId, setSelectedStarId]);
+
+  // ==========================================
+  // 코치마크 (튜토리얼) 로직
+  // ==========================================
+  const handleStartTutorial = useCallback(() => {
+    const driverObj = driver({
+      showProgress: true,
+      allowClose: true,
+      nextBtnText: "다음",
+      prevBtnText: "이전",
+      doneBtnText: "완료",
+      steps: [
+        {
+          element: "#center-star-anchor",
+          popover: {
+            title: "나의 중심",
+            description: "당신의 감정이 모여 이곳에 특별한 별들이 태어납니다. 우주드로우에 오신 것을 환영해요!",
+            side: "top",
+            align: "center",
+          },
+        },
+        {
+          element: "#timeline-hud-container",
+          popover: {
+            title: "타임라인",
+            description: "그동안 기록한 소중한 감정의 별들을 주차별로 한눈에 확인할 수 있습니다.",
+            side: "left",
+            align: "end",
+          },
+        },
+        {
+          element: "#daily-star-btn",
+          popover: {
+            title: "데일리 기록",
+            description: "오늘의 감정을 간단한 그림과 함께 남기고 싶을 때 클릭해 보세요.",
+            side: "top",
+            align: "center",
+          },
+        },
+        {
+          element: "#weekly-star-btn",
+          popover: {
+            title: "위클리 기록",
+            description: "한 주를 마무리하며 더 깊은 감정 분석이 필요할 땐 위클리 컨텐츠를 해보세요. 별자리가 완성됩니다! ",
+            side: "top",
+            align: "center",
+          },
+        },
+        {
+          element: "#mypage-btn",
+          popover: {
+            title: "나의 우주 (마이페이지)",
+            description: "기록 데이터 확인부터 별 커스터마이징, 계정 설정까지 마이페이지에서 한 번에 관리해 보세요.",
+            side: "top",
+            align: "center",
+          },
+        },
+        {
+          element: "#re-tutorial-btn",
+          popover: {
+            title: "튜토리얼 다시보기",
+            description: "도움이 필요할 땐 언제든 이 버튼을 눌러 가이드를 다시 볼 수 있습니다.",
+            side: "top",
+            align: "center",
+          },
+        },
+      ],
+    });
+    driverObj.drive();
+  }, []);
+
+  useEffect(() => {
+    const showTutorial = localStorage.getItem("showTutorial");
+    if (showTutorial === "true") {
+      const timer = setTimeout(() => {
+        handleStartTutorial();
+        localStorage.removeItem("showTutorial"); // 한 번만 보여주기 위해 제거
+      }, 1500);
+
+      return () => clearTimeout(timer);
+    }
+  }, [handleStartTutorial]);
 
   const dailyPlanets = useMemo(
     () => stars
@@ -565,6 +649,8 @@ function HomePage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-black text-slate-100 animate-[fadeIn_0.6s_ease-out]">
       <div className="absolute inset-0 z-0">
+        {/* 코치마크 센터 앵커 */}
+        <div id="center-star-anchor" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 pointer-events-none" />
         <StarScene
           dailyPlanets={dailyPlanets}
           deepStars={deepStars}
@@ -636,6 +722,18 @@ function HomePage() {
           setSelectedStarId(id);
         }}
       />
+
+      {/* 튜토리얼 다시보기 버튼 */}
+      <button
+        id="re-tutorial-btn"
+        onClick={handleStartTutorial}
+        className="fixed bottom-4 left-4 z-[60] flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/50 backdrop-blur-md transition-all hover:scale-110 hover:border-white/40 hover:bg-white/20 hover:text-white"
+        title="튜토리얼 다시보기"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" />
+        </svg>
+      </button>
 
       {/* HUD 우측 사이드 패널 (상세 리포트) */}
       <StarSidePanel

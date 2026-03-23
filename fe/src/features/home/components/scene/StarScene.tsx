@@ -731,13 +731,13 @@ function StarBirthEffect({ target, color, isGathering = false, onComplete }: {
         const shrink = 1 - gatherT * gatherT;
         const r = pd.orbitRadius * shrink;
 
-        posAttr.array[i * 3]     = target[0] + Math.cos(angle) * r;
+        posAttr.array[i * 3] = target[0] + Math.cos(angle) * r;
         posAttr.array[i * 3 + 1] = target[1] + Math.sin(angle * 0.7) * r * 0.5 + pd.tilt * r;
         posAttr.array[i * 3 + 2] = target[2] + Math.sin(angle) * r;
       } else {
         // 공전 단계: 타겟 별 주변을 빙글빙글 궤도 회전
         const r = pd.orbitRadius;
-        posAttr.array[i * 3]     = target[0] + Math.cos(angle) * r;
+        posAttr.array[i * 3] = target[0] + Math.cos(angle) * r;
         posAttr.array[i * 3 + 1] = target[1] + Math.sin(angle * 0.7) * r * 0.5 + pd.tilt * r;
         posAttr.array[i * 3 + 2] = target[2] + Math.sin(angle) * r;
       }
@@ -987,7 +987,7 @@ export function StarScene({
 
   return (
     <div className="absolute inset-0 bg-[#000000]">
-      <Canvas camera={{ position: [0, 105, 0.1], fov: 45 }}>
+      <Canvas camera={{ position: [0, 110 * countRatio, 0.1], fov: 45 }}>
         <ambientLight intensity={0.15} color="#4c1d95" />
         <pointLight position={[0, 0, 0]} intensity={150} color="#f97316" distance={60} decay={2} />
 

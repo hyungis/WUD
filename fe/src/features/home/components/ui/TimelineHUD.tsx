@@ -194,6 +194,7 @@ export function TimelineHUD({
 
   return (
     <div
+      id="timeline-hud-container"
       className={`fixed bottom-[4.5rem] sm:bottom-[4.75rem] lg:bottom-[5.25rem] 2xl:bottom-6 z-30 transition-all duration-300
         ${isTimelineOpen
           ? "right-2 sm:right-4 lg:right-6"
@@ -212,222 +213,222 @@ export function TimelineHUD({
             ${isTimelineOpen ? "max-h-[calc(100vh-8rem)] opacity-100" : "max-h-0 opacity-0 pointer-events-none"}`}
         >
 
-        <div
-          className="px-5 pt-3 pb-4 shrink-0 select-none overflow-hidden cursor-ns-resize"
-          onWheel={handleWheel}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-        >
-          {/* 달력 헤더 */}
-          <div className="flex justify-between items-center mb-3 px-1">
-            {/* 🚨 [수정됨] Tailwind 기본 애니메이션 클래스로 교체 */}
-            <div key={currentMonth.toISOString()} className={`animate-in fade-in duration-300 ${slideDirection === "up" ? "slide-in-from-bottom-2" : "slide-in-from-top-2"}`}>
-              <span className="text-[15px] font-bold text-slate-100 tracking-wide pointer-events-none">
-                {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
-              </span>
-            </div>
-
-            <div className="flex items-center gap-0.5 z-10">
-              <button onClick={(e) => { e.stopPropagation(); goPrevMonth(); }} className="p-1.5 hover:bg-white/15 active:scale-90 rounded-[12px] text-slate-400 hover:text-slate-100 transition-all duration-150">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg>
-              </button>
-              {(currentMonth.getMonth() !== new Date().getMonth() || currentMonth.getFullYear() !== new Date().getFullYear()) && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSlideDirection(currentMonth < new Date() ? "up" : "down");
-                    setCurrentMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
-                  }}
-                  className="px-2 py-1 hover:bg-white/15 active:scale-90 rounded-[12px] text-[11px] text-slate-300 hover:text-white transition-all duration-150 font-semibold tracking-wide"
-                >
-                  오늘
-                </button>
-              )}
-              <button onClick={(e) => { e.stopPropagation(); goNextMonth(); }} className="p-1.5 hover:bg-white/15 active:scale-90 rounded-[12px] text-slate-400 hover:text-slate-100 transition-all duration-150">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6" /></svg>
-              </button>
-            </div>
-          </div>
-
-          {/* 🚨 [수정됨] 요일 헤더에서 px-0.5 제거하여 아래 버튼열과 완벽히 정렬되게 맞춤 */}
-          <div className="grid grid-cols-7 text-center text-[10px] font-semibold text-slate-500 mb-1 pointer-events-none tracking-wider">
-            {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
-              <div key={d} className={i === 0 ? 'text-red-400/70' : i === 6 ? 'text-sky-400/70' : ''}>{d}</div>
-            ))}
-          </div>
-
-          {/* 🚨 [수정됨] 달력 그리드 전체 애니메이션 복구 */}
           <div
-            key={currentMonth.toISOString()}
-            className={`flex flex-col gap-0.5 relative animate-in fade-in duration-300 fill-mode-forwards ${slideDirection === "up" ? "slide-in-from-bottom-8" : "slide-in-from-top-8"}`}
+            className="px-5 pt-3 pb-4 shrink-0 select-none overflow-hidden cursor-ns-resize"
+            onWheel={handleWheel}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           >
-            {calendarGrid.map((week, idx) => {
-              const rowKey = getRowKey(week);
-              const isActive = activeWeekKey === rowKey;
-              const hasData = rowGroups.has(rowKey);
-              const group = rowGroups.get(rowKey) || null;
+            {/* 달력 헤더 */}
+            <div className="flex justify-between items-center mb-3 px-1">
+              {/* 🚨 [수정됨] Tailwind 기본 애니메이션 클래스로 교체 */}
+              <div key={currentMonth.toISOString()} className={`animate-in fade-in duration-300 ${slideDirection === "up" ? "slide-in-from-bottom-2" : "slide-in-from-top-2"}`}>
+                <span className="text-[15px] font-bold text-slate-100 tracking-wide pointer-events-none">
+                  {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
+                </span>
+              </div>
 
-              return (
-                <button
-                  key={idx}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setActiveWeekKey(rowKey);
+              <div className="flex items-center gap-0.5 z-10">
+                <button onClick={(e) => { e.stopPropagation(); goPrevMonth(); }} className="p-1.5 hover:bg-white/15 active:scale-90 rounded-[12px] text-slate-400 hover:text-slate-100 transition-all duration-150">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6" /></svg>
+                </button>
+                {(currentMonth.getMonth() !== new Date().getMonth() || currentMonth.getFullYear() !== new Date().getFullYear()) && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSlideDirection(currentMonth < new Date() ? "up" : "down");
+                      setCurrentMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+                    }}
+                    className="px-2 py-1 hover:bg-white/15 active:scale-90 rounded-[12px] text-[11px] text-slate-300 hover:text-white transition-all duration-150 font-semibold tracking-wide"
+                  >
+                    오늘
+                  </button>
+                )}
+                <button onClick={(e) => { e.stopPropagation(); goNextMonth(); }} className="p-1.5 hover:bg-white/15 active:scale-90 rounded-[12px] text-slate-400 hover:text-slate-100 transition-all duration-150">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6" /></svg>
+                </button>
+              </div>
+            </div>
 
-                    if (!group || !onWeekRowClick) return;
+            {/* 🚨 [수정됨] 요일 헤더에서 px-0.5 제거하여 아래 버튼열과 완벽히 정렬되게 맞춤 */}
+            <div className="grid grid-cols-7 text-center text-[10px] font-semibold text-slate-500 mb-1 pointer-events-none tracking-wider">
+              {['일', '월', '화', '수', '목', '금', '토'].map((d, i) => (
+                <div key={d} className={i === 0 ? 'text-red-400/70' : i === 6 ? 'text-sky-400/70' : ''}>{d}</div>
+              ))}
+            </div>
 
-                    // 주 클릭 시 대표 항목으로 이동: WEEKLY 우선, 없으면 가장 최근 DAILY
-                    const latestDaily = group.dailies.length
-                      ? [...group.dailies].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
-                      : null;
-                    const target = group.deep || latestDaily;
-                    if (target?.id) onWeekRowClick(target.id);
-                  }}
-                  /* 🚨 [핵심 수정] w-full 추가! 이걸 넣어야 버튼이 부모 넓이만큼 늘어나서 그리드 열이 요일과 일치합니다. */
-                  className={`w-full grid grid-cols-7 text-center py-1.5 rounded-[12px] transition-all duration-150 relative group z-10
+            {/* 🚨 [수정됨] 달력 그리드 전체 애니메이션 복구 */}
+            <div
+              key={currentMonth.toISOString()}
+              className={`flex flex-col gap-0.5 relative animate-in fade-in duration-300 fill-mode-forwards ${slideDirection === "up" ? "slide-in-from-bottom-8" : "slide-in-from-top-8"}`}
+            >
+              {calendarGrid.map((week, idx) => {
+                const rowKey = getRowKey(week);
+                const isActive = activeWeekKey === rowKey;
+                const hasData = rowGroups.has(rowKey);
+                const group = rowGroups.get(rowKey) || null;
+
+                return (
+                  <button
+                    key={idx}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActiveWeekKey(rowKey);
+
+                      if (!group || !onWeekRowClick) return;
+
+                      // 주 클릭 시 대표 항목으로 이동: WEEKLY 우선, 없으면 가장 최근 DAILY
+                      const latestDaily = group.dailies.length
+                        ? [...group.dailies].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+                        : null;
+                      const target = group.deep || latestDaily;
+                      if (target?.id) onWeekRowClick(target.id);
+                    }}
+                    /* 🚨 [핵심 수정] w-full 추가! 이걸 넣어야 버튼이 부모 넓이만큼 늘어나서 그리드 열이 요일과 일치합니다. */
+                    className={`w-full grid grid-cols-7 text-center py-1.5 rounded-[12px] transition-all duration-150 relative group z-10
                     ${isActive
-                      ? 'bg-white/18 ring-1 ring-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]'
-                      : hasData
-                        ? 'hover:bg-white/10'
-                        : 'hover:bg-white/5 opacity-70'
-                    }`}
-                >
+                        ? 'bg-white/18 ring-1 ring-white/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]'
+                        : hasData
+                          ? 'hover:bg-white/10'
+                          : 'hover:bg-white/5 opacity-70'
+                      }`}
+                  >
 
-                  {week.map((date, dIdx) => {
-                    const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
-                    const isToday = new Date().toDateString() === date.toDateString();
-                    const isSunday = dIdx === 0;
-                    const isSaturday = dIdx === 6;
-                    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-                    const dateData = dateMap.get(dateKey);
+                    {week.map((date, dIdx) => {
+                      const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
+                      const isToday = new Date().toDateString() === date.toDateString();
+                      const isSunday = dIdx === 0;
+                      const isSaturday = dIdx === 6;
+                      const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+                      const dateData = dateMap.get(dateKey);
 
-                    return (
-                      <div key={dIdx} className="flex flex-col items-center justify-center pointer-events-none gap-[1px]">
-                        <span className={`flex w-7 h-7 items-center justify-center rounded-full text-[12px] transition-colors font-medium
+                      return (
+                        <div key={dIdx} className="flex flex-col items-center justify-center pointer-events-none gap-[1px]">
+                          <span className={`flex w-7 h-7 items-center justify-center rounded-full text-[12px] transition-colors font-medium
                           ${!isCurrentMonth ? 'text-slate-700' : isSunday ? 'text-red-300/80' : isSaturday ? 'text-sky-300/80' : 'text-slate-200'}
                           ${isActive && isCurrentMonth ? 'font-bold text-white' : ''}
                           ${isToday && !isActive ? 'bg-white/25 text-white font-bold shadow-[0_0_8px_rgba(255,255,255,0.45)]' : ''}
                         `}>
-                          {date.getDate()}
-                        </span>
-                        {/* 날짜별 데일리/심층 색상 점 */}
-                        {dateData && isCurrentMonth && (
-                          <div className="flex items-center justify-center gap-[2px] h-[5px]">
-                            {dateData.dailyColors.map((c, ci) => (
-                              <div key={ci} className="w-[4px] h-[4px] rounded-full" style={{ backgroundColor: c }} />
-                            ))}
-                            {dateData.hasDeep && (
-                              <div className="w-[4px] h-[4px] rounded-full bg-white shadow-[0_0_4px_rgba(255,255,255,0.8)]" />
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </button>
-              )
-            })}
+                            {date.getDate()}
+                          </span>
+                          {/* 날짜별 데일리/심층 색상 점 */}
+                          {dateData && isCurrentMonth && (
+                            <div className="flex items-center justify-center gap-[2px] h-[5px]">
+                              {dateData.dailyColors.map((c, ci) => (
+                                <div key={ci} className="w-[4px] h-[4px] rounded-full" style={{ backgroundColor: c }} />
+                              ))}
+                              {dateData.hasDeep && (
+                                <div className="w-[4px] h-[4px] rounded-full bg-white shadow-[0_0_4px_rgba(255,255,255,0.8)]" />
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* 스크롤 힌트 */}
+            <div className="flex justify-center mt-2 gap-1 opacity-30 pointer-events-none">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              <span className="text-[9px] text-slate-600 tracking-wider">휠 또는 스와이프</span>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </div>
           </div>
 
-          {/* 스크롤 힌트 */}
-          <div className="flex justify-center mt-2 gap-1 opacity-30 pointer-events-none">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-            <span className="text-[9px] text-slate-600 tracking-wider">휠 또는 스와이프</span>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-500">
-              <polyline points="9 18 15 12 9 6" />
-            </svg>
-          </div>
-        </div>
+          <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent shrink-0 mb-2" />
 
-        <div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent shrink-0 mb-2" />
+          {/* 하단 리스트 영역 */}
+          <div className="flex-1 overflow-y-auto px-5 py-2 custom-scrollbar">
+            <div className="flex justify-between rounded-[12px] bg-white/5 p-3 text-[13px] font-bold text-slate-100 mb-4">
+              <div>Total {timelineItems.length}</div>
+              <div>Daily {dailyPlanets.length}</div>
+              <div>Weekly {weeklyCount}</div>
+            </div>
 
-        {/* 하단 리스트 영역 */}
-        <div className="flex-1 overflow-y-auto px-5 py-2 custom-scrollbar">
-          <div className="flex justify-between rounded-[12px] bg-white/5 p-3 text-[13px] font-bold text-slate-100 mb-4">
-            <div>Total {timelineItems.length}</div>
-            <div>Daily {dailyPlanets.length}</div>
-            <div>Weekly {weeklyCount}</div>
-          </div>
-
-          <div key={activeWeekKey} className="flex flex-col space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {activeGroup ? (
-              <>
-                {activeGroup.deep && (
-                  <div
-                    onClick={() => onItemClick(activeGroup.deep.id)}
-                    className={`flex w-full cursor-pointer items-center justify-between rounded-[12px] px-2 py-2 text-[13px] transition-colors hover:bg-white/10
+            <div key={activeWeekKey} className="flex flex-col space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
+              {activeGroup ? (
+                <>
+                  {activeGroup.deep && (
+                    <div
+                      onClick={() => onItemClick(activeGroup.deep.id)}
+                      className={`flex w-full cursor-pointer items-center justify-between rounded-[12px] px-2 py-2 text-[13px] transition-colors hover:bg-white/10
                       ${selectedStarId === activeGroup.deep.id ? "bg-white/15 ring-1 ring-white/20" : ""}`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="h-2 w-2 flex-shrink-0 rounded-sm rotate-45" style={{ backgroundColor: activeGroup.deep.color }} />
-                      <span className="truncate text-left w-28 font-semibold text-white">{activeGroup.deep.label}</span>
-                    </span>
-                    <span className="text-[11px] text-slate-400 flex-shrink-0">{formatDate(activeGroup.deep.createdAt)}</span>
-                  </div>
-                )}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="h-2 w-2 flex-shrink-0 rounded-sm rotate-45" style={{ backgroundColor: activeGroup.deep.color }} />
+                        <span className="truncate text-left w-28 font-semibold text-white">{activeGroup.deep.label}</span>
+                      </span>
+                      <span className="text-[11px] text-slate-400 flex-shrink-0">{formatDate(activeGroup.deep.createdAt)}</span>
+                    </div>
+                  )}
 
-                {activeGroup.dailies.length > 0 ? (
-                  <div className={`${activeGroup.deep ? "ml-3 pl-3 border-l border-white/10" : ""} space-y-1 py-1`}>
-                    {[...activeGroup.dailies].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((daily) => (
-                      <button
-                        key={daily.id}
-                        onClick={() => onItemClick(daily.id)}
-                        className={`flex w-full items-center justify-between rounded-[12px] px-2 py-1.5 text-[12px] transition-colors hover:bg-white/10 ${selectedStarId === daily.id ? "bg-white/15 ring-1 ring-white/20" : ""}`}
-                      >
-                        <span className="flex items-center gap-2 text-slate-300">
-                          <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full opacity-70" style={{ backgroundColor: daily.color }} />
-                          <span className="truncate text-left w-32">{daily.label}</span>
-                        </span>
-                        <span className="text-[10px] text-slate-500 flex-shrink-0">{formatDate(daily.createdAt)}</span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center text-xs text-slate-500 py-6">No daily entries this week.</div>
-                )}
-              </>
-            ) : (
-              <div className="text-center text-xs text-slate-500 py-6">No records for this week.</div>
-            )}
+                  {activeGroup.dailies.length > 0 ? (
+                    <div className={`${activeGroup.deep ? "ml-3 pl-3 border-l border-white/10" : ""} space-y-1 py-1`}>
+                      {[...activeGroup.dailies].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((daily) => (
+                        <button
+                          key={daily.id}
+                          onClick={() => onItemClick(daily.id)}
+                          className={`flex w-full items-center justify-between rounded-[12px] px-2 py-1.5 text-[12px] transition-colors hover:bg-white/10 ${selectedStarId === daily.id ? "bg-white/15 ring-1 ring-white/20" : ""}`}
+                        >
+                          <span className="flex items-center gap-2 text-slate-300">
+                            <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full opacity-70" style={{ backgroundColor: daily.color }} />
+                            <span className="truncate text-left w-32">{daily.label}</span>
+                          </span>
+                          <span className="text-[10px] text-slate-500 flex-shrink-0">{formatDate(daily.createdAt)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center text-xs text-slate-500 py-6">No daily entries this week.</div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center text-xs text-slate-500 py-6">No records for this week.</div>
+              )}
+            </div>
+
           </div>
-
         </div>
-      </div>
-      {/* 토글 버튼: 박스 안쪽 맨 아래 */}
-      <div
-        className="shrink-0 flex items-center justify-center"
-      >
-        <button
-          type="button"
-          onClick={() => setIsTimelineOpen(!isTimelineOpen)}
-          aria-label={isTimelineOpen ? "Hide calendar" : "Show calendar"}
-          aria-expanded={isTimelineOpen}
-          aria-controls={timelinePanelId}
-          title={`${dateYyyyMmDd} ${weekdayLabel}`}
-          className="group inline-flex h-[clamp(2rem,2.4vw,2.5rem)] w-[calc(100%-0.5rem)] items-center justify-between rounded-[12px] border border-white/22 bg-white/14 px-[clamp(0.65rem,1.2vw,1rem)] text-[clamp(11px,1.05vw,14px)] font-semibold text-white/90 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-white/24 hover:border-white/45 hover:backdrop-blur-xl hover:shadow-[0_8px_24px_rgba(148,163,184,0.26),inset_0_1px_0_rgba(255,255,255,0.58)]"
+        {/* 토글 버튼: 박스 안쪽 맨 아래 */}
+        <div
+          className="shrink-0 flex items-center justify-center"
         >
-          <span className="inline-flex items-center gap-[clamp(0.35rem,0.9vw,0.625rem)]">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-              <line x1="16" y1="2" x2="16" y2="6"></line>
-              <line x1="8" y1="2" x2="8" y2="6"></line>
-              <line x1="3" y1="10" x2="21" y2="10"></line>
-            </svg>
-            <span className="text-[11px] sm:text-xs lg:text-sm font-semibold text-white whitespace-nowrap truncate max-w-[8.5rem] sm:max-w-[10.5rem] lg:max-w-none">
-              {toggleDateLabel}
-            </span>
-          </span>
-          <svg
-            width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-            className={`transition-transform duration-300 ${isTimelineOpen ? "rotate-180" : ""}`}
-            aria-hidden="true"
+          <button
+            type="button"
+            onClick={() => setIsTimelineOpen(!isTimelineOpen)}
+            aria-label={isTimelineOpen ? "Hide calendar" : "Show calendar"}
+            aria-expanded={isTimelineOpen}
+            aria-controls={timelinePanelId}
+            title={`${dateYyyyMmDd} ${weekdayLabel}`}
+            className="group inline-flex h-[clamp(2rem,2.4vw,2.5rem)] w-[calc(100%-0.5rem)] items-center justify-between rounded-[12px] border border-white/22 bg-white/14 px-[clamp(0.65rem,1.2vw,1rem)] text-[clamp(11px,1.05vw,14px)] font-semibold text-white/90 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-white/24 hover:border-white/45 hover:backdrop-blur-xl hover:shadow-[0_8px_24px_rgba(148,163,184,0.26),inset_0_1px_0_rgba(255,255,255,0.58)]"
           >
-            <polyline points="18 15 12 9 6 15" />
-          </svg>
-        </button>
-      </div>
+            <span className="inline-flex items-center gap-[clamp(0.35rem,0.9vw,0.625rem)]">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <span className="text-[11px] sm:text-xs lg:text-sm font-semibold text-white whitespace-nowrap truncate max-w-[8.5rem] sm:max-w-[10.5rem] lg:max-w-none">
+                {toggleDateLabel}
+              </span>
+            </span>
+            <svg
+              width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+              className={`transition-transform duration-300 ${isTimelineOpen ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            >
+              <polyline points="18 15 12 9 6 15" />
+            </svg>
+          </button>
+        </div>
 
       </div>
     </div>

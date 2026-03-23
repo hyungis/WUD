@@ -57,6 +57,7 @@ export default function LoginPage() {
         // 전환 중 플래그를 먼저 설정하여 DashboardGate가 LoginPage를 언마운트하지 않도록 방지
         useAuthStore.getState().setAuthTransitioning(true);
         await login({ email, password }, { persist: true });
+        localStorage.setItem("showTutorial", "true");
         setPhase("success");
 
         setTimeout(() => {
@@ -78,6 +79,7 @@ export default function LoginPage() {
     const mockUser = { email: "mock@local", name: "Mock User" };
 
     authStore.setAuthTransitioning(true);
+    localStorage.setItem("showTutorial", "true");
     setPhase("success");
     authStore.setTokens(mockToken);
     authStore.setUser(mockUser);
@@ -238,8 +240,8 @@ export default function LoginPage() {
 
             {error && (
               <p className={`mt-4 rounded-xl border px-4 py-3 text-sm text-center ${error.includes("완료")
-                  ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-                  : "border-red-500/20 bg-red-500/10 text-red-300"
+                ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                : "border-red-500/20 bg-red-500/10 text-red-300"
                 }`}>
                 {error}
               </p>
