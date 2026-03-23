@@ -71,6 +71,14 @@ public class UserServiceImpl implements UserService {
 	}
 
 	@Override
+	public void completeTutorial(Long userId) {
+		User user = userRepository.findById(userId)
+			.orElseThrow(() -> new BusinessException(ResponseCode.USER_NOT_FOUND));
+
+		user.completeTutorial();
+	}
+
+	@Override
 	public void withdraw(Long userId) {
 		User user = userRepository.findById(userId)
 			.orElseThrow(() -> new BusinessException(ResponseCode.USER_NOT_FOUND));

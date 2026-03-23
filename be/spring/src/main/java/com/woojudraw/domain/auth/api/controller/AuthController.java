@@ -73,6 +73,7 @@ public class AuthController {
 		return LoginResp.builder()
 			.accessToken(issuedTokens.getAccessToken())
 			.expiresInSec(issuedTokens.getAccessTokenExpiresInSec())
+			.tutorialCompleted(issuedTokens.isTutorialCompleted())
 			.build();
 	}
 

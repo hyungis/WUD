@@ -10,4 +10,5 @@ public class IssuedTokens {
 	private final String refreshToken;
 	private final long accessTokenExpiresInSec;
 	private final long refreshTokenExpiresInSec;
+	private final boolean tutorialCompleted;
 }

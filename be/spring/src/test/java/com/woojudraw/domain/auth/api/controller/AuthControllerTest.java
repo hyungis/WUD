@@ -67,6 +67,7 @@ class AuthControllerTest {
 			.refreshToken("refresh-token")
 			.accessTokenExpiresInSec(1800L)
 			.refreshTokenExpiresInSec(1209600L)
+			.tutorialCompleted(false)
 			.build();
 		when(authService.login(req)).thenReturn(issuedTokens);
 
@@ -76,6 +77,7 @@ class AuthControllerTest {
 		assertThat(response.success()).isTrue();
 		assertThat(response.data().getAccessToken()).isEqualTo("access-token");
 		assertThat(response.data().getExpiresInSec()).isEqualTo(1800L);
+		assertThat(response.data().isTutorialCompleted()).isFalse();
 		assertThat(json).doesNotContain("refreshToken");
 		verify(refreshTokenCookieProvider).addRefreshTokenCookie(servletResponse, "refresh-token", 1209600L);
 	}
@@ -91,6 +93,7 @@ class AuthControllerTest {
 			.refreshToken("new-refresh-token")
 			.accessTokenExpiresInSec(1800L)
 			.refreshTokenExpiresInSec(1209600L)
+			.tutorialCompleted(true)
 			.build();
 		when(authService.refresh("refresh-token")).thenReturn(issuedTokens);
 
@@ -98,6 +101,7 @@ class AuthControllerTest {
 
 		assertThat(response.success()).isTrue();
 		assertThat(response.data().getAccessToken()).isEqualTo("new-access-token");
+		assertThat(response.data().isTutorialCompleted()).isTrue();
 		verify(refreshTokenCookieProvider).addRefreshTokenCookie(servletResponse, "new-refresh-token", 1209600L);
 	}
 
