@@ -363,14 +363,14 @@ export function TimelineHUD({
                     >
                       <span className="flex items-center gap-2">
                         <span className="h-2 w-2 flex-shrink-0 rounded-sm rotate-45" style={{ backgroundColor: activeGroup.deep.color }} />
-                        <span className="truncate text-left w-28 font-semibold text-white">{activeGroup.deep.label}</span>
+                        <span className="truncate text-left w-28 font-medium text-white">{activeGroup.deep.label}</span>
                       </span>
                       <span className="text-[11px] text-slate-400 flex-shrink-0">{formatDate(activeGroup.deep.createdAt)}</span>
                     </div>
                   )}
 
                   {activeGroup.dailies.length > 0 ? (
-                    <div className={`${activeGroup.deep ? "ml-3 pl-3 border-l border-white/10" : ""} space-y-1 py-1`}>
+                    <div className="space-y-1 py-1">
                       {[...activeGroup.dailies].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map((daily) => (
                         <button
                           key={daily.id}
