@@ -578,7 +578,7 @@ function ViewModeTracker({ controlsRef, onModeChange, zoomThreshold, minDistance
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportPanelOpen, isMyUniverseOpen, newbornStarId }: any) {
+function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportPanelOpen, isMyUniverseOpen, isDailyDetailOpen, isWeeklyOpen, newbornStarId }: any) {
   const { camera } = useThree();
   const isTransitioningRef = useRef(false);
   const progressRef = useRef(0);
@@ -623,7 +623,7 @@ function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportP
       let nextTarget = baseTarget.clone();
 
       const baseDistance = isOrigin ? 40 * countRatio : Math.max(25, 30 * countRatio);
-      const shouldShift = reportPanelOpen || isMyUniverseOpen;
+      const shouldShift = reportPanelOpen || isMyUniverseOpen || isDailyDetailOpen || isWeeklyOpen;
       
       // 패널이 열리면 선택 별을 살짝 더 가까이 보여주고, 닫히면 원래 거리로 되돌린다.
       const desiredDistance = shouldShift
@@ -899,8 +899,8 @@ function StarBirthEffect({ target, color, isGathering = false, onComplete }: {
 
 export function StarScene({
   dailyPlanets, deepStars, mypageStar, onStarClick, onDeepStarClick, onPlanetClick, onStarSelect, selectedStarId, hoveredStarId, selectedWeekKey, onStarHover, onViewModeChange,
-  isReportOpen, isMyUniverseOpen, newbornStarId, onBirthComplete, isAnalysisComplete,
-}: StarSceneProps & { isMyUniverseOpen?: boolean }) {
+  isReportOpen, isMyUniverseOpen, isDailyDetailOpen, isWeeklyOpen, newbornStarId, onBirthComplete, isAnalysisComplete,
+}: StarSceneProps) {
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [focusRequestNonce, setFocusRequestNonce] = useState(0);
   const spreadRef = useRef(0);
@@ -1077,31 +1077,26 @@ export function StarScene({
       .map(d => d.item);
   }, [timelineItems, positionMap, selectedFocus]);
 
-  const focusedItems = useMemo(() => {
-    if (!isReportOpen || !selectedStarId || selectedStarId === mypageStar.id) {
-      return detailedItems;
-    }
-    return detailedItems.filter((item) => item.id === selectedStarId);
-  }, [detailedItems, isReportOpen, selectedStarId, mypageStar.id]);
+  const focusedItems = detailedItems;
 
   const shouldGatherBirthEffect = Boolean(isAnalysisComplete);
   const detailedItemIds = useMemo(() => new Set(detailedItems.map(i => i.id)), [detailedItems]);
 
+  const isAnyDetailOpen = isMyUniverseOpen || isDailyDetailOpen || isWeeklyOpen || isReportOpen;
+
   return (
     <div 
-      className="absolute inset-0 bg-[#000000] overflow-hidden transition-[padding] duration-500 ease-in-out box-border pointer-events-none"
+      className="absolute inset-0 bg-[#000000] overflow-hidden transition-[padding] duration-[350ms] ease-out box-border pointer-events-none"
       style={{
-        paddingRight: isMyUniverseOpen ? "min(800px, 50vw)" : isReportOpen ? "min(450px, 40vw)" : "0px",
+        paddingRight: isAnyDetailOpen ? "800px" : "0px",
       }}
     >
       <div
-        className="absolute top-0 left-0 w-[100vw] h-full transition-transform duration-500 ease-in-out pointer-events-auto"
+        className="absolute top-0 left-0 w-[100vw] h-full transition-transform duration-[350ms] ease-out pointer-events-auto"
         style={{
-          transform: isMyUniverseOpen 
-            ? "translateX(calc(-1 * min(800px, 50vw) / 2))" 
-            : isReportOpen 
-              ? "translateX(calc(-1 * min(450px, 40vw) / 2))" 
-              : "translateX(0px)",
+          transform: isAnyDetailOpen 
+            ? "translateX(-400px)" 
+            : "translateX(0px)",
         }}
       >
         <Canvas camera={{ position: [0, 110 * countRatio, 0.1], fov: 45 }} className="w-full h-full">
@@ -1122,7 +1117,7 @@ export function StarScene({
               zoomThreshold={dynamicZoomThreshold}
               minDistance={dynamicMinDistance}
               maxDistance={dynamicMaxDistance}
-              forceHideDock={isReportOpen}
+              forceHideDock={isAnyDetailOpen}
             />
 
             <group position={[0, 0, 0]}>
@@ -1133,27 +1128,21 @@ export function StarScene({
               />
             </group>
 
-            {!isReportOpen && (
-              <GalacticDust count={dynamicDustCount} maxRadius={maxRadius} freezeMotion={freezeSceneMotion} />
-            )}
+            <GalacticDust count={dynamicDustCount} maxRadius={maxRadius} freezeMotion={freezeSceneMotion} />
 
-            {!isReportOpen && (
-              <SpreadScaleGroup>
-                {constellationLines.map(({ weekKey, pts }) => (
-                  <AnimatedConstellationLine
-                    key={`constellation-${weekKey}`}
-                    weekKey={weekKey}
-                    pts={pts}
-                    isHovered={highlightedWeekKey === weekKey}
-                    freezeMotion={freezeSceneMotion}
-                  />
-                ))}
-              </SpreadScaleGroup>
-            )}
+            <SpreadScaleGroup>
+              {constellationLines.map(({ weekKey, pts }) => (
+                <AnimatedConstellationLine
+                  key={`constellation-${weekKey}`}
+                  weekKey={weekKey}
+                  pts={pts}
+                  isHovered={highlightedWeekKey === weekKey}
+                  freezeMotion={freezeSceneMotion}
+                />
+              ))}
+            </SpreadScaleGroup>
 
-            {!isReportOpen && (
-              <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={detailedItemIds} freezeMotion={freezeSceneMotion} />
-            )}
+            <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={detailedItemIds} freezeMotion={freezeSceneMotion} />
 
             {focusedItems.map((item) => {
               const pos = positionMap.get(item.id);
@@ -1209,19 +1198,21 @@ export function StarScene({
 
           <CameraFocus
             focusPosition={selectedFocus}
-            focusKey={`${selectedStarId ?? "none"}:${focusRequestNonce}:${isReportOpen ? "report-open" : "report-closed"}`}
+            focusKey={`${selectedStarId ?? "none"}:${focusRequestNonce}:${isAnyDetailOpen ? "report-open" : "report-closed"}`}
             controlsRef={controlsRef}
             countRatio={countRatio}
-            reportPanelOpen={isReportOpen}
+            reportPanelOpen={isAnyDetailOpen}
             isMyUniverseOpen={isMyUniverseOpen}
+            isDailyDetailOpen={isDailyDetailOpen}
+            isWeeklyOpen={isWeeklyOpen}
             newbornStarId={newbornStarId}
           />
 
           <OrbitControls
             ref={controlsRef}
-            enabled={!isReportOpen}
+            enabled={!isAnyDetailOpen}
             enablePan={false}
-            enableRotate={!isReportOpen}
+            enableRotate={!isAnyDetailOpen}
             minDistance={dynamicMinDistance}
             maxDistance={dynamicMaxDistance}
             autoRotate={!isReportOpen}
