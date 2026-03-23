@@ -17,37 +17,42 @@ import os
 router = APIRouter()
 
 
-@router.post("/daily/analyze", response_model=AnalyzeResponse)
-async def analyze_daily_image(request: AnalyzeRequest):
-    """
-    S3의 이미지 객체 키를 받아 YOLO로 객체를 탐지하고, LLM을 통해 분석합니다.
-    """
-    image_path = None
-    try:
-        image_path = s3_service.download_image(request.s3_object_key)
-        classifications = YoloService.classify_image(image_path)
-        analysis_text = llm_service.analyze_daily_results(classifications)
-
-        return AnalyzeResponse(
-            status="success",
-            classifications=classifications,
-            llm_analysis=analysis_text,
-        )
-
-    except Exception as e:
-        print(f"Analysis failed: {str(e)}")
-        return AnalyzeResponse(
-            status="error",
-            classifications=[],
-            llm_analysis="",
-            error=str(e),
-        )
-    finally:
-        if image_path and os.path.exists(image_path):
-            try:
-                os.remove(image_path)
-            except OSError:
-                pass
+# NOTE:
+# 현재 데일리 분석의 실제 운영 경로는 Spring -> RabbitMQ -> daily_rabbitmq_rpc_service 이므로
+# 아래 legacy HTTP 엔드포인트(`/daily/analyze`)는 사용하지 않습니다.
+# 필요 시 재활성화할 수 있도록 코드는 주석으로 보존합니다.
+#
+# @router.post("/daily/analyze", response_model=AnalyzeResponse)
+# async def analyze_daily_image(request: AnalyzeRequest):
+#     """
+#     S3의 이미지 객체 키를 받아 YOLO로 객체를 탐지하고, LLM을 통해 분석합니다.
+#     """
+#     image_path = None
+#     try:
+#         image_path = s3_service.download_image(request.s3_object_key)
+#         classifications = YoloService.classify_image(image_path)
+#         analysis_text = llm_service.analyze_daily_results(classifications)
+#
+#         return AnalyzeResponse(
+#             status="success",
+#             classifications=classifications,
+#             llm_analysis=analysis_text,
+#         )
+#
+#     except Exception as e:
+#         print(f"Analysis failed: {str(e)}")
+#         return AnalyzeResponse(
+#             status="error",
+#             classifications=[],
+#             llm_analysis="",
+#             error=str(e),
+#         )
+#     finally:
+#         if image_path and os.path.exists(image_path):
+#             try:
+#                 os.remove(image_path)
+#             except OSError:
+#                 pass
 
 
 @router.post("/deep/analyze", response_model=AiAnalyzeResp)
