@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { dailyApi } from "../../api/daily";
 import { resultApi } from "../../api/result";
@@ -484,15 +485,24 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
   if (isModal) {
     return (
       <div className="custom-scrollbar fixed inset-0 z-[95] flex items-center justify-center overflow-y-auto overflow-x-hidden bg-black/78 px-4 py-4 text-zinc-100 backdrop-blur-sm">
-        <button
+        <motion.button
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
           type="button"
           aria-label="모달 닫기"
           onClick={handleClose}
           className="absolute inset-0 h-full w-full cursor-default"
         />
-        <div className="relative z-10 mx-auto w-full max-w-7xl max-h-[94vh] overflow-hidden rounded-3xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.65)]">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className="relative z-10 mx-auto w-full max-w-7xl max-h-[94vh] overflow-hidden rounded-3xl border border-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.65)]"
+        >
           {content}
-        </div>
+        </motion.div>
       </div>
     );
   }

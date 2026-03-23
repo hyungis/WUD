@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useCanvasDrawing } from "../../hooks/useCanvasDrawing";
 import type { ToolType } from "../../hooks/useCanvasDrawing";
@@ -274,16 +275,23 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
-      <button
+      <motion.button
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
         type="button"
         onClick={onClose}
         className="absolute inset-0 h-full w-full cursor-default pointer-events-auto"
       />
-      <div
-        className="pointer-events-auto relative z-10 h-full w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl animate-in zoom-in-95 duration-300"
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        transition={{ type: "spring", damping: 25, stiffness: 300 }}
+        className="pointer-events-auto relative z-10 h-full w-full max-w-5xl max-h-[90vh] overflow-hidden rounded-3xl border border-white/10 bg-zinc-950 shadow-2xl"
       >
         {content}
-      </div>
+      </motion.div>
     </div>
   );
 }
