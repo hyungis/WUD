@@ -2,11 +2,13 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Stars, Line, Float } from "@react-three/drei";
 import { useEffect, useMemo, useRef, useState, createContext, useContext } from "react";
 import type { MutableRefObject } from "react";
-import type { Group, InstancedMesh, Points } from "three";
-import { Vector3, Object3D, Color, Texture, IcosahedronGeometry, BufferGeometry, Float32BufferAttribute, ShaderMaterial as ThreeShaderMaterial } from "three";
+import type { Group, InstancedMesh, Points, Mesh } from "three";
+import { Vector3, Object3D, Color, Texture, IcosahedronGeometry, BufferGeometry, Float32BufferAttribute, ShaderMaterial as ThreeShaderMaterial, SphereGeometry, BoxGeometry, OctahedronGeometry, TorusKnotGeometry, DodecahedronGeometry, TetrahedronGeometry } from "three";
 import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import { useUiStore } from "../../../../store/uiStore";
+import { useCustomStarStore } from "../../../../store/customStarStore";
+import type { StarShape } from "../../../../store/customStarStore";
 
 import type { DeepStar, StarSceneProps } from "../../utils/homeHelpers";
 import {
@@ -54,6 +56,125 @@ function createStellatedPolyhedronGeometry(baseRadius = 1, spikeLength = 0.62) {
 }
 
 const STAR_STELLATED_GEOMETRY = createStellatedPolyhedronGeometry(1, 0.62);
+
+// ── 커스텀 중심별에 사용할 geometry 캐시 ──
+const SHAPE_GEOMETRIES: Record<StarShape, BufferGeometry> = {
+  sphere: new SphereGeometry(1, 32, 32),
+  box: new BoxGeometry(1.4, 1.4, 1.4),
+  octahedron: new OctahedronGeometry(1, 0),
+  icosahedron: new IcosahedronGeometry(1, 0),
+  torusKnot: new TorusKnotGeometry(0.7, 0.25, 80, 16),
+  dodecahedron: new DodecahedronGeometry(1, 0),
+  tetrahedron: new TetrahedronGeometry(1, 0),
+  stellated: STAR_STELLATED_GEOMETRY,
+};
+
+/* ── 커스텀 중심별 컴포넌트 ── */
+function CustomCenterStar({
+  onClick,
+  isSelected = false,
+  freezeMotion = false,
+}: {
+  onClick: () => void;
+  isSelected?: boolean;
+  freezeMotion?: boolean;
+}) {
+  const meshRef = useRef<Mesh>(null);
+  const lightRef = useRef<any>(null);
+  const currentShape = useCustomStarStore((s) => s.currentShape);
+  const currentColor = useCustomStarStore((s) => s.currentColor);
+  const animationTrigger = useCustomStarStore((s) => s.animationTrigger);
+
+  const [isHovered, setIsHovered] = useState(false);
+  const isActive = isHovered || isSelected;
+
+  // ── 스케일 애니메이션 ──
+  const scaleRef = useRef(1);
+  const scaleTarget = useRef(1);
+  const lastTrigger = useRef(animationTrigger);
+
+  const geometry = SHAPE_GEOMETRIES[currentShape] || STAR_STELLATED_GEOMETRY;
+  const baseSize = 2.4;
+
+  useFrame((_, delta) => {
+    if (!meshRef.current) return;
+
+    // 트리거 변경 감지 → 부풀기 시작
+    if (animationTrigger !== lastTrigger.current) {
+      lastTrigger.current = animationTrigger;
+      scaleTarget.current = 1.35;
+    }
+
+    // 부풀기 → 원래 크기로 복귀 (스프링으로 보간)
+    if (scaleTarget.current > 1.01) {
+      scaleRef.current += (scaleTarget.current - scaleRef.current) * Math.min(delta * 8, 1);
+      if (scaleRef.current > scaleTarget.current - 0.01) {
+        scaleTarget.current = 1;
+      }
+    } else {
+      scaleRef.current += (1 - scaleRef.current) * Math.min(delta * 4, 1);
+    }
+
+    const s = baseSize * scaleRef.current * (isActive ? 1.15 : 1);
+    meshRef.current.scale.set(s, s, s);
+
+    // 느린 자전
+    if (!freezeMotion) {
+      meshRef.current.rotation.y += delta * 0.3;
+      meshRef.current.rotation.x += delta * 0.1;
+    }
+
+    // PointLight 색상 동기화
+    if (lightRef.current) {
+      lightRef.current.color.set(currentColor);
+    }
+  });
+
+  const emissiveIntensity = isActive ? 3.0 : 1.4;
+
+  const body = (
+    <group>
+      <mesh
+        ref={meshRef}
+        geometry={geometry}
+        onClick={onClick}
+        onPointerOver={() => setIsHovered(true)}
+        onPointerOut={() => setIsHovered(false)}
+        rotation={[0.2, 0.4, isActive ? 0.24 : 0.08]}
+      >
+        <meshPhysicalMaterial
+          color={currentColor}
+          emissive={currentColor}
+          emissiveIntensity={emissiveIntensity}
+          transparent
+          opacity={0.95}
+          transmission={0.08}
+          thickness={1.1}
+          roughness={0.12}
+          clearcoat={0.9}
+          clearcoatRoughness={0.12}
+          metalness={0.18}
+          ior={1.5}
+        />
+      </mesh>
+      {/* 중심 광원 */}
+      <mesh scale={[baseSize * 0.18, baseSize * 0.18, baseSize * 0.18]} position={[baseSize * 0.2, baseSize * 0.2, baseSize * 0.18]}>
+        <sphereGeometry args={[1, 20, 20]} />
+        <meshBasicMaterial color="#ffffff" toneMapped={false} opacity={1} transparent />
+      </mesh>
+      {/* 별 색상과 동기화되는 포인트 라이트 */}
+      <pointLight ref={lightRef} position={[0, 0, 0]} intensity={80} color={currentColor} distance={40} decay={2} />
+    </group>
+  );
+
+  if (freezeMotion) return body;
+
+  return (
+    <Float speed={1.2} rotationIntensity={0.5} floatIntensity={0.8} floatingRange={[-0.3, 0.3]}>
+      {body}
+    </Float>
+  );
+}
 
 function DeepPlanet({
   onClick, onOpen, onHover, color, size = 1, seed = 0, variant = "star", isSelected = false, freezeMotion = false,
@@ -457,7 +578,7 @@ function ViewModeTracker({ controlsRef, onModeChange, zoomThreshold, minDistance
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportPanelOpen, newbornStarId }: any) {
+function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportPanelOpen, isMyUniverseOpen, newbornStarId }: any) {
   const { camera } = useThree();
   const isTransitioningRef = useRef(false);
   const progressRef = useRef(0);
@@ -490,41 +611,27 @@ function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportP
       }
       isFirstMount.current = false;
 
+      const isOrigin = baseTarget.lengthSq() < 0.01;
       const currentTarget = controlsRef.current.target.clone();
       let viewDir = camera.position.clone().sub(currentTarget).normalize();
 
-      if (viewDir.lengthSq() < 0.01) {
-        viewDir.set(0.45, 0.28, 1).normalize();
+      // [추가] 수직 뷰(Top-down)일 경우 시프트 계산을 위해 강제로 비스듬한 뷰 방향 설정
+      if (Math.abs(viewDir.y) > 0.98 || viewDir.lengthSq() < 0.01) {
+        viewDir.set(0.5, 0.4, 0.8).normalize();
       }
 
       let nextTarget = baseTarget.clone();
-      if (reportPanelOpen && baseTarget.lengthSq() > 0.01) {
-        const desiredDistanceForOffset = Math.max(25, 30 * countRatio);
-        const right = new Vector3().crossVectors(new Vector3(0, 1, 0), viewDir).normalize();
 
-        // 화면을 반으로 나눴을 때, 별이 좌측 반의 중심(x=25%)에 오도록 lookAt 타깃을 계산한다.
-        // 목표 NDC x = -0.5 (전체 화면 기준 왼쪽 반 중앙)
-        const targetNdcX = -0.5;
-        const fov = (camera as any).fov ?? 45;
-        const aspect = (camera as any).aspect ?? (window.innerWidth / Math.max(window.innerHeight, 1));
-        const vFovRad = (fov * Math.PI) / 180;
-        const hFovRad = 2 * Math.atan(Math.tan(vFovRad / 2) * aspect);
-        const horizontalOffset = Math.abs(targetNdcX) * Math.tan(hFovRad / 2) * desiredDistanceForOffset;
-
-        // 높이는 별의 원래 높이를 유지하여 좌측 반의 중앙선 근처에 안정적으로 배치한다.
-        nextTarget = new Vector3(baseTarget.x, baseTarget.y, baseTarget.z)
-          .add(right.multiplyScalar(horizontalOffset));
-      }
-
-      const baseDistance = baseTarget.lengthSq() < 0.01 ? 40 * countRatio : Math.max(25, 30 * countRatio);
-      // 리포트가 열리면 선택 별을 살짝 더 가까이 보여주고, 닫히면 원래 거리로 되돌린다.
-      const desiredDistance = reportPanelOpen && baseTarget.lengthSq() > 0.01
-        ? baseDistance * 0.78
+      const baseDistance = isOrigin ? 40 * countRatio : Math.max(25, 30 * countRatio);
+      const shouldShift = reportPanelOpen || isMyUniverseOpen;
+      
+      // 패널이 열리면 선택 별을 살짝 더 가까이 보여주고, 닫히면 원래 거리로 되돌린다.
+      const desiredDistance = shouldShift
+        ? baseDistance * 0.82
         : baseDistance;
       const desiredCam = nextTarget
         .clone()
-        .add(viewDir.multiplyScalar(desiredDistance))
-        .add(new Vector3(0, desiredDistance * (reportPanelOpen ? 0.04 : 0), 0));
+        .add(viewDir.multiplyScalar(desiredDistance));
 
       fromCamRef.current.copy(camera.position);
       toCamRef.current.copy(desiredCam);
@@ -792,8 +899,8 @@ function StarBirthEffect({ target, color, isGathering = false, onComplete }: {
 
 export function StarScene({
   dailyPlanets, deepStars, mypageStar, onStarClick, onDeepStarClick, onPlanetClick, onStarSelect, selectedStarId, hoveredStarId, selectedWeekKey, onStarHover, onViewModeChange,
-  isReportOpen, newbornStarId, onBirthComplete, isAnalysisComplete,
-}: StarSceneProps) {
+  isReportOpen, isMyUniverseOpen, newbornStarId, onBirthComplete, isAnalysisComplete,
+}: StarSceneProps & { isMyUniverseOpen?: boolean }) {
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [focusRequestNonce, setFocusRequestNonce] = useState(0);
   const spreadRef = useRef(0);
@@ -925,10 +1032,9 @@ export function StarScene({
 
       const pts = sorted
         .map((i) => positionMap.get(i.id))
-        .filter(Boolean) // 위치가 없는 별 제외
+        .filter(Boolean)
         .map((pos) => new Vector3(...(pos as [number, number, number])));
 
-      // 🚨 [수정 3] 점이 2개 이상일 때만 선을 긋습니다.
       if (pts.length > 1) {
         lines.push({ weekKey: groupKey, pts });
       }
@@ -943,7 +1049,6 @@ export function StarScene({
     return match ? new Vector3(...match) : null;
   }, [positionMap, selectedStarId, mypageStar]);
 
-  // 🚨 [수정 4] 하이라이트를 위한 그룹 키 매칭도 weekKey 하나로 통일
   const hoveredLineGroupKey = useMemo(() => {
     if (!hoveredStarId || hoveredStarId === mypageStar.id) return null;
     const hoveredItem = timelineItems.find(item => item.id === hoveredStarId);
@@ -956,7 +1061,6 @@ export function StarScene({
     return selectedItem ? selectedItem.weekKey : null;
   }, [selectedStarId, timelineItems, mypageStar.id]);
 
-  // 클릭된 별 또는 호버된 별의 weekKey 중 하나라도 일치하면 별자리 강조
   const highlightedWeekKey = hoveredLineGroupKey || selectedLineGroupKey || (selectedWeekKey ? selectedWeekKey : null);
 
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
@@ -980,148 +1084,154 @@ export function StarScene({
     return detailedItems.filter((item) => item.id === selectedStarId);
   }, [detailedItems, isReportOpen, selectedStarId, mypageStar.id]);
 
-  // 분석 완료 시 별가루 모으기 → 별 탄생 (데일리/위클리 동일 흐름)
   const shouldGatherBirthEffect = Boolean(isAnalysisComplete);
-
   const detailedItemIds = useMemo(() => new Set(detailedItems.map(i => i.id)), [detailedItems]);
 
   return (
-    <div className="absolute inset-0 bg-[#000000]">
-      <Canvas camera={{ position: [0, 110 * countRatio, 0.1], fov: 45 }}>
-        <ambientLight intensity={0.15} color="#4c1d95" />
-        <pointLight position={[0, 0, 0]} intensity={150} color="#f97316" distance={60} decay={2} />
+    <div 
+      className="absolute inset-0 bg-[#000000] overflow-hidden transition-[padding] duration-500 ease-in-out box-border pointer-events-none"
+      style={{
+        paddingRight: isMyUniverseOpen ? "min(800px, 50vw)" : isReportOpen ? "min(450px, 40vw)" : "0px",
+      }}
+    >
+      <div
+        className="absolute top-0 left-0 w-[100vw] h-full transition-transform duration-500 ease-in-out pointer-events-auto"
+        style={{
+          transform: isMyUniverseOpen 
+            ? "translateX(calc(-1 * min(800px, 50vw) / 2))" 
+            : isReportOpen 
+              ? "translateX(calc(-1 * min(450px, 40vw) / 2))" 
+              : "translateX(0px)",
+        }}
+      >
+        <Canvas camera={{ position: [0, 110 * countRatio, 0.1], fov: 45 }} className="w-full h-full">
+          <ambientLight intensity={0.15} color="#4c1d95" />
+          <pointLight position={[0, 0, 0]} intensity={150} color="#f97316" distance={60} decay={2} />
 
-        <EffectComposer enableNormalPass={false} multisampling={0}>
-          <Bloom luminanceThreshold={1.1} mipmapBlur luminanceSmoothing={0.1} intensity={1.5} />
-        </EffectComposer>
+          <EffectComposer enableNormalPass={false} multisampling={0}>
+            <Bloom luminanceThreshold={1.1} mipmapBlur luminanceSmoothing={0.1} intensity={1.5} />
+          </EffectComposer>
 
-        <SpreadCtx.Provider value={spreadRef}>
-          <SpreadDriver freezeMotion={freezeSceneMotion} />
+          <SpreadCtx.Provider value={spreadRef}>
+            <SpreadDriver freezeMotion={freezeSceneMotion} />
+            <GalaxyStars freezeMotion={freezeSceneMotion} />
 
-          <GalaxyStars freezeMotion={freezeSceneMotion} />
+            <ViewModeTracker
+              controlsRef={controlsRef}
+              onModeChange={(m: "macro" | "micro") => { setViewMode(m); onViewModeChange?.(m); }}
+              zoomThreshold={dynamicZoomThreshold}
+              minDistance={dynamicMinDistance}
+              maxDistance={dynamicMaxDistance}
+              forceHideDock={isReportOpen}
+            />
 
-          <ViewModeTracker
+            <group position={[0, 0, 0]}>
+              <CustomCenterStar
+                onClick={() => { requestFocus(mypageStar.id); onStarClick(); }}
+                isSelected={selectedStarId === mypageStar.id}
+                freezeMotion={freezeSceneMotion}
+              />
+            </group>
+
+            {!isReportOpen && (
+              <GalacticDust count={dynamicDustCount} maxRadius={maxRadius} freezeMotion={freezeSceneMotion} />
+            )}
+
+            {!isReportOpen && (
+              <SpreadScaleGroup>
+                {constellationLines.map(({ weekKey, pts }) => (
+                  <AnimatedConstellationLine
+                    key={`constellation-${weekKey}`}
+                    weekKey={weekKey}
+                    pts={pts}
+                    isHovered={highlightedWeekKey === weekKey}
+                    freezeMotion={freezeSceneMotion}
+                  />
+                ))}
+              </SpreadScaleGroup>
+            )}
+
+            {!isReportOpen && (
+              <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={detailedItemIds} freezeMotion={freezeSceneMotion} />
+            )}
+
+            {focusedItems.map((item) => {
+              const pos = positionMap.get(item.id);
+              if (!pos) return null;
+              const isNewborn = item.id === newbornStarId;
+
+              return (
+                <SpreadItem key={item.id} target={pos as [number, number, number]}>
+                  <DeepPlanet
+                    onClick={() => {
+                      requestFocus(item.id);
+                      if (item.kind === "deep") {
+                        onDeepStarClick?.(item as unknown as DeepStar);
+                      } else {
+                        onPlanetClick(item.planet);
+                      }
+                    }}
+                    onOpen={() => {
+                      if (item.kind === "deep") {
+                        onDeepStarClick?.(item as unknown as DeepStar);
+                      } else {
+                        onPlanetClick(item.planet);
+                      }
+                    }}
+                    onHover={(data) => onStarHover?.({ id: data.isHovered ? item.id : null, x: data.x, y: data.y })}
+                    color={item.kind === "deep" ? (item.toneColor || starTone) : item.planet.shell}
+                    variant={item.kind === "deep" ? "star" : "planet"}
+                    size={item.kind === "deep"
+                      ? (isReportOpen ? 1.05 : (viewMode === "macro" ? 1.2 : 0.7))
+                      : (isReportOpen ? 0.52 : (viewMode === "macro" ? 0.6 : 0.35))}
+                    isSelected={selectedStarId === item.id}
+                    isNewborn={isNewborn}
+                    startBirth={isNewborn && Boolean(isAnalysisComplete)}
+                    birthDelay={0.3}
+                    seed={hashSeed(item.id)}
+                  />
+                </SpreadItem>
+              );
+            })}
+
+            {newbornStarId && positionMap.get(newbornStarId) && (
+              <StarBirthEffect
+                target={positionMap.get(newbornStarId) as [number, number, number]}
+                color={(() => {
+                  const s = dailyPlanets.find(p => p.id === newbornStarId) || deepStars.find(d => d.id === newbornStarId);
+                  return (s as any)?.toneColor || (s as any)?.shell || (s as any)?.core || starTone;
+                })()}
+                isGathering={shouldGatherBirthEffect}
+                onComplete={onBirthComplete}
+              />
+            )}
+          </SpreadCtx.Provider>
+
+          <CameraFocus
+            focusPosition={selectedFocus}
+            focusKey={`${selectedStarId ?? "none"}:${focusRequestNonce}:${isReportOpen ? "report-open" : "report-closed"}`}
             controlsRef={controlsRef}
-            onModeChange={(m: "macro" | "micro") => { setViewMode(m); onViewModeChange?.(m); }}
-            zoomThreshold={dynamicZoomThreshold}
-            minDistance={dynamicMinDistance}
-            maxDistance={dynamicMaxDistance}
-            forceHideDock={isReportOpen}
+            countRatio={countRatio}
+            reportPanelOpen={isReportOpen}
+            isMyUniverseOpen={isMyUniverseOpen}
+            newbornStarId={newbornStarId}
           />
 
-          <group position={[0, 0, 0]}>
-            {freezeSceneMotion ? (
-              <DeepPlanet
-                onClick={() => { requestFocus(mypageStar.id); onStarClick(); }}
-                color="#facc15"
-                size={2.4}
-                seed={999}
-                isSelected={selectedStarId === mypageStar.id}
-                freezeMotion
-              />
-            ) : (
-              <Float speed={1.2} rotationIntensity={0.5} floatIntensity={0.8} floatingRange={[-0.3, 0.3]}>
-                <DeepPlanet onClick={() => { requestFocus(mypageStar.id); onStarClick(); }} color="#facc15" size={2.4} seed={999} isSelected={selectedStarId === mypageStar.id} />
-              </Float>
-            )}
-          </group>
-
-          {!isReportOpen && (
-            <GalacticDust count={dynamicDustCount} maxRadius={maxRadius} freezeMotion={freezeSceneMotion} />
-          )}
-
-          {!isReportOpen && (
-            <SpreadScaleGroup>
-              {constellationLines.map(({ weekKey, pts }) => (
-                <AnimatedConstellationLine
-                  key={`constellation-${weekKey}`}
-                  weekKey={weekKey}
-                  pts={pts}
-                  isHovered={highlightedWeekKey === weekKey}
-                  freezeMotion={freezeSceneMotion}
-                />
-              ))}
-            </SpreadScaleGroup>
-          )}
-
-          {!isReportOpen && (
-            <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={detailedItemIds} freezeMotion={freezeSceneMotion} />
-          )}
-
-          {focusedItems.map((item) => {
-            const pos = positionMap.get(item.id);
-            if (!pos) return null;
-            const isNewborn = item.id === newbornStarId;
-
-            return (
-              <SpreadItem key={item.id} target={pos as [number, number, number]}>
-                <DeepPlanet
-                  onClick={() => {
-                    requestFocus(item.id);
-                    if (item.kind === "deep") {
-                      onDeepStarClick?.(item as unknown as DeepStar);
-                    } else {
-                      onPlanetClick(item.planet);
-                    }
-                  }}
-                  onOpen={() => {
-                    if (item.kind === "deep") {
-                      onDeepStarClick?.(item as unknown as DeepStar);
-                    } else {
-                      onPlanetClick(item.planet);
-                    }
-                  }}
-                  onHover={(data) => onStarHover?.({ id: data.isHovered ? item.id : null, x: data.x, y: data.y })}
-                  color={item.kind === "deep" ? (item.toneColor || starTone) : item.planet.shell}
-                  variant={item.kind === "deep" ? "star" : "planet"}
-                  size={item.kind === "deep"
-                    ? (isReportOpen ? 1.05 : (viewMode === "macro" ? 1.2 : 0.7))
-                    : (isReportOpen ? 0.52 : (viewMode === "macro" ? 0.6 : 0.35))}
-                  isSelected={selectedStarId === item.id}
-                  isNewborn={isNewborn}
-                  startBirth={isNewborn && Boolean(isAnalysisComplete)}
-                  birthDelay={0.3}
-                  seed={hashSeed(item.id)}
-                />
-              </SpreadItem>
-            );
-          })}
-
-          {/* 별 탄생 파티클 효과 */}
-          {newbornStarId && positionMap.get(newbornStarId) && (
-            <StarBirthEffect
-              target={positionMap.get(newbornStarId) as [number, number, number]}
-              color={(() => {
-                const s = dailyPlanets.find(p => p.id === newbornStarId) || deepStars.find(d => d.id === newbornStarId);
-                return (s as any)?.toneColor || (s as any)?.shell || (s as any)?.core || starTone;
-              })()}
-              isGathering={shouldGatherBirthEffect}
-              onComplete={onBirthComplete}
-            />
-          )}
-        </SpreadCtx.Provider>
-
-        <CameraFocus
-          focusPosition={selectedFocus}
-          focusKey={`${selectedStarId ?? "none"}:${focusRequestNonce}:${isReportOpen ? "report-open" : "report-closed"}`}
-          controlsRef={controlsRef}
-          countRatio={countRatio}
-          reportPanelOpen={isReportOpen}
-          newbornStarId={newbornStarId}
-        />
-
-        <OrbitControls
-          ref={controlsRef}
-          enabled={!isReportOpen}
-          enablePan={false}
-          enableRotate={!isReportOpen}
-          minDistance={dynamicMinDistance}
-          maxDistance={dynamicMaxDistance}
-          autoRotate={!isReportOpen}
-          autoRotateSpeed={0.05}
-          zoomSpeed={1}
-        />
-      </Canvas>
+          <OrbitControls
+            ref={controlsRef}
+            enabled={!isReportOpen}
+            enablePan={false}
+            enableRotate={!isReportOpen}
+            minDistance={dynamicMinDistance}
+            maxDistance={dynamicMaxDistance}
+            autoRotate={!isReportOpen}
+            autoRotateSpeed={0.05}
+            zoomSpeed={1}
+          />
+        </Canvas>
+      </div>
     </div>
   );
 }
+
+export default StarScene;
