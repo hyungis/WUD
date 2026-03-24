@@ -10,7 +10,6 @@ import SingleDrawResultView from "./components/SingleDrawResultView";
 import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
 import { useUiStore } from "../../store/uiStore";
 import { WEEKLY_LIMIT_MESSAGE, hasWeeklyDeepEntryByType } from "../../utils/dailyLimit";
-import { getApiErrorMessage } from "../../utils/apiError";
 
 type DrawPhase = "survey" | "draw" | "result";
 
@@ -112,7 +111,8 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
   const [phase, setPhase] = useState<DrawPhase>("survey");
   const [surveyPageIndex, setSurveyPageIndex] = useState(0);
   const [sessionId, setSessionId] = useState<number | null>(null);
-  const [isSurveySkipped, setIsSurveySkipped] = useState(false);
+  const [isWho5Skipped, setIsWho5Skipped] = useState(false);
+  const [isSpaneSkipped, setIsSpaneSkipped] = useState(false);
 
   const [paintColor, setPaintColor] = useState(PALETTE[0]);
   const [brushSize, setBrushSize] = useState(4);
@@ -291,11 +291,13 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
       return;
     }
 
-    if (!isSurveySkipped) {
+    if (!isWho5Skipped) {
       if (who5Answers.some((a) => a < 0 || a > 5)) {
         setSaveError("WHO-5 문항 점수를 모두 선택해주세요.");
         return;
       }
+    }
+    if (!isSpaneSkipped) {
       if (spaneAnswers.some((a) => a < 1 || a > 5)) {
         setSaveError("SPANE 문항 점수를 모두 선택해주세요.");
         return;
@@ -318,11 +320,17 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
         setSessionId(newId);
       }
 
-      if (isSurveySkipped) {
-        await Promise.all([
-          deepApi.submitWho5Assessment(activeSessionId, { answers: [0, 0, 0, 0, 0] }),
-          deepApi.submitSpaneAssessment(activeSessionId, { answers: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] }),
-        ]);
+      // 답변을 한 경우와 스킵한 경우 모두 handleSave에서 최종 전송하도록 일원화
+      if (isWho5Skipped) {
+        await deepApi.submitWho5Assessment(activeSessionId, { answers: [0, 0, 0, 0, 0], isSkipped: true });
+      } else {
+        await deepApi.submitWho5Assessment(activeSessionId, { answers: who5Answers });
+      }
+
+      if (isSpaneSkipped) {
+        await deepApi.submitSpaneAssessment(activeSessionId, { answers: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], isSkipped: true });
+      } else {
+        await deepApi.submitSpaneAssessment(activeSessionId, { answers: spaneAnswers });
       }
 
       // Submit single image via generic endpoint
@@ -510,7 +518,15 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
               <div className="relative mt-4 flex items-center justify-between pt-3 border-t border-white/10 shrink-0">
                 <div>
                   <button type="button"
-                    onClick={() => { setIsSurveySkipped(true); setPhase("draw"); }}
+                    onClick={() => {
+                      if (surveyPageIndex === 0) {
+                        setIsWho5Skipped(true);
+                        setSurveyPageIndex(1);
+                      } else {
+                        setIsSpaneSkipped(true);
+                        setPhase("draw");
+                      }
+                    }}
                     className="h-10 px-4 rounded-xl text-[11px] font-medium text-zinc-500 hover:text-zinc-300 hover:bg-white/5 transition-all">
                     건너뛰기
                   </button>
@@ -523,21 +539,17 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
                     </button>
                   )}
                   <button type="button"
-                    onClick={async () => {
+                    onClick={() => {
                       if (!sessionId) { alert("세션 정보를 불러오는 중입니다. 잠시만 기다려주세요."); return; }
                       const currentAnswers = surveyPageIndex === 0 ? who5Answers : spaneAnswers;
                       if (currentAnswers.some(a => a === -1)) { alert("모든 문항에 답변을 완료해 주세요."); return; }
-                      setIsSurveySkipped(false);
+
                       if (surveyPageIndex === 0) {
-                        try {
-                          await deepApi.submitWho5Assessment(sessionId, { answers: who5Answers });
-                          setSurveyPageIndex(1);
-                        } catch (err) { alert(getApiErrorMessage(err, "결과 전송 실패. 다시 시도해 주세요.")); }
+                        setIsWho5Skipped(false);
+                        setSurveyPageIndex(1);
                       } else {
-                        try {
-                          await deepApi.submitSpaneAssessment(sessionId, { answers: spaneAnswers });
-                          setPhase("draw");
-                        } catch (err) { alert(getApiErrorMessage(err, "결과 전송 실패. 다시 시도해 주세요.")); }
+                        setIsSpaneSkipped(false);
+                        setPhase("draw");
                       }
                     }}
                     className="flex-[2] sm:flex-none h-10 px-7 rounded-xl bg-white text-zinc-950 text-[11px] font-bold hover:bg-zinc-200 transition-all shadow-lg active:scale-95">
