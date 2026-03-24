@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useCanvasDrawing } from "../../hooks/useCanvasDrawing";
 import type { ToolType } from "../../hooks/useCanvasDrawing";
 import { DailyColoringCanvas } from "./components/DailyColoringCanvas";
+import { useAlert } from "../../components/shared/AlertProvider";
 import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntryByType } from "../../utils/dailyLimit";
 import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, saveRecentPaintColors } from "../../utils/paintColors";
 
@@ -56,6 +57,7 @@ type DailyColoringViewProps = {
 
 function DailyColoringView({ isModal = false, onClose, onBackToContent, onComplete }: DailyColoringViewProps) {
   const navigate = useNavigate();
+  const { showAlert } = useAlert();
 
   const [shellColor] = useState(() => localStorage.getItem("dailyMoodColor") || PALETTE[0]);
   const [paintColor, setPaintColor] = useState<string>(PAINT_PRESET_COLORS[0]);
@@ -108,7 +110,7 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
         const existsToday = await hasTodayDailyEntryByType("COLORING");
         if (!alive || !existsToday) return;
 
-        window.alert(DAILY_LIMIT_MESSAGE);
+        showAlert(DAILY_LIMIT_MESSAGE, "error");
         if (onClose) {
           onClose();
           return;

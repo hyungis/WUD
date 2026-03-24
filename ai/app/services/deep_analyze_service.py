@@ -96,6 +96,7 @@ def _normalize_llm_response(
     """LLM JSON 출력을 AiAnalysisData 구조로 정규화."""
     result_summary = ""
     questions: list[str] = []
+    # 프론트는 resultSummary/questions 중심으로 사용하므로 raw는 최소 필드만 유지
     raw: dict = {}
 
     def _stringify_insight(insight: Any) -> str:
@@ -108,16 +109,18 @@ def _normalize_llm_response(
         if isinstance(insight, str):
             return insight.strip()
         if isinstance(insight, dict):
+            # observation + interpretation 구조는 우선 결합해서 표시
+            # (generic key 추출보다 먼저 처리해야 해석 문장만 단독으로 빠지지 않음)
+            obs = insight.get("observation")
+            interp = insight.get("interpretation")
+            if isinstance(obs, str) and isinstance(interp, str) and obs.strip() and interp.strip():
+                return f"{obs.strip()} {interp.strip()}"
+
             # 자주 나오는 키 우선 추출
             for key in ("text", "insight", "content", "analysis", "interpretation", "observation", "summary"):
                 v = insight.get(key)
                 if isinstance(v, str) and v.strip():
                     return v.strip()
-
-            obs = insight.get("observation")
-            interp = insight.get("interpretation")
-            if isinstance(obs, str) and isinstance(interp, str) and obs.strip() and interp.strip():
-                return f"{obs.strip()} {interp.strip()}"
 
             # dict 내부의 문자열 값들을 모아서 사람이 읽는 형태로 조합
             string_values = [str(v).strip() for v in insight.values() if isinstance(v, str) and v.strip()]
@@ -142,34 +145,57 @@ def _normalize_llm_response(
         intro = str(llm_json.get("intro", "") or "").strip()
         core_insights = llm_json.get("coreInsights", [])
 
-        summary_parts = []
-        if intro:
-            summary_parts.append(intro)
+        formatted_insights: list[str] = []
         if core_insights and isinstance(core_insights, list):
-            summary_parts.append("\n\nCore Insights")
-            for insight in core_insights:
+            for idx, insight in enumerate(core_insights[:5], start=1):
+                if isinstance(insight, dict):
+                    obs = str(insight.get("observation", "") or "").strip()
+                    interp = str(insight.get("interpretation", "") or "").strip()
+                    if obs or interp:
+                        formatted_insights.append(
+                            f"{idx}. 관찰요소: {obs or '-'}\n   해석: {interp or '-'}"
+                        )
+                        continue
                 flattened = _stringify_insight(insight)
                 if flattened:
-                    summary_parts.append(flattened)
-        result_summary = "\n".join(summary_parts).strip()
+                    cleaned = re.sub(r"^\s*\d+\.\s*", "", flattened).strip()
+                    if " / " in cleaned:
+                        left, right = cleaned.split(" / ", 1)
+                        formatted_insights.append(
+                            f"{idx}. 관찰요소: {left.strip()}\n   해석: {right.strip()}"
+                        )
+                    else:
+                        formatted_insights.append(f"{idx}. 관찰요소: {cleaned}")
+
+        sections: list[str] = []
+        if intro:
+            sections.append(f"[한줄 요약]\n{intro}")
+        if formatted_insights:
+            sections.append("[핵심 근거]\n" + "\n\n".join(formatted_insights))
+        result_summary = "\n\n".join(sections).strip()
 
         questions = [str(q) for q in (llm_json.get("questions") or []) if q]
 
         raw_obj = llm_json.get("raw")
-        raw = raw_obj.copy() if isinstance(raw_obj, dict) else {}
-        if not isinstance(raw_obj, dict):
-            raw = {"llm": llm_json}
-
-        strengths = llm_json.get("strengths")
-        if isinstance(strengths, list) and strengths:
-            raw["strengths"] = [str(s) for s in strengths if s]
-        if intro:
-            raw["intro"] = intro
-        if core_insights:
-            raw["coreInsights"] = core_insights
+        if isinstance(raw_obj, dict):
+            wellbeing = raw_obj.get("wellbeing")
+            if isinstance(wellbeing, dict):
+                raw["wellbeing"] = wellbeing
 
     if extra_raw:
         raw.update(extra_raw)
+        has_who5 = bool(extra_raw.get("hasWho5", False))
+        has_spane = bool(extra_raw.get("hasSpane", False))
+        wb = raw.get("wellbeing")
+        if isinstance(wb, dict):
+            if not has_who5:
+                wb.pop("who5ScoreTotal", None)
+            if not has_spane:
+                wb.pop("spanePositive", None)
+                wb.pop("spaneNegative", None)
+                wb.pop("spaneBalance", None)
+            if not wb:
+                raw.pop("wellbeing", None)
 
     if not result_summary:
         result_summary = _fallback_summary(llm_json, raw)
@@ -291,11 +317,10 @@ def _analyze_htp(request: AiAnalyzeReq) -> AiAnalyzeResp:
             cross_image_features=cross_image_features if cross_image_features else None,
         )
 
-        extra_raw: dict = {}
-        if cv_features:
-            extra_raw["cvFeatures"] = cv_features
-        if cross_image_features:
-            extra_raw["crossImageFeatures"] = cross_image_features
+        extra_raw: dict = {
+            "hasWho5": bool(who5_payload),
+            "hasSpane": bool(spane_payload),
+        }
         if is_skipped:
             extra_raw["isSkipped"] = True
         data = _normalize_llm_response(llm_json, _DEFAULT_QUESTIONS_HTP, extra_raw or None)
@@ -375,7 +400,12 @@ def _analyze_single_image(request: AiAnalyzeReq, *, deep_type: str) -> AiAnalyze
         )
 
         default_questions = _DEFAULT_QUESTIONS_MAP[deep_type]
-        extra_raw = {"isSkipped": True} if is_skipped else None
+        extra_raw: dict[str, Any] = {
+            "hasWho5": bool(who5_payload),
+            "hasSpane": bool(spane_payload),
+        }
+        if is_skipped:
+            extra_raw["isSkipped"] = True
         data = _normalize_llm_response(llm_json, default_questions, extra_raw)
 
         print(f"[Deep Analyze {deep_type}] SUCCESS session={request.sessionId} "

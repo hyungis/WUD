@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { deepApi } from "../../api/deep";
+import { useAlert } from "../../components/shared/AlertProvider";
 import type { DeepTestGuide, DeepTestInfo } from "../../types/deep";
 import { WEEKLY_LIMIT_MESSAGE, hasWeeklyDeepEntryByType } from "../../utils/dailyLimit";
 
@@ -50,6 +51,7 @@ type WeeklyContentViewProps = {
 
 function WeeklyContentView({ isModal = false, onClose, onStartHtp, onStartPir, onStartSw }: WeeklyContentViewProps) {
     const navigate = useNavigate();
+    const { showAlert } = useAlert();
     const [features, setFeatures] = useState<DeepTestInfo[]>(DEFAULT_FEATURES);
     const [guide, setGuide] = useState<DeepTestGuide>(DEFAULT_GUIDE);
     const [loading, setLoading] = useState(false);
@@ -130,7 +132,7 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp, onStartPir, o
             const sessionsRes = await deepApi.getPastSessions();
             const history = (sessionsRes.data ?? []) as any[];
             if (hasWeeklyDeepEntryByType(history, type)) {
-                window.alert(WEEKLY_LIMIT_MESSAGE);
+                showAlert(WEEKLY_LIMIT_MESSAGE, "error");
                 return;
             }
             // 애니메이션 후 전환

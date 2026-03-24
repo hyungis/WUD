@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import "./index.css";
+import { AlertProvider } from "./components/shared/AlertProvider";
 
 const noop = () => {};
 console.log = noop;
@@ -14,7 +15,9 @@ console.error = noop;
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <AlertProvider>
+        <App />
+      </AlertProvider>
     </BrowserRouter>
   </StrictMode>,
 );

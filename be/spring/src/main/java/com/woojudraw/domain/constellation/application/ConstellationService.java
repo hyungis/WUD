@@ -1,5 +1,7 @@
 package com.woojudraw.domain.constellation.application;
 
+import com.woojudraw.domain.constellation.api.dto.req.UpdateCenterStarReq;
+import com.woojudraw.domain.constellation.api.dto.resp.GetCenterStarResp;
 import com.woojudraw.domain.daily.entity.Daily;
 import com.woojudraw.domain.constellation.api.dto.resp.GetStarMapResp;
 import com.woojudraw.domain.constellation.api.dto.resp.GetWeeklyConstellationResp;
@@ -13,6 +15,10 @@ public interface ConstellationService {
 	void deleteDeepStarIfExists(Long deepSessionId);
 
 	void deleteDailyStarIfExists(Long dailyId);
+
+	GetCenterStarResp getCenterStar(Long userId);
+
+	void updateCenterStar(Long userId, UpdateCenterStarReq req);
 
 	GetStarMapResp getStarMap(Long userId);
 

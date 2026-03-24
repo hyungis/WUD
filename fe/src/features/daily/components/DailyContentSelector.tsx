@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useUiStore } from "../../../store/uiStore";
 import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntryByType } from "../../../utils/dailyLimit";
-import { AlertModal } from "../../../components/shared/AlertModal";
+import { useAlert } from "../../../components/shared/AlertProvider";
 
 const EMOTIONS = [
   { label: "기쁨", color: "#FFD54F", value: 5 },
@@ -49,11 +49,7 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
   const [isCheckingDailyLimit, setIsCheckingDailyLimit] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
-  const [alert, setAlert] = useState<{ isOpen: boolean; message: string; type: "success" | "error" }>({
-    isOpen: false,
-    message: "",
-    type: "error",
-  });
+  const { showAlert } = useAlert();
 
   const isDailyContentModalOpen = useUiStore((state) => state.isDailyContentModalOpen);
   const setDailyContentModalOpen = useUiStore((state) => state.setDailyContentModalOpen);
@@ -88,7 +84,7 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
     try {
       const existsToday = await checkDailyLimitWithTimeout("MANDALA");
       if (existsToday) {
-        setAlert({ isOpen: true, message: DAILY_LIMIT_MESSAGE, type: "error" });
+        showAlert(DAILY_LIMIT_MESSAGE, "error");
         return;
       }
 
@@ -120,7 +116,7 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
     try {
       const existsToday = await checkDailyLimitWithTimeout("COLORING");
       if (existsToday) {
-        setAlert({ isOpen: true, message: DAILY_LIMIT_MESSAGE, type: "error" });
+        showAlert(DAILY_LIMIT_MESSAGE, "error");
         return;
       }
 
@@ -347,12 +343,6 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
           )}
         </div>
       </div>
-      <AlertModal
-        isOpen={alert.isOpen}
-        message={alert.message}
-        type={alert.type}
-        onClose={() => setAlert((prev) => ({ ...prev, isOpen: false }))}
-      />
     </div>
   );
 }

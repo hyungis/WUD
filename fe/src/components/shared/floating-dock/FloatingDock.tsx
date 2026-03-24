@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuthStore } from "../../../store/authStore";
 import { useUiStore } from "../../../store/uiStore";
 import { hasTodayDailyEntry } from "../../../utils/dailyLimit";
-import { AlertModal } from "../../../components/shared/AlertModal"; // 🚨 AlertModal 임포트
+import { useAlert } from "../../../components/shared/AlertProvider";
 
 export default function FloatingDock() {
     const user = useAuthStore((state) => state.user);
@@ -17,15 +17,10 @@ export default function FloatingDock() {
     const setIsMyUniverseOpen = useUiStore((state) => state.setIsMyUniverseOpen);
     const setSelectedStarId = useUiStore((state) => state.setSelectedStarId);
 
+    const { showAlert } = useAlert();
+
     const [isCheckingWeekly, setIsCheckingWeekly] = useState(false);
     const [isDailyCompleted, setIsDailyCompleted] = useState(false);
-
-    // 🚨 알림(Toast/Modal) 상태 추가
-    const [alert, setAlert] = useState<{ isOpen: boolean; message: string; type: "success" | "error" }>({
-        isOpen: false,
-        message: "",
-        type: "error",
-    });
 
     useEffect(() => {
         const checkDailyStatus = async () => {
@@ -66,11 +61,7 @@ export default function FloatingDock() {
     // 🚨 데일리 클릭 핸들러 추가
     const handleDailyClick = () => {
         if (isDailyCompleted) {
-            setAlert({
-                isOpen: true,
-                message: "이미 빛나는 별 하나를 심으셨네요! 내일 또 다른 별을 만들어봐요.",
-                type: "success", // 에러 느낌이 싫으시면 "success" 로 변경하셔도 좋습니다.
-            });
+            showAlert("이미 빛나는 별 하나를 심으셨네요! 내일 또 다른 별을 만들어봐요.", "success");
             return;
         }
         setDailyDetailModalOpen(false);
@@ -128,14 +119,6 @@ export default function FloatingDock() {
                     </button>
                 </div>
             </div>
-
-            {/* 🚨 AlertModal 컴포넌트 추가 */}
-            <AlertModal
-                isOpen={alert.isOpen}
-                message={alert.message}
-                type={alert.type}
-                onClose={() => setAlert((prev) => ({ ...prev, isOpen: false }))}
-            />
         </>
     );
 }
