@@ -35,7 +35,7 @@ export const STAR_COLORS: { hex: string; label: string }[] = [
   { hex: "#818cf8", label: "딥 라벤더" },
 ];
 
-// ── localStorage 키 ──
+// ── localStorage 키 (레거시 지원용) ──
 const LS_SHAPE_KEY = "customStarShape";
 const LS_COLOR_KEY = "customStarColor";
 
@@ -54,53 +54,28 @@ type CustomStarState = {
   setColor: (color: string) => void;
   /** 백엔드에서 현재 설정 조회 */
   fetchCenterStar: () => Promise<void>;
-  /** localStorage에 현재 설정 저장 */
-  saveToStorage: () => void;
   /** 백엔드 API 연동 */
   saveToBackend: () => Promise<void>;
+  /** 상태 초기화 (로그아웃 시 사용) */
+  clearStore: () => void;
 };
 
-// ── 초기값 로드 ──
-function loadInitial(): { shape: StarShape; color: string } {
-  try {
-    const shape = (localStorage.getItem(LS_SHAPE_KEY) as StarShape) || DEFAULT_SHAPE;
-    const color = localStorage.getItem(LS_COLOR_KEY) || DEFAULT_COLOR;
-    // shape 유효성 검사
-    const validShape = STAR_SHAPES.some((s) => s.key === shape) ? shape : DEFAULT_SHAPE;
-    return { shape: validShape, color };
-  } catch {
-    return { shape: DEFAULT_SHAPE, color: DEFAULT_COLOR };
-  }
-}
-
-const initial = loadInitial();
-
 export const useCustomStarStore = create<CustomStarState>((set, get) => ({
-  currentShape: initial.shape,
-  currentColor: initial.color,
+  currentShape: DEFAULT_SHAPE,
+  currentColor: DEFAULT_COLOR,
   animationTrigger: 0,
 
-  setShape: (shape) =>
+  setShape: (shape: StarShape) =>
     set((state) => ({
       currentShape: shape,
       animationTrigger: state.animationTrigger + 1,
     })),
 
-  setColor: (color) =>
+  setColor: (color: string) =>
     set((state) => ({
       currentColor: color,
       animationTrigger: state.animationTrigger + 1,
     })),
-
-  saveToStorage: () => {
-    const { currentShape, currentColor } = get();
-    try {
-      localStorage.setItem(LS_SHAPE_KEY, currentShape);
-      localStorage.setItem(LS_COLOR_KEY, currentColor);
-    } catch (e) {
-      console.error("Failed to save custom star settings:", e);
-    }
-  },
 
   fetchCenterStar: async () => {
     try {
@@ -121,16 +96,24 @@ export const useCustomStarStore = create<CustomStarState>((set, get) => ({
   saveToBackend: async () => {
     const { currentShape, currentColor } = get();
     try {
-      const res = await starApi.updateCenterStar({
+      await starApi.updateCenterStar({
         shapeType: currentShape,
         color: currentColor,
       });
-      if (res.success) {
-        console.log("[customStarStore] Successfully saved to backend");
-      }
     } catch (e) {
       console.error("Failed to save center star to backend:", e);
       throw e;
     }
+  },
+
+  clearStore: () => {
+    set({
+      currentShape: DEFAULT_SHAPE,
+      currentColor: DEFAULT_COLOR,
+      animationTrigger: 0,
+    });
+    // 레거시 로컬스토리지 데이터 삭제
+    localStorage.removeItem(LS_SHAPE_KEY);
+    localStorage.removeItem(LS_COLOR_KEY);
   },
 }));
