@@ -7,6 +7,7 @@ import { deepApi } from "../../api/deep";
 import { imageApi } from "../../api/image";
 import type { DeepDetailResponse } from "../../types/deep";
 import SingleDrawResultView from "./components/SingleDrawResultView";
+import { useAlert } from "../../components/shared/AlertProvider";
 import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
 import { useUiStore } from "../../store/uiStore";
 import { WEEKLY_LIMIT_MESSAGE, hasWeeklyDeepEntryByType } from "../../utils/dailyLimit";
@@ -107,6 +108,7 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
   const starsRef = useUiStore((state) => state.stars);
 
   const config = TEST_CONFIGS[testType];
+  const { showAlert } = useAlert();
 
   const [phase, setPhase] = useState<DrawPhase>("survey");
   const [surveyPageIndex, setSurveyPageIndex] = useState(0);
@@ -145,7 +147,7 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
         const sessionsRes = await deepApi.getPastSessions();
         const history = (sessionsRes.data ?? []) as any[];
         if (!alive || !hasWeeklyDeepEntryByType(history, config.deepType)) return;
-        window.alert(WEEKLY_LIMIT_MESSAGE);
+        showAlert(WEEKLY_LIMIT_MESSAGE, "error");
         if (onClose) { onClose(); return; }
         navigate("/", { replace: true });
       } catch { /* ignore */ }
@@ -540,9 +542,9 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
                   )}
                   <button type="button"
                     onClick={() => {
-                      if (!sessionId) { alert("세션 정보를 불러오는 중입니다. 잠시만 기다려주세요."); return; }
+                      if (!sessionId) { showAlert("세션 정보를 불러오는 중입니다. 잠시만 기다려주세요.", "error"); return; }
                       const currentAnswers = surveyPageIndex === 0 ? who5Answers : spaneAnswers;
-                      if (currentAnswers.some(a => a === -1)) { alert("모든 문항에 답변을 완료해 주세요."); return; }
+                      if (currentAnswers.some(a => a === -1)) { showAlert("모든 문항에 답변을 완료해 주세요.", "error"); return; }
 
                       if (surveyPageIndex === 0) {
                         setIsWho5Skipped(false);

@@ -7,6 +7,7 @@ import { deepApi } from "../../api/deep";
 import { imageApi } from "../../api/image";
 import type { DeepDetailResponse } from "../../types/deep";
 import HTPResultView from "./components/HTPResultView";
+import { useAlert } from "../../components/shared/AlertProvider";
 import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
 import { useUiStore } from "../../store/uiStore";
 import { WEEKLY_LIMIT_MESSAGE, hasWeeklyDeepEntryByType } from "../../utils/dailyLimit";
@@ -90,6 +91,7 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
   const setPendingBirth = useUiStore((state) => state.setPendingBirth);
   const starsRef = useUiStore((state) => state.stars);
 
+  const { showAlert } = useAlert();
   const [stepIndex, setStepIndex] = useState(0);
   const [phase, setPhase] = useState<HtpPhase>("survey");
   const [surveyPageIndex, setSurveyPageIndex] = useState(0);
@@ -133,7 +135,7 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
         const history = (sessionsRes.data ?? []) as any[];
         if (!alive || !hasWeeklyDeepEntryByType(history, "HTP")) return;
 
-        window.alert(WEEKLY_LIMIT_MESSAGE);
+        showAlert(WEEKLY_LIMIT_MESSAGE, "error");
         if (onClose) {
           onClose();
           return;
@@ -619,13 +621,13 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
                     type="button"
                     onClick={() => {
                       if (!sessionId) {
-                        alert("세션 정보를 불러오는 중입니다. 잠시만 기다려주세요.");
+                        showAlert("세션 정보를 불러오는 중입니다. 잠시만 기다려주세요.", "error");
                         return;
                       }
 
                       const currentAnswers = surveyPageIndex === 0 ? who5Answers : spaneAnswers;
                       if (currentAnswers.some(a => a === -1)) {
-                        alert("모든 문항에 답변을 완료해 주세요.");
+                        showAlert("모든 문항에 답변을 완료해 주세요.", "error");
                         return;
                       }
 
