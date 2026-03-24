@@ -11,7 +11,6 @@ import { useAlert } from "../../components/shared/AlertProvider";
 import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
 import { useUiStore } from "../../store/uiStore";
 import { WEEKLY_LIMIT_MESSAGE, hasWeeklyDeepEntryByType } from "../../utils/dailyLimit";
-import { getApiErrorMessage } from "../../utils/apiError";
 import { getToolCursor } from "../../utils/toolCursors";
 import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, saveRecentPaintColors } from "../../utils/paintColors";
 
