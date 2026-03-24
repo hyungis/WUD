@@ -149,7 +149,7 @@ function DiskParticles({ phase }: { phase: LoginStarSceneProps["phase"] }) {
     for (let i = 0; i < PCOUNT; i++) {
       const angle = Math.random() * Math.PI * 2;
       const radius = BH_RADIUS + 0.15 + Math.random() * 0.6;
-      const speed = 0.4 + Math.random() * 0.8;
+      const speed = 0.12 + Math.random() * 0.22;
       params.push({ angle, radius, speed });
 
       const i3 = i * 3;
@@ -182,8 +182,8 @@ function DiskParticles({ phase }: { phase: LoginStarSceneProps["phase"] }) {
       const i3 = i * 3;
       const p = data.params[i];
 
-      const kSpeed = p.speed * (1.5 / Math.max(p.radius, BH_RADIUS + 0.15));
-      p.angle += delta * kSpeed * (isSuccess ? 3.5 : 1.0);
+      const kSpeed = p.speed * (0.7 / Math.max(p.radius, BH_RADIUS + 0.15));
+      p.angle += delta * kSpeed * (isSuccess ? 2.2 : 0.45);
       p.radius = Math.max(BH_RADIUS * 0.3, p.radius - delta * pull * 0.1);
 
       if (!isSuccess && p.radius <= BH_RADIUS + 0.12) {
@@ -246,7 +246,7 @@ function CameraController({ phase }: { phase: LoginStarSceneProps["phase"] }) {
       enableZoom={false}
       enableRotate={phase === "idle"}
       autoRotate={phase === "idle"}
-      autoRotateSpeed={0.1}
+      autoRotateSpeed={0.04}
       minPolarAngle={Math.PI / 2.4}
       maxPolarAngle={Math.PI / 1.7}
     />
@@ -269,7 +269,7 @@ export default function LoginStarScene({ phase, onStarClick }: LoginStarScenePro
           />
         </EffectComposer>
 
-        <Stars radius={200} depth={80} count={2000} factor={2} saturation={0} fade speed={0.1} />
+          <Stars radius={200} depth={80} count={2000} factor={2} saturation={0} fade speed={0.03} />
 
         <GargantuaBlackHole phase={phase} onStarClick={onStarClick} />
         <DiskParticles phase={phase} />
