@@ -2,6 +2,8 @@ import { authApi } from "../api/auth";
 import { userApi } from "../api/user";
 import { useAuthStore, type User } from "../store/authStore";
 
+import { useCustomStarStore } from "../store/customStarStore";
+
 export type LoginPayload = {
   email: string;
   password: string;
@@ -106,7 +108,8 @@ export async function logout() {
   } catch (e) {
     console.error("로그아웃 API 실패:", e);
   } finally {
-    // API 성공 여부와 관계없이 스토어 클리어
+    // 중심별 커스텀 정보 초기화 (계정 간 간섭 방지)
+    useCustomStarStore.getState().clearStore();
     useAuthStore.getState().clearAuth();
   }
 }

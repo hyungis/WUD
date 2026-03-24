@@ -16,4 +16,5 @@ public class GetUserProfileResp {
 	private UserStatus status;
 	private OffsetDateTime joinedAt;
 	private OffsetDateTime lastLoginAt;
+	private boolean tutorialCompleted;
 }

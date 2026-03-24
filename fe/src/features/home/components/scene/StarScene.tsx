@@ -10,7 +10,11 @@ import { useUiStore } from "../../../../store/uiStore";
 import { useCustomStarStore } from "../../../../store/customStarStore";
 import type { StarShape } from "../../../../store/customStarStore";
 
-import type { DeepStar, StarSceneProps } from "../../utils/homeHelpers";
+import type { DeepStar, StarSceneProps as BaseStarSceneProps } from "../../utils/homeHelpers";
+
+interface StarSceneProps extends BaseStarSceneProps {
+  onReady?: () => void;
+}
 import {
   hashSeed, seededRandom, gaussianRandom, seededGaussian,
   getWeekKey,
@@ -780,6 +784,17 @@ function GalaxyStars({ freezeMotion = false }: { freezeMotion?: boolean }) {
   );
 }
 
+function RenderNotifier({ onReady }: { onReady?: () => void }) {
+  const called = useRef(false);
+  useFrame(() => {
+    if (!called.current && onReady) {
+      called.current = true;
+      onReady();
+    }
+  });
+  return null;
+}
+
 /* ── 별 탄생 파티클 효과: 타겟 주변에서 별가루 공전 → 분석 완료 → 합체 → 별 탄생 ── */
 const PARTICLE_COUNT = 80;
 const BIRTH_GATHER_DURATION = 2.5;   // 별가루 모이는 시간
@@ -900,6 +915,7 @@ function StarBirthEffect({ target, color, isGathering = false, onComplete }: {
 export function StarScene({
   dailyPlanets, deepStars, mypageStar, onStarClick, onDeepStarClick, onPlanetClick, onStarSelect, selectedStarId, hoveredStarId, selectedWeekKey, onStarHover, onViewModeChange,
   isReportOpen, isMyUniverseOpen, isDailyDetailOpen, isWeeklyOpen, newbornStarId, onBirthComplete, isAnalysisComplete,
+  onReady,
 }: StarSceneProps) {
   const [viewMode, setViewMode] = useState<"macro" | "micro">("micro");
   const [focusRequestNonce, setFocusRequestNonce] = useState(0);
@@ -1100,6 +1116,7 @@ export function StarScene({
         }}
       >
         <Canvas camera={{ position: [0, 110 * countRatio, 0.1], fov: 45 }} className="w-full h-full">
+          <RenderNotifier onReady={onReady} />
           <ambientLight intensity={0.15} color="#4c1d95" />
           <pointLight position={[0, 0, 0]} intensity={150} color="#f97316" distance={60} decay={2} />
 

@@ -41,6 +41,7 @@ public class UserServiceImpl implements UserService {
 			.status(user.getStatus())
 			.joinedAt(user.getCreatedAt())
 			.lastLoginAt(user.getLastLoginAt())
+			.tutorialCompleted(user.isTutorialCompleted())
 			.build();
 	}
 

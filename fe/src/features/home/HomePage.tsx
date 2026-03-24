@@ -21,6 +21,7 @@ import WeeklySingleDrawView from "../deep/WeeklySingleDrawView";
 import { driver } from "driver.js";
 import "driver.js/dist/driver.css";
 import { useAuthStore } from "../../store/authStore";
+import { useCustomStarStore } from "../../store/customStarStore";
 import { userApi } from "../../api/user";
 
 // ==========================================
@@ -29,11 +30,13 @@ import { userApi } from "../../api/user";
 
 function HomePage() {
   const user = useAuthStore((state) => state.user);
+  const authTransitioning = useAuthStore((state) => state.authTransitioning);
   const isMyUniverseOpen = useUiStore((state) => state.isMyUniverseOpen);
   const setIsMyUniverseOpen = useUiStore((state) => state.setIsMyUniverseOpen);
   const [selectedDeepStar, setSelectedDeepStar] = useState<any>(null);
   const [deepPages, setDeepPages] = useState<any[]>([]);
   const [selectedDailyPlanet, setSelectedDailyPlanet] = useState<DailyPlanet | null>(null);
+  const [isStarSceneReady, setIsStarSceneReady] = useState(false);
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
@@ -137,11 +140,13 @@ function HomePage() {
     }));
   }, [stars]);
 
-  // 컴포넌트 로드 시 지도(별) 조회
+  // 컴포넌트 로드 시 지도(별) 및 중심별 설정 조회
   useEffect(() => {
     void fetchStarMap().catch((e) => {
       console.error("fetch star map fail:", e);
     });
+    // 중심별 정보도 유저별로 다르므로 마운트 시 강제 동기화
+    void useCustomStarStore.getState().fetchCenterStar();
   }, [fetchStarMap]);
 
   // localStorage 캐시 없이도 새로고침 시 최신 상태를 유지하기 위해 주기적으로 서버에서 재조회한다.
@@ -235,6 +240,7 @@ function HomePage() {
       onDestroyed: () => {
         // 코치마크 종료 시 무조건 백엔드에 완료 상태 전송 및 스토어 업데이트
         userApi.completeTutorial().catch((e) => console.error("튜토리얼 완료 처리 실패:", e));
+        localStorage.removeItem("showTutorial"); // 튜토리얼이 완료되거나 닫힐 때만 삭제
         const currentUser = useAuthStore.getState().user;
         if (currentUser && currentUser.tutorialCompleted !== true) {
           useAuthStore.getState().setUser({ ...currentUser, tutorialCompleted: true });
@@ -245,19 +251,45 @@ function HomePage() {
   }, []);
 
   useEffect(() => {
-    // 프론트엔드 자체 localStorage fallback (가입 직후) 또는 백엔드 상태(tutorialCompleted) 활용
-    const showTutorialParam = localStorage.getItem("showTutorial");
-    const needsTutorial = (showTutorialParam === "true") || (user && user.tutorialCompleted === false);
+    let isCancelled = false;
 
-    if (needsTutorial) {
-      const timer = setTimeout(() => {
-        handleStartTutorial();
-        if (showTutorialParam) localStorage.removeItem("showTutorial");
-      }, 1500);
+    const initTutorial = async () => {
+      // 1. 로그인 전환 중이거나 3D 씬이 아직 준비되지 않았으면 대기
+      if (authTransitioning || !isStarSceneReady) return;
 
-      return () => clearTimeout(timer);
-    }
-  }, [user, handleStartTutorial]);
+      const showTutorialParam = localStorage.getItem("showTutorial");
+
+      // 🚨 이미 완료한 유저라면 로컬스토리지 플래그 강제 삭제 (중복 방지)
+      if (user?.tutorialCompleted === true && showTutorialParam) {
+        localStorage.removeItem("showTutorial");
+      }
+
+      // 서버 상태가 false인 경우에만 튜토리얼 대상으로 판단
+      const needsTutorial = (user?.tutorialCompleted === false);
+
+      if (needsTutorial) {
+        // 2. 요소들이 나타날 때까지 비동기적으로 대기 (최대 5초)
+        let attempts = 0;
+        while (attempts < 10 && !isCancelled) {
+          const anchor = document.getElementById("center-star-anchor");
+          const dailyBtn = document.getElementById("daily-star-btn");
+          const timeline = document.getElementById("timeline-hud-container");
+
+          if (anchor && dailyBtn && timeline) break;
+
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          attempts++;
+        }
+
+        if (!isCancelled) {
+          handleStartTutorial();
+        }
+      }
+    };
+
+    void initTutorial();
+    return () => { isCancelled = true; };
+  }, [user?.tutorialCompleted, authTransitioning, isStarSceneReady, handleStartTutorial]);
 
   const dailyPlanets = useMemo(
     () => stars
@@ -668,6 +700,7 @@ function HomePage() {
         {/* 코치마크 센터 앵커 */}
         <div id="center-star-anchor" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 pointer-events-none" />
         <StarScene
+          onReady={() => setIsStarSceneReady(true)}
           dailyPlanets={dailyPlanets}
           deepStars={deepStars}
           mypageStar={mypageStar}

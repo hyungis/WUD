@@ -69,13 +69,17 @@ const IconCustomize = ({ className = "h-4 w-4" }: { className?: string }) => (
 
 /* ── 커스터마이징 탭 내용 ── */
 function CustomizeTabContent({ cardCls, labelCls }: { cardCls: string; labelCls: string }) {
-  const { currentShape, currentColor, setShape, setColor, saveToStorage } = useCustomStarStore();
+  const { currentShape, currentColor, setShape, setColor, saveToBackend } = useCustomStarStore();
   const [saved, setSaved] = useState(false);
 
-  const handleSave = () => {
-    saveToStorage();
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleSave = async () => {
+    try {
+      await saveToBackend();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      console.error("서버 저장 실패:", e);
+    }
   };
 
   return (
@@ -194,7 +198,9 @@ export function MyUniverseModal({
   const [tab, setTab] = useState<TabKey>("overview");
   const [selectedItem, setSelectedItem] = useState<{ type: "daily"; data: DailyPlanet } | null>(null);
 
-  // Profile state
+  const { currentColor, fetchCenterStar } = useCustomStarStore();
+  const displayToneColor = currentColor || mypageStar.toneColor;
+
   const [profile, setProfile] = useState<UserProfileResponse | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [editingNickname, setEditingNickname] = useState(false);
@@ -225,8 +231,9 @@ export function MyUniverseModal({
       setPasswordMsg(null);
       setWithdrawConfirm(false);
       void fetchProfile();
+      void fetchCenterStar();
     }
-  }, [isOpen, fetchProfile]);
+  }, [isOpen, fetchProfile, fetchCenterStar]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -338,7 +345,7 @@ export function MyUniverseModal({
           {/* 배경 글로우 */}
           <div
             className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-48 w-48 rounded-full blur-[80px] opacity-15"
-            style={{ backgroundColor: mypageStar.toneColor }}
+            style={{ backgroundColor: displayToneColor }}
           />
 
           <div className="flex items-center gap-4 relative z-10 mb-5">
@@ -346,13 +353,13 @@ export function MyUniverseModal({
             <div className="relative flex-shrink-0">
               <div
                 className="h-12 w-12 rounded-xl flex items-center justify-center text-lg font-bold text-white"
-                style={{ background: `linear-gradient(135deg, ${mypageStar.toneColor}88, ${mypageStar.toneColor}33)` }}
+                style={{ background: `linear-gradient(135deg, ${displayToneColor}88, ${displayToneColor}33)` }}
               >
                 {displayName.slice(0, 1)}
               </div>
               <div
                 className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#0a0a0f]"
-                style={{ backgroundColor: mypageStar.toneColor }}
+                style={{ backgroundColor: displayToneColor }}
               />
             </div>
 
@@ -407,7 +414,7 @@ export function MyUniverseModal({
               {/* 통계 */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: "전체", value: totalRecords, color: mypageStar.toneColor },
+                  { label: "전체", value: totalRecords, color: displayToneColor },
                   { label: "DAILY", value: dailyPlanets.length, color: "#38bdf8" },
                   { label: "WEEKLY", value: deepStars.length, color: "#a78bfa" },
                 ].map((s) => (
@@ -427,10 +434,10 @@ export function MyUniverseModal({
                 <div className="flex items-center gap-3">
                   <div
                     className="h-10 w-10 rounded-xl flex-shrink-0 shadow-lg"
-                    style={{ backgroundColor: mypageStar.toneColor, boxShadow: `0 0 24px ${mypageStar.toneColor}44` }}
+                    style={{ backgroundColor: displayToneColor, boxShadow: `0 0 24px ${displayToneColor}44` }}
                   />
                   <div>
-                    <p className="text-sm font-medium text-white font-mono">{mypageStar.toneColor}</p>
+                    <p className="text-sm font-medium text-white font-mono">{displayToneColor}</p>
                     <p className="text-[10px] text-zinc-500 mt-0.5">중심별 색상</p>
                   </div>
                 </div>
@@ -579,7 +586,7 @@ export function MyUniverseModal({
                     <div className="flex items-start gap-4">
                       <div
                         className="h-14 w-14 rounded-xl flex items-center justify-center text-xl font-bold text-white flex-shrink-0"
-                        style={{ background: `linear-gradient(135deg, ${mypageStar.toneColor}66, ${mypageStar.toneColor}22)` }}
+                        style={{ background: `linear-gradient(135deg, ${displayToneColor}66, ${displayToneColor}22)` }}
                       >
                         {displayName.slice(0, 1)}
                       </div>
