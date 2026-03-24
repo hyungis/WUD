@@ -17,10 +17,7 @@ import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, saveRec
 type DrawPhase = "survey" | "draw" | "result";
 
 /* ── constants ── */
-const PALETTE = [
-  "#111827", "#374151", "#6B7280", "#F97316", "#F59E0B", "#10B981",
-  "#06B6D4", "#3B82F6", "#6366F1", "#8B5CF6", "#EC4899", "#F43F5E",
-];
+
 const WHO5_QUESTIONS = [
   "기분이 밝고 명랑했다.",
   "마음이 차분하고 안정적이었다.",
@@ -67,9 +64,9 @@ const TEST_CONFIGS: Record<string, TestConfig> = {
 const BrushIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>;
 const FillIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z" /><path d="m5 2 5 5" /><path d="M2 13h15" /><path d="M22 20c0 .8-.7 1.7-1.5 1.7S19 20.8 19 20s1.5-2.8 1.5-2.8S22 19.2 22 20Z" /></svg>;
 const EraserIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" /><path d="M22 21H7" /><path d="m5 11 9 9" /></svg>;
-const TrashIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>;
-const UndoIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13" /></svg>;
-const RedoIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3l3 2.7" /></svg>;
+const TrashIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>;
+const UndoIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13" /></svg>;
+const RedoIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3l3 2.7" /></svg>;
 
 /* ── toolbar pill button ── */
 function ToolBtn({
@@ -83,10 +80,10 @@ function ToolBtn({
       onMouseDown={(e) => e.preventDefault()}
       title={title}
       className={`flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-150 shrink-0 ${disabled
-        ? "opacity-30 cursor-not-allowed text-slate-500"
+        ? "opacity-30 cursor-not-allowed text-zinc-600"
         : active
           ? "scale-105 border border-white/30 bg-white/20 text-white shadow-[0_0_18px_rgba(255,255,255,0.16)]"
-          : "border border-transparent bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/12 hover:text-white"
+          : "border border-transparent bg-white/5 text-zinc-300 hover:border-white/20 hover:bg-white/12 hover:text-white"
         }`}
     >
       {children}
@@ -118,7 +115,7 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
   const [isWho5Skipped, setIsWho5Skipped] = useState(false);
   const [isSpaneSkipped, setIsSpaneSkipped] = useState(false);
 
-  const [paintColor, setPaintColor] = useState<string>(PALETTE[0]);
+  const [paintColor, setPaintColor] = useState<string>(PAINT_PRESET_COLORS[0]);
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const [brushSize, setBrushSize] = useState(4);
   const [tool, setTool] = useState<ToolType>("brush");
@@ -603,8 +600,9 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
                 </span>
               </ToolBtn>
               {activePopup === "color" && (
-                <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 z-50 w-[280px] -translate-y-1/2 rounded-2xl border border-white/15 bg-zinc-950 p-4 shadow-2xl backdrop-blur-xl" onPointerDown={(e) => e.stopPropagation()}>
-                  <div className="absolute -left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 border-b border-l border-white/15 bg-zinc-950" />
+                <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-[280px] bg-zinc-950 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
+                  onPointerDown={(e) => e.stopPropagation()}>
+                  <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-zinc-950 border-l border-b border-white/15" />
                   <p className="mb-2 text-[10px] font-semibold tracking-wide text-zinc-400">기본 색상</p>
                   <div className="grid grid-cols-6 gap-3 mb-3">
                     {PAINT_PRESET_COLORS.map((c) => (
@@ -634,8 +632,9 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
                 </span>
               </ToolBtn>
               {activePopup === "size" && (
-                <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 z-50 w-56 -translate-y-1/2 rounded-2xl border border-white/15 bg-zinc-950 p-4 shadow-2xl backdrop-blur-xl" onPointerDown={(e) => e.stopPropagation()}>
-                  <div className="absolute -left-1.5 top-1/2 h-3 w-3 -translate-y-1/2 rotate-45 border-b border-l border-white/15 bg-zinc-950" />
+                <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-56 bg-zinc-950 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
+                  onPointerDown={(e) => e.stopPropagation()}>
+                  <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-zinc-950 border-l border-b border-white/15" />
                   <div className="flex justify-between items-center mb-2.5 text-xs text-zinc-400">
                     <span>굵기</span><span className="text-zinc-300 font-bold">{brushSize}px</span>
                   </div>
