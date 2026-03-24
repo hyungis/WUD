@@ -97,22 +97,11 @@ def _build_raw_payload(
     *,
     raw_extra: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    daily_type = (request.dailyType or "").upper()
+    # 프론트에서 실제로 사용하는 값은 resultSummary 중심이므로
+    # raw는 전송 크기/저장 비용을 줄이기 위해 최소 메타만 유지합니다.
     payload: dict[str, Any] = {
         "mode": "mock" if _use_mock_response() else "llm",
-        "version": "daily-feedback-v1",
-        "dailyType": daily_type,
-        "dailyTypeLabel": DAILY_TYPE_LABELS.get(daily_type, "그림"),
-        "emotion": request.emotion,
-        "emotionColor": request.emotionColor,
-        "contentPresent": bool(request.content and request.content.strip()),
-        "s3ObjectKey": request.s3ObjectKey,
-        "promptPreview": {
-            "emotion": request.emotion,
-            "emotionColor": request.emotionColor,
-            "content": request.content,
-        },
-        "resultSummary": result_summary,
+        "version": "daily-feedback-v2",
     }
     if raw_extra:
         payload.update(raw_extra)
@@ -120,4 +109,5 @@ def _build_raw_payload(
 
 
 def _use_mock_response() -> bool:
-    return os.getenv("DAILY_AI_USE_MOCK", "true").strip().lower() in {"1", "true", "yes", "on"}
+    # 기본은 LLM 경로를 사용하고, 개발/테스트에서만 명시적으로 mock을 켭니다.
+    return os.getenv("DAILY_AI_USE_MOCK", "false").strip().lower() in {"1", "true", "yes", "on"}
