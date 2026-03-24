@@ -11,6 +11,7 @@ import lombok.Getter;
 @Builder
 public class GetStarMapResp {
 
+	private GetCenterStarResp centerStar;
 	private List<StarItem> stars;
 
 	@Getter

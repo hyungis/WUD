@@ -22,6 +22,10 @@ class GetStarMapRespJsonTest {
 	@Test
 	void serializesCreatedAtWithSeoulOffset() throws Exception {
 		GetStarMapResp response = GetStarMapResp.builder()
+			.centerStar(GetCenterStarResp.builder()
+				.shapeType("sphere")
+				.color("#e2e8f0")
+				.build())
 			.stars(List.of(
 				GetStarMapResp.StarItem.builder()
 					.starId(1L)
@@ -38,6 +42,9 @@ class GetStarMapRespJsonTest {
 
 		String json = objectMapper.writeValueAsString(ApiResponse.ok(response));
 
+		assertThat(json).contains("\"centerStar\"");
+		assertThat(json).contains("\"shapeType\":\"sphere\"");
+		assertThat(json).contains("\"color\":\"#e2e8f0\"");
 		assertThat(json).contains("#4FC3F7");
 		assertThat(json).contains("2026-03-12T09:15:30+09:00");
 	}
