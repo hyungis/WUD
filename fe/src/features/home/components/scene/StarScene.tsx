@@ -1235,7 +1235,7 @@ export function StarScene({
             minDistance={dynamicMinDistance}
             maxDistance={dynamicMaxDistance}
             autoRotate={!isReportOpen}
-            autoRotateSpeed={0.05}
+            autoRotateSpeed={0.03}
             zoomSpeed={1}
           />
         </Canvas>
