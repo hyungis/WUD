@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import type { DailyPlanet, DeepStar } from "../../utils/homeHelpers";
-import { getWeekKey, formatDate, formatDateTimeKST } from "../../utils/homeHelpers";
+import { getWeekKey, formatDate } from "../../utils/homeHelpers";
 import { useAuthStore } from "../../../../store/authStore";
 import { useCustomStarStore, STAR_SHAPES, STAR_COLORS } from "../../../../store/customStarStore";
 import { userApi } from "../../../../api/user";
@@ -10,6 +10,61 @@ import type { UserProfileResponse } from "../../../../types/user";
 
 type TabKey = "overview" | "daily" | "deep" | "customize" | "profile";
 
+const EMOTION_COLOR_PALETTE = [
+  { label: "기쁨", color: "#FFD54F" },
+  { label: "평온", color: "#4FC3F7" },
+  { label: "설렘", color: "#FF6FAE" },
+  { label: "만족", color: "#66BB6A" },
+  { label: "슬픔", color: "#5C6BC0" },
+  { label: "불안", color: "#9575CD" },
+  { label: "분노", color: "#EF5350" },
+  { label: "지침", color: "#90A4AE" },
+] as const;
+
+const COLOR_TO_EMOTION: Record<string, string> = Object.fromEntries(
+  EMOTION_COLOR_PALETTE.map((item) => [item.color, item.label]),
+);
+
+const hexToRgb = (hex: string) => {
+  const normalized = hex.replace("#", "").trim();
+  if (normalized.length !== 6) return null;
+  const r = Number.parseInt(normalized.slice(0, 2), 16);
+  const g = Number.parseInt(normalized.slice(2, 4), 16);
+  const b = Number.parseInt(normalized.slice(4, 6), 16);
+  if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+  return { r, g, b };
+};
+
+const colorDistance = (a: { r: number; g: number; b: number }, b: { r: number; g: number; b: number }) => {
+  const dr = a.r - b.r;
+  const dg = a.g - b.g;
+  const db = a.b - b.b;
+  return dr * dr + dg * dg + db * db;
+};
+
+const emotionFromColor = (hex: string) => {
+  const normalized = hex.toUpperCase();
+  if (COLOR_TO_EMOTION[normalized]) return COLOR_TO_EMOTION[normalized];
+
+  const inputRgb = hexToRgb(normalized);
+  if (!inputRgb) return "기타";
+
+  let bestLabel = "기타";
+  let minDistance = Number.POSITIVE_INFINITY;
+
+  EMOTION_COLOR_PALETTE.forEach((item) => {
+    const targetRgb = hexToRgb(item.color);
+    if (!targetRgb) return;
+    const distance = colorDistance(inputRgb, targetRgb);
+    if (distance < minDistance) {
+      minDistance = distance;
+      bestLabel = item.label;
+    }
+  });
+
+  return bestLabel;
+};
+
 interface MyUniverseModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -17,6 +72,7 @@ interface MyUniverseModalProps {
   dailyPlanets: DailyPlanet[];
   deepStars: DeepStar[];
   onDeepStarClick: (star: DeepStar) => void;
+  onDailyPlanetClick: (planet: DailyPlanet) => void;
 }
 
 /* ── 아이콘 SVG 컴포넌트 ── */
@@ -46,9 +102,6 @@ const IconChevron = ({ className = "h-3 w-3" }: { className?: string }) => (
 );
 const IconClose = ({ className = "h-4 w-4" }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><path d="M18 6 6 18M6 6l12 12" /></svg>
-);
-const IconBack = ({ className = "h-4 w-4" }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={className}><path d="M15 18l-6-6 6-6" /></svg>
 );
 const IconEdit = ({ className = "h-3.5 w-3.5" }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
@@ -192,11 +245,11 @@ export function MyUniverseModal({
   dailyPlanets,
   deepStars,
   onDeepStarClick,
+  onDailyPlanetClick,
 }: MyUniverseModalProps) {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const [tab, setTab] = useState<TabKey>("overview");
-  const [selectedItem, setSelectedItem] = useState<{ type: "daily"; data: DailyPlanet } | null>(null);
 
   const { currentColor, fetchCenterStar } = useCustomStarStore();
   const displayToneColor = currentColor || mypageStar.toneColor;
@@ -225,7 +278,6 @@ export function MyUniverseModal({
   useEffect(() => {
     if (isOpen) {
       setTab("overview");
-      setSelectedItem(null);
       setEditingNickname(false);
       setPasswordForm({ current: "", next: "", confirm: "" });
       setPasswordMsg(null);
@@ -238,13 +290,12 @@ export function MyUniverseModal({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (selectedItem) setSelectedItem(null);
-        else onClose();
+        onClose();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, selectedItem]);
+  }, [onClose]);
 
   if (!isOpen) return null;
 
@@ -253,6 +304,34 @@ export function MyUniverseModal({
     ...dailyPlanets.map((p) => getWeekKey(new Date(p.createdAt))),
     ...deepStars.map((s) => s.weekKey || getWeekKey(new Date(s.createdAt))),
   ]).size;
+
+  const emotionRatioSource = dailyPlanets.reduce<Record<string, number>>((acc, planet) => {
+    const colorKey = (planet.shell || "").toUpperCase();
+    if (!colorKey) return acc;
+    acc[colorKey] = (acc[colorKey] || 0) + 1;
+    return acc;
+  }, {});
+
+  const totalEmotionCount = Object.values(emotionRatioSource).reduce((sum, count) => sum + count, 0);
+  const emotionRatioItems = Object.entries(emotionRatioSource)
+    .map(([color, count]) => ({
+      color,
+      label: emotionFromColor(color),
+      count,
+      ratio: (count / Math.max(totalEmotionCount, 1)) * 100,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const donutGradient = (() => {
+    if (!emotionRatioItems.length) return "conic-gradient(#3f3f46 0% 100%)";
+    let acc = 0;
+    const slices = emotionRatioItems.map((item) => {
+      const start = acc;
+      acc += item.ratio;
+      return `${item.color} ${start.toFixed(2)}% ${acc.toFixed(2)}%`;
+    });
+    return `conic-gradient(${slices.join(", ")})`;
+  })();
 
   const displayName = user?.nickname || user?.name || user?.email?.split("@")[0] || "사용자";
 
@@ -320,7 +399,7 @@ export function MyUniverseModal({
     { key: "profile", label: "PROFILE", icon: <IconUser /> },
   ];
 
-  const switchTab = (key: TabKey) => { setTab(key); setSelectedItem(null); };
+  const switchTab = (key: TabKey) => { setTab(key); };
 
   // 공통 카드 스타일
   const cardCls = "rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 backdrop-blur-sm";
@@ -428,19 +507,43 @@ export function MyUniverseModal({
                 ))}
               </div>
 
-              {/* 나의 감정 톤 */}
+              {/* 선택 감정 비율 */}
               <div className={cardCls}>
-                <p className={labelCls}>나의 감정 톤</p>
-                <div className="flex items-center gap-3">
-                  <div
-                    className="h-10 w-10 rounded-xl flex-shrink-0 shadow-lg"
-                    style={{ backgroundColor: displayToneColor, boxShadow: `0 0 24px ${displayToneColor}44` }}
-                  />
-                  <div>
-                    <p className="text-sm font-medium text-white font-mono">{displayToneColor}</p>
-                    <p className="text-[10px] text-zinc-500 mt-0.5">중심별 색상</p>
+                <p className={labelCls}>선택 감정 비율</p>
+                {emotionRatioItems.length > 0 ? (
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <div className="relative mx-auto sm:mx-0">
+                      <div
+                        className="h-32 w-32 rounded-full"
+                        style={{
+                          background: donutGradient,
+                          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)",
+                        }}
+                      />
+                      <div className="absolute inset-0 m-auto h-20 w-20 rounded-full bg-[#0a0a0f] border border-white/[0.08] flex flex-col items-center justify-center">
+                        <p className="text-[10px] uppercase tracking-[0.16em] text-zinc-500">Daily</p>
+                        <p className="text-xl font-bold text-white leading-none">{totalEmotionCount}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 space-y-2">
+                      {emotionRatioItems.map((item) => (
+                        <div key={item.color} className="flex items-center gap-2.5">
+                          <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
+                          <span className="flex-1 text-[12px] text-zinc-300">{item.label}</span>
+                          <span className="text-[11px] text-zinc-500">{item.count}회</span>
+                          <span className="text-[12px] font-semibold text-white tabular-nums min-w-[42px] text-right">
+                            {item.ratio.toFixed(1)}%
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-white/[0.08] bg-white/[0.02] px-4 py-5 text-center">
+                    <p className="text-sm text-zinc-400">감정 비율을 계산할 DAILY 기록이 아직 없어요</p>
+                  </div>
+                )}
               </div>
 
               {/* 최근 활동 */}
@@ -459,7 +562,7 @@ export function MyUniverseModal({
                           key={i}
                           onClick={() =>
                             item.type === "daily"
-                              ? setSelectedItem({ type: "daily", data: item.raw as DailyPlanet })
+                              ? onDailyPlanetClick(item.raw as DailyPlanet)
                               : onDeepStarClick(item.raw as any)
                           }
                           className="w-full flex items-center gap-3 rounded-xl hover:bg-white/[0.04] px-3 py-2.5 -mx-1 transition-colors text-left group"
@@ -502,7 +605,7 @@ export function MyUniverseModal({
                   .map((planet, i) => (
                     <button
                       key={planet.id || i}
-                      onClick={() => setSelectedItem({ type: "daily", data: planet })}
+                      onClick={() => onDailyPlanetClick(planet)}
                       className="w-full rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.1] p-4 flex items-center gap-4 transition-all text-left group"
                     >
                       <div className="flex-shrink-0 h-9 w-9 flex items-center justify-center">
@@ -703,106 +806,6 @@ export function MyUniverseModal({
         </div>
       </div>
 
-      {/* ━━━ 상세 리포트 오버레이 ━━━ */}
-      {selectedItem && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md"
-          onClick={(e) => { if (e.target === e.currentTarget) setSelectedItem(null); }}
-        >
-          <div className="relative mx-3 flex max-h-[92vh] w-full max-w-[860px] flex-col overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#0a0a0f]/95 shadow-[0_32px_64px_rgba(0,0,0,0.7)] backdrop-blur-2xl">
-            <div className="relative px-6 pt-5 pb-4 flex-shrink-0">
-              <div
-                className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 h-32 w-32 rounded-full blur-[60px] opacity-25"
-                style={{ backgroundColor: selectedItem.type === "daily" ? selectedItem.data.shell : (selectedItem.data as any).toneColor }}
-              />
-              <div className="flex items-center gap-3 relative z-10">
-                <button
-                  onClick={() => setSelectedItem(null)}
-                  className="flex-shrink-0 h-8 w-8 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] flex items-center justify-center text-zinc-500 hover:text-white transition-all"
-                  aria-label="뒤로"
-                >
-                  <IconBack />
-                </button>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[10px] uppercase tracking-[0.3em] text-zinc-500">
-                    {selectedItem.type === "daily" ? "DAILY REPORT" : "WEEKLY REPORT"}
-                  </p>
-                  <h3 className="text-sm font-semibold text-white truncate mt-0.5">
-                    {selectedItem.type === "daily"
-                      ? selectedItem.data.memo?.slice(0, 30) || "DAILY PLANET"
-                      : (selectedItem.data as any).label || "WEEKLY STAR"}
-                  </h3>
-                </div>
-                <span className="text-[10px] text-zinc-600 flex-shrink-0">{formatDate(selectedItem.data.createdAt)}</span>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto px-6 pb-6 custom-scrollbar space-y-4">
-              {selectedItem.type === "daily" &&
-                (() => {
-                  const p = selectedItem.data;
-                  return (
-                    <>
-                      <div className="flex justify-center py-5">
-                        <div className="relative flex items-center justify-center">
-                          <div
-                            className="h-20 w-20 rotate-45 rounded-lg"
-                            style={{
-                              background: `linear-gradient(135deg, ${p.shell}, ${p.core || p.shell}88)`,
-                              boxShadow: `0 0 40px ${p.shell}55, 0 0 80px ${p.shell}22`,
-                            }}
-                          />
-                          <div className="absolute h-5 w-5 rotate-45 rounded-sm opacity-50" style={{ backgroundColor: "#ffffff", top: "20%", left: "24%" }} />
-                        </div>
-                      </div>
-
-                      <div className="grid gap-3 sm:grid-cols-2">
-                        <div className={cardCls}>
-                          <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Shell</p>
-                          <div className="flex items-center gap-2">
-                            <div className="h-5 w-5 rounded-md flex-shrink-0" style={{ backgroundColor: p.shell }} />
-                            <span className="text-xs text-zinc-300 font-mono">{p.shell}</span>
-                          </div>
-                        </div>
-                        {p.core && (
-                          <div className={cardCls}>
-                            <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">Core</p>
-                            <div className="flex items-center gap-2">
-                              <div className="h-5 w-5 rounded-md flex-shrink-0" style={{ backgroundColor: p.core }} />
-                              <span className="text-xs text-zinc-300 font-mono">{p.core}</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {p.memo && (
-                        <div className={cardCls}>
-                          <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">오늘의 한 줄</p>
-                          <p className="text-sm text-zinc-200 leading-relaxed italic">"{p.memo}"</p>
-                        </div>
-                      )}
-
-                      {p.objectType && (
-                        <div className={cardCls}>
-                          <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">오브젝트</p>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs px-2 py-1 rounded bg-sky-500/10 text-sky-400">{p.objectType}</span>
-                            {p.objectColor && <div className="h-4 w-4 rounded-full" style={{ backgroundColor: p.objectColor }} />}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className={cardCls}>
-                        <p className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">기록 일시</p>
-                        <p className="text-sm text-zinc-300">{formatDateTimeKST(p.createdAt)}</p>
-                      </div>
-                    </>
-                  );
-                })()}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
