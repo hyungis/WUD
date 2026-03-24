@@ -344,6 +344,16 @@ class LLMService:
                 {
                     "type": "text",
                     "text": (
+                        "중요: 실제로 입력된 설문만 언급하세요. "
+                        "WHO-5가 없으면 WHO-5를 추정하거나 언급하지 말고, "
+                        "SPANE이 없으면 SPANE 점수/해석을 절대 생성하지 마세요."
+                    ),
+                }
+            )
+            parts.append(
+                {
+                    "type": "text",
+                    "text": (
                         "입력된 이미지, YOLO 결과, WHO-5·SPANE 설문 정보를 함께 참고하여 HTP 해석 기록안을 작성하세요. "
                         "반드시 그림에서 관찰 가능한 특징을 먼저 언급하고, 그 특징이 시사할 수 있는 정서적 경향, "
                         "대처 방식, 관계 태도, 자기표현 특성을 조심스럽게 해석하세요. "
@@ -542,6 +552,14 @@ class LLMService:
             parts.append({"type": "text", "text": f"WHO5_survey: {wellbeing}"})
         if spane_survey:
             parts.append({"type": "text", "text": f"SPANE_survey: {spane_survey}"})
+        parts.append({
+            "type": "text",
+            "text": (
+                "중요: 실제로 입력된 설문만 언급하세요. "
+                "WHO-5가 없으면 WHO-5를 추정하거나 언급하지 말고, "
+                "SPANE이 없으면 SPANE 점수/해석을 절대 생성하지 마세요."
+            ),
+        })
 
         parts.append({"type": "text", "text": user_instruction})
 

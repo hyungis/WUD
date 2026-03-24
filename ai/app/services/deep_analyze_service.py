@@ -164,6 +164,18 @@ def _normalize_llm_response(
 
     if extra_raw:
         raw.update(extra_raw)
+        has_who5 = bool(extra_raw.get("hasWho5", False))
+        has_spane = bool(extra_raw.get("hasSpane", False))
+        wb = raw.get("wellbeing")
+        if isinstance(wb, dict):
+            if not has_who5:
+                wb.pop("who5ScoreTotal", None)
+            if not has_spane:
+                wb.pop("spanePositive", None)
+                wb.pop("spaneNegative", None)
+                wb.pop("spaneBalance", None)
+            if not wb:
+                raw.pop("wellbeing", None)
 
     if not result_summary:
         result_summary = _fallback_summary(llm_json, raw)
@@ -285,7 +297,10 @@ def _analyze_htp(request: AiAnalyzeReq) -> AiAnalyzeResp:
             cross_image_features=cross_image_features if cross_image_features else None,
         )
 
-        extra_raw: dict = {}
+        extra_raw: dict = {
+            "hasWho5": bool(who5_payload),
+            "hasSpane": bool(spane_payload),
+        }
         if is_skipped:
             extra_raw["isSkipped"] = True
         data = _normalize_llm_response(llm_json, _DEFAULT_QUESTIONS_HTP, extra_raw or None)
@@ -365,7 +380,12 @@ def _analyze_single_image(request: AiAnalyzeReq, *, deep_type: str) -> AiAnalyze
         )
 
         default_questions = _DEFAULT_QUESTIONS_MAP[deep_type]
-        extra_raw = {"isSkipped": True} if is_skipped else None
+        extra_raw: dict[str, Any] = {
+            "hasWho5": bool(who5_payload),
+            "hasSpane": bool(spane_payload),
+        }
+        if is_skipped:
+            extra_raw["isSkipped"] = True
         data = _normalize_llm_response(llm_json, default_questions, extra_raw)
 
         print(f"[Deep Analyze {deep_type}] SUCCESS session={request.sessionId} "
