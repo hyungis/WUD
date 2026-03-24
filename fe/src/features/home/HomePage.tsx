@@ -806,6 +806,7 @@ function HomePage() {
         mypageStar={mypageStar}
         dailyPlanets={dailyPlanets}
         deepStars={deepStars}
+        onDailyPlanetClick={(planet) => { setIsMyUniverseOpen(false); void openDailyReport(planet as any); }}
         onDeepStarClick={(star) => { setIsMyUniverseOpen(false); void openDeepReport(star as any); }}
       />
 
