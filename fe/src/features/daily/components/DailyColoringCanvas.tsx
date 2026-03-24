@@ -20,7 +20,6 @@ export function DailyColoringCanvas({
   brushSize,
 }: DailyColoringCanvasProps) {
   const cursor = getToolCursor(tool, paintColor, 18 + brushSize * 2);
-  const overlayRef = useRef<HTMLImageElement | null>(null);
   const hasLoadedRef = useRef(false);
 
   // 캔버스에 윤곽선 이미지를 배경으로 로드
@@ -68,16 +67,6 @@ export function DailyColoringCanvas({
         onPointerMove={drawing.handlePointerMove}
         onPointerUp={drawing.handlePointerUp}
         cursor={cursor}
-      />
-
-      {/* 윤곽선 오버레이 (포인터 이벤트 없이 시각적으로만 표시) */}
-      <img
-        ref={overlayRef}
-        src={outlineUrl}
-        alt="coloring outline"
-        className="absolute inset-0 w-full h-full pointer-events-none opacity-60 mix-blend-multiply"
-        style={{ objectFit: "cover" }}
-        draggable={false}
       />
     </div>
   );
