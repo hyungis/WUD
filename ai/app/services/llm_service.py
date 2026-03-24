@@ -109,7 +109,8 @@ class LLMService:
         client = self._get_client()
         model_name = (settings.gms_model or "").strip() or "gpt-4o"
 
-        allowed_endings = ("인 것 같아요.", "한 듯해요.", "해 보이네요.", "느껴져요.", "보여요.")
+        # 데일리 피드백은 LLM이 생성한 문장을 최대한 그대로 사용합니다.
+        # (접미사 자동 추가 로직을 제거해서 `인 것 같아요` 중복 문제를 근본적으로 방지)
 
         developer_prompt = (
             "당신은 사용자가 그린 데일리 그림(만다라, 컬러링, 자유그림 등)을 보고 "
@@ -170,14 +171,8 @@ class LLMService:
             out = " ".join(out.split())
             if not out:
                 raise ValueError("Empty LLM content")
-            # Enforce preferred ending for daily one-liner storage.
-            if out.endswith("읽혀요.") or out.endswith("읽힐 수 있어요.") or out.endswith("읽힙니다."):
-                out = out.rstrip(".")
-                out = out + "인 것 같아요."
-            if not out.endswith(allowed_endings):
-                if out.endswith(".") or out.endswith("!") or out.endswith("?"):
-                    out = out[:-1]
-                out = out + "인 것 같아요."
+            # Only format cleanup: keep it single-line and trim.
+            out = out.strip()
             return out
         except Exception as e:
             print(f"[LLM] Error calling SSAFY GMS API (daily vision): {e}")
