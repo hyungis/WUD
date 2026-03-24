@@ -234,10 +234,14 @@ class LLMService:
         {
         "intro": "현재 정서적 기조와 전반적 특성을 요약한 문단 (3~5문장)",
         "coreInsights": [
-            "1. [관찰된 그림 특징]이 [가능한 심리적 의미]를 시사합니다.",
-            "2. [관찰된 그림 특징]이 [현재의 대처 방식/관계 태도/에너지 상태]와 연결되어 보입니다.",
-            "3. ...",
-            "4. ..."
+            {
+            "observation": "그림에서 관찰되는 구체 단서 1문장",
+            "interpretation": "단정하지 않는 심리 해석 1문장"
+            },
+            {
+            "observation": "...",
+            "interpretation": "..."
+            }
         ],
         "strengths": ["강점 1", "강점 2", "강점 3"],
         "questions": ["질문 1", "질문 2", "질문 3", "질문 4", "질문 5"],
@@ -279,10 +283,12 @@ class LLMService:
                 "- 부정적 측면만 강조하지 말고, 현재의 강점·회복 자원·지지 기반도 함께 제시할 것.\n"
                 "- WHO-5와 SPANE 점수는 보조 맥락으로만 활용하고, 점수만으로 해석을 끌고 가지 말 것.\n"
                 "- 'intro'는 현재 정서적 기조와 전반적 대처 양식을 요약하는 문단으로 작성할 것.\n"
-                "- 'coreInsights'는 그림의 두드러진 특징 3~5가지를 골라, 각 항목마다 '관찰 + 해석' 구조로 작성할 것.\n"
+                "- 'coreInsights'는 3~5개 항목으로, 각 항목을 {observation, interpretation} 객체로 작성할 것.\n"
+                "- intro의 핵심 판단(예: 긴장, 스트레스, 회복력, 위축 등)은 반드시 coreInsights 항목에서 근거가 확인되어야 함.\n"
+                "- intro에 쓴 판단이 coreInsights에 없으면 해당 판단을 intro에서 제거하거나 coreInsights에 근거 항목을 추가할 것.\n"
                 "- 'questions'는 자기이해를 돕는 개방형 질문으로 구성할 것.\n"
                 "- 반드시 JSON 객체 하나만 출력할 것.\n\n"
-                "- coreInsights 각 항목은 1~2문장 이내로 작성하고, 첫 문장에는 관찰, 두 번째 문장에는 해석을 배치할 것.\n"
+                "- observation은 관찰 사실 중심, interpretation은 가능성 표현 중심으로 작성할 것.\n"
                 + output_schema
             )
 
@@ -344,6 +350,24 @@ class LLMService:
                 {
                     "type": "text",
                     "text": (
+                        "[미니 예시 1]\n"
+                        "입력 단서: house.strokeFeatures.pressureConsistency=inconsistent, "
+                        "house.strokeFeatures.overdrawRatio=0.18\n"
+                        "좋은 insight 예시:\n"
+                        "{\"observation\":\"집 선 두께의 변동이 크고 일부 구간에서 덧칠이 반복됩니다.\","
+                        "\"interpretation\":\"최근 부담이 커지며 긴장을 조절하려는 노력이 함께 나타나는 흐름일 수 있습니다.\"}\n\n"
+                        "[미니 예시 2]\n"
+                        "입력 단서: person.colorFeatures.warmCoolBalance=warm, cross.styleConsistency.overall=low\n"
+                        "좋은 insight 예시:\n"
+                        "{\"observation\":\"인물 그림은 따뜻한 색 비중이 높고, 세 그림의 스타일 일관성은 낮게 나타납니다.\","
+                        "\"interpretation\":\"정서 표현 욕구는 뚜렷하지만 상황별로 에너지 배분이 달라질 수 있음을 시사합니다.\"}"
+                    ),
+                }
+            )
+            parts.append(
+                {
+                    "type": "text",
+                    "text": (
                         "중요: 실제로 입력된 설문만 언급하세요. "
                         "WHO-5가 없으면 WHO-5를 추정하거나 언급하지 말고, "
                         "SPANE이 없으면 SPANE 점수/해석을 절대 생성하지 마세요."
@@ -375,7 +399,8 @@ class LLMService:
                         "두 설문 점수만으로 전체 해석을 주도하지 말고, 그림의 시각적 단서와 교차하여 맥락적으로 참고하세요. "
                         "결과는 상담 문장이나 위로 편지가 아니라, 전문적인 분석 기록문 형태로 작성하세요. "
                         "intro는 현재 정서적 기조와 전반적인 특성을 3~5문장으로 요약하고, "
-                        "coreInsights는 3~5개의 핵심 특징에 대해 각각 '관찰 + 해석' 구조로 작성하세요. "
+                        "coreInsights는 3~5개의 핵심 특징에 대해 {observation, interpretation} 구조로 작성하세요. "
+                        "intro의 핵심 판단은 반드시 coreInsights에서 근거가 확인되도록 맞추세요. "
                         "strengths는 그림에서 드러난 자원과 강점을 근거 기반으로 정리하고, "
                         "questions는 자기이해를 돕는 개방형 질문으로 구성하세요."
                     ),
@@ -471,10 +496,14 @@ class LLMService:
 {
   "intro": "현재 정서적 기조와 전반적 특성을 요약한 문단 (3~5문장)",
   "coreInsights": [
-    "1. [관찰된 그림 특징]이 [가능한 심리적 의미]를 시사합니다.",
-    "2. ...",
-    "3. ...",
-    "4. ..."
+    {
+      "observation": "그림에서 관찰되는 구체 단서 1문장",
+      "interpretation": "단정하지 않는 심리 해석 1문장"
+    },
+    {
+      "observation": "...",
+      "interpretation": "..."
+    }
   ],
   "strengths": ["강점 1", "강점 2", "강점 3"],
   "questions": ["질문 1", "질문 2", "질문 3", "질문 4", "질문 5"],
@@ -537,9 +566,11 @@ class LLMService:
                     "- 부정적 측면만 강조하지 말고, 현재의 강점·회복 자원·지지 기반도 함께 제시할 것.\n"
                     "- WHO-5와 SPANE 점수는 보조 맥락으로만 활용하고, 점수만으로 해석을 끌고 가지 말 것.\n"
                     "- 'intro'는 현재 정서적 기조와 전반적 특성을 3~5문장으로 요약할 것.\n"
-                    "- 'coreInsights'는 그림의 두드러진 특징 3~5가지를 '관찰 + 해석' 구조로 작성할 것.\n"
+                    "- 'coreInsights'는 3~5개 항목으로, 각 항목을 {observation, interpretation} 객체로 작성할 것.\n"
+                    "- intro의 핵심 판단(예: 긴장, 스트레스, 회복력, 위축 등)은 반드시 coreInsights 항목에서 근거가 확인되어야 함.\n"
+                    "- intro에 쓴 판단이 coreInsights에 없으면 해당 판단을 intro에서 제거하거나 coreInsights에 근거 항목을 추가할 것.\n"
                     "- 'questions'는 자기이해를 돕는 개방형 질문으로 구성할 것.\n"
-                    "- coreInsights 각 항목은 1~2문장 이내로, 첫 문장은 관찰, 두 번째 문장은 해석으로 배치할 것.\n"
+                    "- observation은 관찰 사실 중심, interpretation은 가능성 표현 중심으로 작성할 것.\n"
                     "- 반드시 JSON 객체 하나만 출력할 것.\n\n"
                     + self._SINGLE_IMAGE_OUTPUT_SCHEMA
                 ),
@@ -651,7 +682,8 @@ class LLMService:
             "WHO-5 점수는 전반적 웰빙 수준을, SPANE 점수는 최근 긍정·부정 정서 경험의 균형을 이해하는 보조 정보로 활용하세요. "
             "결과는 전문적인 분석 기록문 형태로 작성하세요. "
             "intro는 현재 정서적 기조와 스트레스 대처 양식을 3~5문장으로 요약하고, "
-            "coreInsights는 3~5개의 핵심 특징에 대해 각각 '관찰 + 해석' 구조로 작성하세요. "
+            "coreInsights는 3~5개의 핵심 특징에 대해 {observation, interpretation} 구조로 작성하세요. "
+            "intro의 핵심 판단은 반드시 coreInsights에서 근거가 확인되도록 맞추세요. "
             "strengths는 그림에서 드러난 자원과 강점을 근거 기반으로 정리하고, "
             "questions는 자기이해를 돕는 개방형 질문으로 구성하세요."
         )
@@ -699,7 +731,8 @@ class LLMService:
             "WHO-5 점수는 전반적 웰빙 수준을, SPANE 점수는 최근 긍정·부정 정서 경험의 균형을 이해하는 보조 정보로 활용하세요. "
             "결과는 전문적인 분석 기록문 형태로 작성하세요. "
             "intro는 현재 정서적 기조와 내면 리듬의 특성을 3~5문장으로 요약하고, "
-            "coreInsights는 3~5개의 핵심 특징에 대해 각각 '관찰 + 해석' 구조로 작성하세요. "
+            "coreInsights는 3~5개의 핵심 특징에 대해 {observation, interpretation} 구조로 작성하세요. "
+            "intro의 핵심 판단은 반드시 coreInsights에서 근거가 확인되도록 맞추세요. "
             "strengths는 그림에서 드러난 자원과 강점을 근거 기반으로 정리하고, "
             "questions는 자기이해를 돕는 개방형 질문으로 구성하세요."
         )
