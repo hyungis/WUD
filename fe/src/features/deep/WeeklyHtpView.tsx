@@ -10,6 +10,7 @@ import HTPResultView from "./components/HTPResultView";
 import { useAlert } from "../../components/shared/AlertProvider";
 import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, saveRecentPaintColors } from "../../utils/paintColors";
 import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
+import { getToolCursor } from "../../utils/toolCursors";
 import { useUiStore } from "../../store/uiStore";
 import { WEEKLY_LIMIT_MESSAGE, hasWeeklyDeepEntryByType } from "../../utils/dailyLimit";
 
@@ -448,7 +449,7 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
     setIsSaving(false);
   };
 
-  const canvasCursor = tool === "fill" ? "crosshair" : tool === "eraser" ? "cell" : "default";
+  const canvasCursor = getToolCursor(tool, paintColor, 18 + brushSize * 2);
 
   const content = (
     <div
@@ -707,7 +708,14 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
                 </div>
                 <label className="flex h-8 w-full cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-zinc-900/95 text-xs text-zinc-300 transition-colors hover:bg-zinc-800">
                   커스텀 색상
-                  <input type="color" value={paintColor} onChange={(e) => selectPaintColor(e.target.value)} className="absolute opacity-0 w-0 h-0" />
+                  <input
+                    type="color"
+                    value={paintColor}
+                    onInput={(e) => setPaintColor((e.target as HTMLInputElement).value)}
+                    onChange={(e) => setPaintColor((e.target as HTMLInputElement).value)}
+                    onBlur={(e) => selectPaintColor((e.target as HTMLInputElement).value)}
+                    className="absolute opacity-0 w-0 h-0"
+                  />
                 </label>
                 </div>
               )}

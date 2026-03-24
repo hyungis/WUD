@@ -712,7 +712,9 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
                         <input
                           type="color"
                           value={paintColor}
-                          onChange={(event) => selectPaintColor(event.target.value)}
+                          onInput={(event) => setPaintColor((event.target as HTMLInputElement).value)}
+                          onChange={(event) => setPaintColor((event.target as HTMLInputElement).value)}
+                          onBlur={(event) => selectPaintColor((event.target as HTMLInputElement).value)}
                           className="h-6 w-6 cursor-pointer rounded-full border-2 border-dashed border-white/20 bg-transparent transition hover:border-white/40"
                           aria-label="직접 색상 선택"
                           title="직접 색상 선택"
