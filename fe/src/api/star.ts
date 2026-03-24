@@ -23,4 +23,12 @@ export const starApi = {
     // 우주 통계 (주로 사용된 감정, 비율 등)
     getStatistics: (params?: { from?: string; to?: string }) =>
         api.get<any, ApiResponse<StatisticsResponse>>("/stars/statistics", { params }),
+
+    // 중심별 조회
+    getCenterStar: () =>
+        api.get<any, ApiResponse<{ shapeType: string; color: string }>>("/center-star"),
+
+    // 중심별 커스텀 수정
+    updateCenterStar: (data: { shapeType: string; color: string }) =>
+        api.put<any, ApiResponse<void>>("/center-star", data),
 };

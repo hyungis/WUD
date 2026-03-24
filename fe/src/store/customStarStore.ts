@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { starApi } from "../api/star";
 
 // ── Shape 종류 (8종) ──
 export type StarShape =
@@ -51,9 +52,11 @@ type CustomStarState = {
 
   setShape: (shape: StarShape) => void;
   setColor: (color: string) => void;
+  /** 백엔드에서 현재 설정 조회 */
+  fetchCenterStar: () => Promise<void>;
   /** localStorage에 현재 설정 저장 */
   saveToStorage: () => void;
-  /** 추후 백엔드 PATCH API 연동용 (추상화) */
+  /** 백엔드 API 연동 */
   saveToBackend: () => Promise<void>;
 };
 
@@ -99,10 +102,35 @@ export const useCustomStarStore = create<CustomStarState>((set, get) => ({
     }
   },
 
-  // 추후 백엔드 연동 시 구현: PATCH /api/users/me/star
+  fetchCenterStar: async () => {
+    try {
+      const res = await starApi.getCenterStar();
+      if (res.success && res.data) {
+        const { shapeType, color } = res.data;
+        set((state) => ({
+          currentShape: shapeType as StarShape,
+          currentColor: color,
+          animationTrigger: state.animationTrigger + 1,
+        }));
+      }
+    } catch (e) {
+      console.error("Failed to fetch center star:", e);
+    }
+  },
+
   saveToBackend: async () => {
     const { currentShape, currentColor } = get();
-    console.log("[customStarStore] saveToBackend placeholder:", { currentShape, currentColor });
-    // await api.patch("/api/users/me/star", { shape: currentShape, color: currentColor });
+    try {
+      const res = await starApi.updateCenterStar({
+        shapeType: currentShape,
+        color: currentColor,
+      });
+      if (res.success) {
+        console.log("[customStarStore] Successfully saved to backend");
+      }
+    } catch (e) {
+      console.error("Failed to save center star to backend:", e);
+      throw e;
+    }
   },
 }));
