@@ -250,7 +250,14 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
                 </div>
                 <label className="flex h-8 w-full cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-zinc-900/95 text-xs text-zinc-300 transition-colors hover:bg-zinc-800">
                   커스텀 색상
-                  <input type="color" value={paintColor} onChange={(e) => selectPaintColor(e.target.value)} className="absolute opacity-0 w-0 h-0" />
+                  <input
+                    type="color"
+                    value={paintColor}
+                    onInput={(e) => setPaintColor((e.target as HTMLInputElement).value)}
+                    onChange={(e) => setPaintColor((e.target as HTMLInputElement).value)}
+                    onBlur={(e) => selectPaintColor((e.target as HTMLInputElement).value)}
+                    className="absolute opacity-0 w-0 h-0"
+                  />
                 </label>
               </div>
             )}
