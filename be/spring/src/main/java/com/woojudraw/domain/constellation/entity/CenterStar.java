@@ -39,6 +39,9 @@ import lombok.NoArgsConstructor;
 @Builder
 public class CenterStar {
 
+	public static final CenterStarShapeType DEFAULT_SHAPE_TYPE = CenterStarShapeType.sphere;
+	public static final String DEFAULT_COLOR = "#e2e8f0";
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
@@ -73,6 +76,10 @@ public class CenterStar {
 			.createdAt(now)
 			.updatedAt(now)
 			.build();
+	}
+
+	public static CenterStar createDefault(User user, OffsetDateTime now) {
+		return create(user, DEFAULT_SHAPE_TYPE, DEFAULT_COLOR, now);
 	}
 
 	public void updateCustomization(CenterStarShapeType shapeType, String color) {

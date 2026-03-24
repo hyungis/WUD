@@ -10,6 +10,8 @@ import com.woojudraw.domain.auth.api.dto.req.LoginReq;
 import com.woojudraw.domain.auth.api.dto.req.SignupReq;
 import com.woojudraw.domain.auth.application.AuthService;
 import com.woojudraw.domain.auth.application.dto.IssuedTokens;
+import com.woojudraw.domain.constellation.entity.CenterStar;
+import com.woojudraw.domain.constellation.repository.CenterStarRepository;
 import com.woojudraw.domain.user.entity.User;
 import com.woojudraw.domain.user.entity.UserStatus;
 import com.woojudraw.domain.user.repository.UserRepository;
@@ -17,6 +19,7 @@ import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
 import com.woojudraw.global.security.jwt.JwtTokenProvider;
 import com.woojudraw.global.security.jwt.RedisTokenStore;
+import com.woojudraw.global.time.AppTime;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
@@ -32,6 +35,7 @@ public class AuthServiceImpl implements AuthService {
 	private static final String SESSION_ID_CLAIM = "sid";
 
 	private final UserRepository userRepository;
+	private final CenterStarRepository centerStarRepository;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtTokenProvider jwtTokenProvider;
 	private final RedisTokenStore redisTokenStore;
@@ -49,7 +53,8 @@ public class AuthServiceImpl implements AuthService {
 			.nickname(req.getNickname())
 			.build();
 
-		userRepository.save(user);
+		User savedUser = userRepository.save(user);
+		centerStarRepository.save(CenterStar.createDefault(savedUser, AppTime.nowKst()));
 	}
 
 	@Override

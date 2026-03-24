@@ -1,12 +1,12 @@
 package com.woojudraw.domain.constellation.entity;
 
 public enum CenterStarShapeType {
-	SPHERE,
-	CUBE,
-	OCTAHEDRON,
-	ICOSAHEDRON,
-	TORUS_KNOT,
-	DODECAHEDRON,
-	PYRAMID,
-	STAR_POLYHEDRON
+	sphere,
+	box,
+	octahedron,
+	icosahedron,
+	torusKnot,
+	dodecahedron,
+	tetrahedron,
+	stellated
 }

@@ -16,7 +16,6 @@ import com.woojudraw.domain.constellation.application.ConstellationService;
 import com.woojudraw.domain.constellation.api.dto.req.UpdateCenterStarReq;
 import com.woojudraw.domain.constellation.api.dto.resp.GetCenterStarResp;
 import com.woojudraw.domain.constellation.entity.CenterStar;
-import com.woojudraw.domain.constellation.entity.CenterStarShapeType;
 import com.woojudraw.domain.constellation.entity.Constellation;
 import com.woojudraw.domain.constellation.api.dto.resp.GetStarMapResp;
 import com.woojudraw.domain.constellation.api.dto.resp.GetWeeklyConstellationResp;
@@ -40,9 +39,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Transactional
 public class ConstellationServiceImpl implements ConstellationService {
-
-	private static final CenterStarShapeType DEFAULT_CENTER_STAR_SHAPE = CenterStarShapeType.SPHERE;
-	private static final String DEFAULT_CENTER_STAR_COLOR = "#FFFFFF";
 
 	private final UserRepository userRepository;
 	private final CenterStarRepository centerStarRepository;
@@ -249,8 +245,8 @@ public class ConstellationServiceImpl implements ConstellationService {
 
 	private GetCenterStarResp defaultCenterStarResp() {
 		return GetCenterStarResp.builder()
-			.shapeType(DEFAULT_CENTER_STAR_SHAPE.name())
-			.color(DEFAULT_CENTER_STAR_COLOR)
+			.shapeType(CenterStar.DEFAULT_SHAPE_TYPE.name())
+			.color(CenterStar.DEFAULT_COLOR)
 			.build();
 	}
 

@@ -45,8 +45,8 @@ class ConstellationServiceImplTest {
 		CenterStar centerStar = CenterStar.builder()
 			.id(21L)
 			.user(user)
-			.shapeType(CenterStarShapeType.SPHERE)
-			.color("#FFFFFF")
+			.shapeType(CenterStar.DEFAULT_SHAPE_TYPE)
+			.color(CenterStar.DEFAULT_COLOR)
 			.createdAt(OffsetDateTime.parse("2026-03-12T09:00:00+09:00"))
 			.updatedAt(OffsetDateTime.parse("2026-03-12T09:00:00+09:00"))
 			.build();
@@ -74,8 +74,8 @@ class ConstellationServiceImplTest {
 
 		GetStarMapResp response = service.getStarMap(1L);
 
-		assertThat(response.getCenterStar().getShapeType()).isEqualTo("SPHERE");
-		assertThat(response.getCenterStar().getColor()).isEqualTo("#FFFFFF");
+		assertThat(response.getCenterStar().getShapeType()).isEqualTo(CenterStar.DEFAULT_SHAPE_TYPE.name());
+		assertThat(response.getCenterStar().getColor()).isEqualTo(CenterStar.DEFAULT_COLOR);
 		assertThat(response.getStars()).hasSize(1);
 		assertThat(response.getStars().get(0).getColor()).isEqualTo("#4FC3F7");
 		assertThat(response.getStars().get(0).getCreatedAt().toString()).isEqualTo("2026-03-12T09:15:30+09:00");
@@ -96,8 +96,8 @@ class ConstellationServiceImplTest {
 
 		when(centerStarRepository.findByUser_Id(1L)).thenReturn(java.util.Optional.empty());
 
-		assertThat(service.getCenterStar(1L).getShapeType()).isEqualTo("SPHERE");
-		assertThat(service.getCenterStar(1L).getColor()).isEqualTo("#FFFFFF");
+		assertThat(service.getCenterStar(1L).getShapeType()).isEqualTo(CenterStar.DEFAULT_SHAPE_TYPE.name());
+		assertThat(service.getCenterStar(1L).getColor()).isEqualTo(CenterStar.DEFAULT_COLOR);
 	}
 
 	@Test
@@ -117,7 +117,7 @@ class ConstellationServiceImplTest {
 
 		java.lang.reflect.Field shapeTypeField = UpdateCenterStarReq.class.getDeclaredField("shapeType");
 		shapeTypeField.setAccessible(true);
-		shapeTypeField.set(req, CenterStarShapeType.TORUS_KNOT);
+		shapeTypeField.set(req, CenterStarShapeType.torusKnot);
 
 		java.lang.reflect.Field colorField = UpdateCenterStarReq.class.getDeclaredField("color");
 		colorField.setAccessible(true);
