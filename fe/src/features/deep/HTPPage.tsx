@@ -5,24 +5,11 @@ import { deepApi } from "../../api/deep";
 import { imageApi } from "../../api/image";
 import type { DeepDetailResponse } from "../../types/deep";
 import HTPResultView from "./components/HTPResultView";
+import { getToolCursor } from "../../utils/toolCursors";
+import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, saveRecentPaintColors } from "../../utils/paintColors";
 
 type HtpStep = "house" | "tree" | "person";
 type HtpPhase = "survey" | "draw" | "result";
-
-const PALETTE = [
-  "#111827",
-  "#374151",
-  "#6B7280",
-  "#F97316",
-  "#F59E0B",
-  "#10B981",
-  "#06B6D4",
-  "#3B82F6",
-  "#6366F1",
-  "#8B5CF6",
-  "#EC4899",
-  "#F43F5E",
-];
 const BRUSH_PRESETS = [2, 4, 6, 8, 12];
 const WHO5_QUESTIONS = [
   "지난 2주 동안 기분이 밝고 명랑했다.",
@@ -95,18 +82,17 @@ function floodFill(
 
 const BrushIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-    <path d="M12 19l7-7 3 3-7 7-3-3z" /><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" /><path d="M2 2l7.586 7.586" />
+    <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" />
   </svg>
 );
 const FillIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-    <path d="M2.5 2.5l19 19" /><path d="M12 2v6.5L17.5 14" /><path d="M19 19c1.5 0 3-1.5 3-3s-3-5-3-5-3 3-3 5 1.5 3 3 3z" />
-    <path d="M2 22l4-4" /><path d="M7.5 13.5L2 19" />
+    <path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z" /><path d="m5 2 5 5" /><path d="M2 13h15" /><path d="M22 20c0 .8-.7 1.7-1.5 1.7S19 20.8 19 20s1.5-2.8 1.5-2.8S22 19.2 22 20Z" />
   </svg>
 );
 const EraserIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-    <path d="M7 21h10" /><path d="M5.5 12.5L12 6l6 6-4.5 4.5a2.12 2.12 0 01-3 0l-5-5z" />
+    <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" /><path d="M22 21H7" /><path d="m5 11 9 9" />
   </svg>
 );
 const TrashIcon = () => (
@@ -172,7 +158,8 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [phase, setPhase] = useState<HtpPhase>("survey");
-  const [paintColor, setPaintColor] = useState(PALETTE[0]);
+  const [paintColor, setPaintColor] = useState<string>(PAINT_PRESET_COLORS[0]);
+  const [recentColors, setRecentColors] = useState<string[]>([]);
   const [brushSize, setBrushSize] = useState(4);
   const [tool, setTool] = useState<ToolType>("brush");
   const [strokeCount, setStrokeCount] = useState(0);
@@ -182,6 +169,17 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
   const [stepDrawings, setStepDrawings] = useState<Partial<Record<HtpStep, string>>>({});
   const [who5Answers, setWho5Answers] = useState<number[]>([3, 3, 3, 3, 3]);
   const [latestResult, setLatestResult] = useState<DeepDetailResponse | null>(null);
+
+  useEffect(() => {
+    setRecentColors(getRecentPaintColors());
+  }, []);
+
+  const selectPaintColor = (color: string) => {
+    setPaintColor(color);
+    const nextRecent = addRecentPaintColor(color, recentColors);
+    setRecentColors(nextRecent);
+    saveRecentPaintColors(nextRecent);
+  };
 
   const currentStep = STEPS[stepIndex];
 
@@ -226,12 +224,18 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
   }, [brushSize, paintColor]);
 
   const getPoint = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
+    const canvas = event.currentTarget;
     const rect = canvas.getBoundingClientRect();
+    const ctx = canvas.getContext("2d");
+    const transform = ctx?.getTransform();
+    const transformX = transform?.a || 1;
+    const transformY = transform?.d || 1;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
     return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
+      x: (event.clientX - rect.left) * (scaleX / transformX),
+      y: (event.clientY - rect.top) * (scaleY / transformY),
     };
   }, []);
 
@@ -300,7 +304,7 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
     setStrokeCount(0);
   }, []);
 
-  const canvasCursor = tool === "fill" ? "crosshair" : tool === "eraser" ? "cell" : "default";
+  const canvasCursor = getToolCursor(tool, paintColor, 18 + brushSize * 2);
 
   const persistCurrentStepDrawing = useCallback(() => {
     const originalCanvas = canvasRef.current;
@@ -669,32 +673,51 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-2">
                     <span className="mr-1 text-[11px] font-medium uppercase tracking-widest text-slate-500">색상</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {PALETTE.map((color) => (
-                        <button
-                          key={color}
-                          type="button"
-                          onClick={() => setPaintColor(color)}
-                          onMouseDown={(event) => event.preventDefault()}
-                          tabIndex={-1}
-                          className={`h-6 w-6 rounded-full border-2 transition-all duration-150 ${paintColor === color
-                            ? "scale-110 border-white shadow-[0_0_10px_rgba(255,255,255,0.4)]"
-                            : "border-transparent hover:scale-105 hover:border-white/30"
-                            }`}
-                          style={{ backgroundColor: color }}
-                          aria-label={`${color} 선택`}
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex flex-wrap gap-2.5">
+                        {PAINT_PRESET_COLORS.map((color) => (
+                          <button
+                            key={color}
+                            type="button"
+                            onClick={() => selectPaintColor(color)}
+                            onMouseDown={(event) => event.preventDefault()}
+                            tabIndex={-1}
+                            className={`h-6 w-6 rounded-full border-2 transition-all duration-150 ${paintColor === color
+                              ? "border-white shadow-[0_0_10px_rgba(255,255,255,0.4)]"
+                              : "border-transparent hover:border-white/30"
+                              }`}
+                            style={{ backgroundColor: color }}
+                            aria-label={`${color} 선택`}
+                          />
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-2.5 min-h-6">
+                        {recentColors.length > 0 ? recentColors.map((color) => (
+                          <button
+                            key={`recent-${color}`}
+                            type="button"
+                            onClick={() => selectPaintColor(color)}
+                            onMouseDown={(event) => event.preventDefault()}
+                            tabIndex={-1}
+                            className={`h-6 w-6 rounded-full border-2 transition-all duration-150 ${paintColor === color
+                              ? "border-white shadow-[0_0_10px_rgba(255,255,255,0.4)]"
+                              : "border-white/10 hover:border-white/30"
+                              }`}
+                            style={{ backgroundColor: color }}
+                            aria-label={`${color} 선택`}
+                          />
+                        )) : <span className="text-[10px] text-slate-500">최근 색상 없음</span>}
+                        <input
+                          type="color"
+                          value={paintColor}
+                          onChange={(event) => selectPaintColor(event.target.value)}
+                          className="h-6 w-6 cursor-pointer rounded-full border-2 border-dashed border-white/20 bg-transparent transition hover:border-white/40"
+                          aria-label="직접 색상 선택"
+                          title="직접 색상 선택"
                         />
-                      ))}
-                      <input
-                        type="color"
-                        value={paintColor}
-                        onChange={(event) => setPaintColor(event.target.value)}
-                        className="h-6 w-6 cursor-pointer rounded-full border-2 border-dashed border-white/20 bg-transparent transition hover:border-white/40"
-                        aria-label="직접 색상 선택"
-                        title="직접 색상 선택"
-                      />
+                      </div>
                     </div>
                   </div>
 

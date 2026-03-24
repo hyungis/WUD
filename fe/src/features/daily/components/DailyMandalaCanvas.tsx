@@ -1,20 +1,24 @@
 import { DrawingCanvas } from "../../../components/shared/DrawingCanvas";
 import { useCanvasDrawing } from "../../../hooks/useCanvasDrawing";
 import type { ToolType } from "../../../hooks/useCanvasDrawing";
+import { getToolCursor } from "../../../utils/toolCursors";
 
 interface DailyMandalaCanvasProps {
   drawing: ReturnType<typeof useCanvasDrawing>;
   symmetry: number;
   tool: ToolType;
+  paintColor: string;
+  brushSize: number;
 }
 
 export function DailyMandalaCanvas({
   drawing,
   symmetry,
   tool,
+  paintColor,
+  brushSize,
 }: DailyMandalaCanvasProps) {
-  // cursor style per tool - ported from DailyDetailView.tsx
-  const cursor = tool === "fill" ? "crosshair" : tool === "eraser" ? "cell" : "default";
+  const cursor = getToolCursor(tool, paintColor, 18 + brushSize * 2);
 
   return (
     <div

@@ -6,6 +6,7 @@ import type { ToolType } from "../../hooks/useCanvasDrawing";
 import { DailyMandalaCanvas } from "./components/DailyMandalaCanvas";
 import { useAlert } from "../../components/shared/AlertProvider";
 import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntryByType } from "../../utils/dailyLimit";
+import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, saveRecentPaintColors } from "../../utils/paintColors";
 
 /* ── constants ── */
 const PALETTE = [
@@ -13,14 +14,14 @@ const PALETTE = [
   "#06B6D4", "#3B82F6", "#6366F1", "#8B5CF6", "#EC4899", "#F43F5E",
 ];
 
-/* ── tiny SVG icons ── */
-const BrushIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 19l7-7 3 3-7 7-3-3z" /><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" /><path d="M2 2l7.586 7.586" /></svg>;
-const FillIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M2.5 2.5l19 19" /><path d="M12 2v6.5L17.5 14" /><path d="M19 19c1.5 0 3-1.5 3-3s-3-5-3-5-3 3-3 5 1.5 3 3 3z" /><path d="M2 22l4-4" /><path d="M7.5 13.5L2 19" /></svg>;
-const EraserIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M7 21h10" /><path d="M5.5 12.5L12 6l6 6-4.5 4.5a2.12 2.12 0 01-3 0l-5-5z" /></svg>;
+/* ── tiny SVG icons (Lucide-based) ── */
+const BrushIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>;
+const FillIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z" /><path d="m5 2 5 5" /><path d="M2 13h15" /><path d="M22 20c0 .8-.7 1.7-1.5 1.7S19 20.8 19 20s1.5-2.8 1.5-2.8S22 19.2 22 20Z" /></svg>;
+const EraserIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" /><path d="M22 21H7" /><path d="m5 11 9 9" /></svg>;
 const TrashIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>;
 const UndoIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M3 7v6h6" /><path d="M21 17a9 9 0 00-9-9 9 9 0 00-6 2.3L3 13" /></svg>;
 const RedoIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M21 7v6h-6" /><path d="M3 17a9 9 0 019-9 9 9 0 016 2.3l3 2.7" /></svg>;
-const SymmetryIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><circle cx="12" cy="12" r="10" /><line x1="12" y1="2" x2="12" y2="22" /><line x1="2" y1="12" x2="22" y2="12" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /><line x1="4.93" y1="19.07" x2="19.07" y2="4.93" /></svg>;
+const SymmetryIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M12 2v20" /><path d="M2 12h20" /><path d="m4.93 4.93 14.14 14.14" /><path d="m4.93 19.07 14.14-14.14" /><circle cx="12" cy="12" r="2" /></svg>;
 
 /* ── toolbar pill button ── */
 function ToolBtn({
@@ -58,7 +59,8 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
   const { showAlert } = useAlert();
 
   const [shellColor] = useState(() => localStorage.getItem("dailyMoodColor") || PALETTE[0]);
-  const [paintColor, setPaintColor] = useState(PALETTE[0]);
+  const [paintColor, setPaintColor] = useState<string>(PAINT_PRESET_COLORS[0]);
+  const [recentColors, setRecentColors] = useState<string[]>([]);
   const [brushSize, setBrushSize] = useState(4);
   const [symmetry, setSymmetry] = useState(8);
   const [tool, setTool] = useState<ToolType>("brush");
@@ -82,6 +84,17 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
     } catch {
       return false;
     }
+  };
+
+  useEffect(() => {
+    setRecentColors(getRecentPaintColors());
+  }, []);
+
+  const selectPaintColor = (color: string) => {
+    setPaintColor(color);
+    const nextRecent = addRecentPaintColor(color, recentColors);
+    setRecentColors(nextRecent);
+    saveRecentPaintColors(nextRecent);
   };
 
   useEffect(() => {
@@ -195,31 +208,49 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
         <div className="toolbar-area z-40 shrink-0 flex w-20 flex-col items-center gap-1.5 overflow-visible border-r border-white/10 bg-zinc-900/95 py-3 backdrop-blur-md">
 
           {/* 도구 */}
-          <ToolBtn active={tool === "brush"} onClick={() => { setTool("brush"); setActivePopup(null); }} title="브러시"><BrushIcon /></ToolBtn>
-          <ToolBtn active={tool === "fill"} onClick={() => { setTool("fill"); setActivePopup(null); }} title="채우기"><FillIcon /></ToolBtn>
-          <ToolBtn active={tool === "eraser"} onClick={() => { setTool("eraser"); setActivePopup(null); }} title="지우개"><EraserIcon /></ToolBtn>
+          <ToolBtn active={tool === "brush"} onClick={() => { setTool("brush"); setActivePopup(null); }} title="그리기">
+            <span className="flex flex-col items-center leading-none"><BrushIcon /><span className="mt-0.5 text-[9px] font-semibold">그리기</span></span>
+          </ToolBtn>
+          <ToolBtn active={tool === "fill"} onClick={() => { setTool("fill"); setActivePopup(null); }} title="채우기">
+            <span className="flex flex-col items-center leading-none"><FillIcon /><span className="mt-0.5 text-[9px] font-semibold">채우기</span></span>
+          </ToolBtn>
+          <ToolBtn active={tool === "eraser"} onClick={() => { setTool("eraser"); setActivePopup(null); }} title="지우기">
+            <span className="flex flex-col items-center leading-none"><EraserIcon /><span className="mt-0.5 text-[9px] font-semibold">지우기</span></span>
+          </ToolBtn>
 
           <div className="w-10 h-px bg-white/10 my-1.5" />
 
           {/* 색상 */}
           <div className="relative">
             <ToolBtn active={activePopup === "color"} onClick={() => togglePopup("color")} title="색상">
-              <div className="h-5 w-5 rounded-full ring-2 ring-white/40" style={{ backgroundColor: paintColor }} />
+              <span className="flex flex-col items-center leading-none">
+                <div className="h-5 w-5 rounded-full ring-2 ring-white/40" style={{ backgroundColor: paintColor }} />
+                <span className="mt-0.5 text-[9px] font-semibold">색상</span>
+              </span>
             </ToolBtn>
             {activePopup === "color" && (
               <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-[280px] bg-zinc-950 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
                 onPointerDown={(e) => e.stopPropagation()}>
                 <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 rotate-45 bg-zinc-950 border-l border-b border-white/15" />
-                <div className="grid grid-cols-6 gap-2.5 mb-3">
-                  {PALETTE.map((c) => (
-                    <button key={c} onClick={() => setPaintColor(c)}
-                      className={`h-9 w-9 rounded-full transition-all ${paintColor === c ? "scale-110 ring-2 ring-white ring-offset-2 ring-offset-zinc-950" : "hover:scale-110 opacity-80 hover:opacity-100"}`}
+                <p className="mb-2 text-[10px] font-semibold tracking-wide text-zinc-400">기본 색상</p>
+                <div className="grid grid-cols-6 gap-3 mb-3">
+                  {PAINT_PRESET_COLORS.map((c) => (
+                    <button key={c} onClick={() => selectPaintColor(c)}
+                      className={`h-9 w-9 rounded-full border border-white/20 transition-opacity ${paintColor === c ? "ring-2 ring-white ring-offset-2 ring-offset-zinc-950 opacity-100" : "opacity-85 hover:opacity-100"}`}
                       style={{ backgroundColor: c }} />
                   ))}
                 </div>
+                <p className="mb-2 text-[10px] font-semibold tracking-wide text-zinc-400">최근 사용 색상</p>
+                <div className="grid grid-cols-6 gap-3 min-h-9 mb-3">
+                  {recentColors.length > 0 ? recentColors.map((c) => (
+                    <button key={`recent-${c}`} onClick={() => selectPaintColor(c)}
+                      className={`h-9 w-9 rounded-full border border-white/20 transition-opacity ${paintColor === c ? "ring-2 ring-white ring-offset-2 ring-offset-zinc-950 opacity-100" : "opacity-85 hover:opacity-100"}`}
+                      style={{ backgroundColor: c }} />
+                  )) : <span className="col-span-6 text-[10px] text-zinc-500">아직 사용한 색상이 없습니다.</span>}
+                </div>
                 <label className="flex h-8 w-full cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-zinc-900/95 text-xs text-zinc-300 transition-colors hover:bg-zinc-800">
                   커스텀 색상
-                  <input type="color" value={paintColor} onChange={(e) => setPaintColor(e.target.value)} className="absolute opacity-0 w-0 h-0" />
+                  <input type="color" value={paintColor} onChange={(e) => selectPaintColor(e.target.value)} className="absolute opacity-0 w-0 h-0" />
                 </label>
               </div>
             )}
@@ -228,7 +259,10 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
           {/* 굵기 */}
           <div className="relative">
             <ToolBtn active={activePopup === "size"} onClick={() => togglePopup("size")} title="굵기">
-              <span className="inline-block rounded-full bg-current" style={{ width: Math.max(4, Math.min(brushSize + 2, 12)), height: Math.max(4, Math.min(brushSize + 2, 12)) }} />
+              <span className="flex flex-col items-center leading-none">
+                <span className="inline-block rounded-full bg-current" style={{ width: Math.max(4, Math.min(brushSize + 2, 12)), height: Math.max(4, Math.min(brushSize + 2, 12)) }} />
+                <span className="mt-0.5 text-[9px] font-semibold">굵기</span>
+              </span>
             </ToolBtn>
             {activePopup === "size" && (
               <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-56 bg-zinc-950 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
@@ -246,7 +280,10 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
           {/* 대칭 */}
           <div className="relative">
             <ToolBtn active={activePopup === "symmetry"} onClick={() => togglePopup("symmetry")} title="대칭">
-              <SymmetryIcon />
+              <span className="flex flex-col items-center leading-none">
+                <SymmetryIcon />
+                <span className="mt-0.5 text-[9px] font-semibold">대칭</span>
+              </span>
             </ToolBtn>
             {activePopup === "symmetry" && (
               <div className="toolbar-popup absolute left-[calc(100%+10px)] top-1/2 -translate-y-1/2 w-56 bg-zinc-950 border border-white/15 p-4 rounded-2xl shadow-2xl backdrop-blur-xl z-50"
@@ -276,9 +313,15 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
           <div className="w-10 h-px bg-white/10 my-1.5" />
 
           {/* 실행취소 / 다시실행 / 전체삭제 */}
-          <ToolBtn disabled={!drawing.canUndo} onClick={drawing.handleUndo} title="실행취소"><UndoIcon /></ToolBtn>
-          <ToolBtn disabled={!drawing.canRedo} onClick={drawing.handleRedo} title="다시실행"><RedoIcon /></ToolBtn>
-          <ToolBtn onClick={() => { drawing.handleClearCanvas(); setActivePopup(null); }} title="전체 지우기"><TrashIcon /></ToolBtn>
+          <ToolBtn disabled={!drawing.canUndo} onClick={drawing.handleUndo} title="실행취소">
+            <span className="flex flex-col items-center leading-none"><UndoIcon /><span className="mt-0.5 text-[9px] font-semibold">되돌리기</span></span>
+          </ToolBtn>
+          <ToolBtn disabled={!drawing.canRedo} onClick={drawing.handleRedo} title="다시실행">
+            <span className="flex flex-col items-center leading-none"><RedoIcon /><span className="mt-0.5 text-[9px] font-semibold">다시실행</span></span>
+          </ToolBtn>
+          <ToolBtn onClick={() => { drawing.handleClearCanvas(); setActivePopup(null); }} title="전체 지우기">
+            <span className="flex flex-col items-center leading-none"><TrashIcon /><span className="mt-0.5 text-[9px] font-semibold">초기화</span></span>
+          </ToolBtn>
         </div>
 
         {/* ─── 캔버스 영역 ─── */}
@@ -295,7 +338,7 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
           <div
             className="relative h-[min(88vw,calc(100dvh-180px))] w-[min(88vw,calc(100dvh-180px))] max-h-[760px] max-w-[760px] rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_16px_64px_rgba(0,0,0,0.5)] bg-white shrink-0 mt-2 mx-auto"
           >
-            <DailyMandalaCanvas drawing={drawing} symmetry={symmetry} tool={tool} />
+            <DailyMandalaCanvas drawing={drawing} symmetry={symmetry} tool={tool} paintColor={paintColor} brushSize={brushSize} />
           </div>
         </div>
 
