@@ -96,6 +96,7 @@ def _normalize_llm_response(
     """LLM JSON 출력을 AiAnalysisData 구조로 정규화."""
     result_summary = ""
     questions: list[str] = []
+    # 프론트는 resultSummary/questions 중심으로 사용하므로 raw는 최소 필드만 유지
     raw: dict = {}
 
     def _stringify_insight(insight: Any) -> str:
@@ -156,17 +157,10 @@ def _normalize_llm_response(
         questions = [str(q) for q in (llm_json.get("questions") or []) if q]
 
         raw_obj = llm_json.get("raw")
-        raw = raw_obj.copy() if isinstance(raw_obj, dict) else {}
-        if not isinstance(raw_obj, dict):
-            raw = {"llm": llm_json}
-
-        strengths = llm_json.get("strengths")
-        if isinstance(strengths, list) and strengths:
-            raw["strengths"] = [str(s) for s in strengths if s]
-        if intro:
-            raw["intro"] = intro
-        if core_insights:
-            raw["coreInsights"] = core_insights
+        if isinstance(raw_obj, dict):
+            wellbeing = raw_obj.get("wellbeing")
+            if isinstance(wellbeing, dict):
+                raw["wellbeing"] = wellbeing
 
     if extra_raw:
         raw.update(extra_raw)
@@ -292,10 +286,6 @@ def _analyze_htp(request: AiAnalyzeReq) -> AiAnalyzeResp:
         )
 
         extra_raw: dict = {}
-        if cv_features:
-            extra_raw["cvFeatures"] = cv_features
-        if cross_image_features:
-            extra_raw["crossImageFeatures"] = cross_image_features
         if is_skipped:
             extra_raw["isSkipped"] = True
         data = _normalize_llm_response(llm_json, _DEFAULT_QUESTIONS_HTP, extra_raw or None)
