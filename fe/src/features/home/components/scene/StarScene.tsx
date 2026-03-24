@@ -624,7 +624,7 @@ function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportP
 
       const baseDistance = isOrigin ? 40 * countRatio : Math.max(25, 30 * countRatio);
       const shouldShift = reportPanelOpen || isMyUniverseOpen || isDailyDetailOpen || isWeeklyOpen;
-      
+
       // 패널이 열리면 선택 별을 살짝 더 가까이 보여주고, 닫히면 원래 거리로 되돌린다.
       const desiredDistance = shouldShift
         ? baseDistance * 0.82
@@ -1085,7 +1085,7 @@ export function StarScene({
   const isAnyDetailOpen = isMyUniverseOpen || isDailyDetailOpen || isWeeklyOpen || isReportOpen;
 
   return (
-    <div 
+    <div
       className="absolute inset-0 bg-[#000000] overflow-hidden transition-[padding] duration-[350ms] ease-out box-border pointer-events-none"
       style={{
         paddingRight: isAnyDetailOpen ? "800px" : "0px",
@@ -1094,8 +1094,8 @@ export function StarScene({
       <div
         className="absolute top-0 left-0 w-[100vw] h-full transition-transform duration-[350ms] ease-out pointer-events-auto"
         style={{
-          transform: isAnyDetailOpen 
-            ? "translateX(-400px)" 
+          transform: isAnyDetailOpen
+            ? "translateX(-400px)"
             : "translateX(0px)",
         }}
       >
@@ -1130,19 +1130,19 @@ export function StarScene({
 
             <GalacticDust count={dynamicDustCount} maxRadius={maxRadius} freezeMotion={freezeSceneMotion} />
 
-              <SpreadScaleGroup>
-                {constellationLines
-                  .filter((line) => hashSeed(line.weekKey) % 10 < 3)
-                  .map(({ weekKey, pts }) => (
-                    <AnimatedConstellationLine
-                      key={`constellation-${weekKey}`}
-                      weekKey={weekKey}
-                      pts={pts}
-                      isHovered={highlightedWeekKey === weekKey}
-                      freezeMotion={freezeSceneMotion}
-                    />
-                  ))}
-              </SpreadScaleGroup>
+            <SpreadScaleGroup>
+              {constellationLines
+                .filter((line) => hashSeed(line.weekKey) % 10 < 3)
+                .map(({ weekKey, pts }) => (
+                  <AnimatedConstellationLine
+                    key={`constellation-${weekKey}`}
+                    weekKey={weekKey}
+                    pts={pts}
+                    isHovered={highlightedWeekKey === weekKey}
+                    freezeMotion={freezeSceneMotion}
+                  />
+                ))}
+            </SpreadScaleGroup>
 
             <MacroGalaxy timelineItems={timelineItems} positionMap={positionMap} starTone={starTone} hiddenIds={detailedItemIds} freezeMotion={freezeSceneMotion} />
 
