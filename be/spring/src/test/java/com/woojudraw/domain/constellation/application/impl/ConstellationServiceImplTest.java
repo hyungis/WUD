@@ -74,7 +74,7 @@ class ConstellationServiceImplTest {
 
 		GetStarMapResp response = service.getStarMap(1L);
 
-		assertThat(response.getCenterStar().getShapeType()).isEqualTo(CenterStar.DEFAULT_SHAPE_TYPE.name());
+		assertThat(response.getCenterStar().getShapeType()).isEqualTo(CenterStar.DEFAULT_SHAPE_TYPE.getValue());
 		assertThat(response.getCenterStar().getColor()).isEqualTo(CenterStar.DEFAULT_COLOR);
 		assertThat(response.getStars()).hasSize(1);
 		assertThat(response.getStars().get(0).getColor()).isEqualTo("#4FC3F7");
@@ -96,7 +96,7 @@ class ConstellationServiceImplTest {
 
 		when(centerStarRepository.findByUser_Id(1L)).thenReturn(java.util.Optional.empty());
 
-		assertThat(service.getCenterStar(1L).getShapeType()).isEqualTo(CenterStar.DEFAULT_SHAPE_TYPE.name());
+		assertThat(service.getCenterStar(1L).getShapeType()).isEqualTo(CenterStar.DEFAULT_SHAPE_TYPE.getValue());
 		assertThat(service.getCenterStar(1L).getColor()).isEqualTo(CenterStar.DEFAULT_COLOR);
 	}
 
@@ -117,7 +117,7 @@ class ConstellationServiceImplTest {
 
 		java.lang.reflect.Field shapeTypeField = UpdateCenterStarReq.class.getDeclaredField("shapeType");
 		shapeTypeField.setAccessible(true);
-		shapeTypeField.set(req, CenterStarShapeType.torusKnot);
+		shapeTypeField.set(req, CenterStarShapeType.TORUS_KNOT);
 
 		java.lang.reflect.Field colorField = UpdateCenterStarReq.class.getDeclaredField("color");
 		colorField.setAccessible(true);
