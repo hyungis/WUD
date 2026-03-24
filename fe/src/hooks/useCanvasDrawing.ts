@@ -162,10 +162,22 @@ export function useCanvasDrawing({ paintColor, brushSize, tool, symmetry = 1 }: 
   }, [brushSize, paintColor]);
 
   const getPoint = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
+    const canvas = event.currentTarget;
     const rect = canvas.getBoundingClientRect();
-    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    const ctx = canvas.getContext("2d");
+    const transform = ctx?.getTransform();
+    const transformX = transform?.a || 1;
+    const transformY = transform?.d || 1;
+
+    // CSS 표시 크기(rect)와 내부 버퍼(canvas.width/height) 비율을 이용해 좌표를 정규화한다.
+    // brush/eraser는 논리 좌표(CSS px)를 사용하고, fill은 아래에서 dpr을 곱해 내부 픽셀 좌표로 변환한다.
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    return {
+      x: (event.clientX - rect.left) * (scaleX / transformX),
+      y: (event.clientY - rect.top) * (scaleY / transformY),
+    };
   }, []);
 
   const handlePointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {

@@ -2,19 +2,24 @@ import { useEffect, useRef } from "react";
 import { DrawingCanvas } from "../../../components/shared/DrawingCanvas";
 import { useCanvasDrawing } from "../../../hooks/useCanvasDrawing";
 import type { ToolType } from "../../../hooks/useCanvasDrawing";
+import { getToolCursor } from "../../../utils/toolCursors";
 
 interface DailyColoringCanvasProps {
   drawing: ReturnType<typeof useCanvasDrawing>;
   tool: ToolType;
+  paintColor: string;
   outlineUrl: string;
+  brushSize: number;
 }
 
 export function DailyColoringCanvas({
   drawing,
   tool,
+  paintColor,
   outlineUrl,
+  brushSize,
 }: DailyColoringCanvasProps) {
-  const cursor = tool === "fill" ? "crosshair" : tool === "eraser" ? "cell" : "default";
+  const cursor = getToolCursor(tool, paintColor, 18 + brushSize * 2);
   const overlayRef = useRef<HTMLImageElement | null>(null);
   const hasLoadedRef = useRef(false);
 
