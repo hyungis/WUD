@@ -2,6 +2,7 @@ package com.woojudraw.domain.constellation.application.impl;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.LocalDate;
@@ -10,25 +11,45 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.woojudraw.domain.constellation.api.dto.req.UpdateCenterStarReq;
 import com.woojudraw.domain.constellation.api.dto.resp.GetStarMapResp;
+import com.woojudraw.domain.constellation.entity.CenterStar;
+import com.woojudraw.domain.constellation.entity.CenterStarShapeType;
 import com.woojudraw.domain.constellation.entity.Constellation;
 import com.woojudraw.domain.constellation.entity.Star;
 import com.woojudraw.domain.constellation.entity.StarKind;
+import com.woojudraw.domain.constellation.repository.CenterStarRepository;
 import com.woojudraw.domain.constellation.repository.ConstellationRepository;
 import com.woojudraw.domain.constellation.repository.StarRepository;
 import com.woojudraw.domain.deep.entity.DeepSession;
 import com.woojudraw.domain.user.entity.User;
+import com.woojudraw.domain.user.repository.UserRepository;
 
 class ConstellationServiceImplTest {
 
 	@Test
 	void getStarMapReturnsCreatedAtInSeoulOffset() {
+		UserRepository userRepository = mock(UserRepository.class);
+		CenterStarRepository centerStarRepository = mock(CenterStarRepository.class);
 		ConstellationRepository constellationRepository = mock(ConstellationRepository.class);
 		StarRepository starRepository = mock(StarRepository.class);
-		ConstellationServiceImpl service = new ConstellationServiceImpl(constellationRepository, starRepository);
+		ConstellationServiceImpl service = new ConstellationServiceImpl(
+			userRepository,
+			centerStarRepository,
+			constellationRepository,
+			starRepository
+		);
 		User user = User.builder().id(1L).build();
 		DeepSession deepSession = mock(DeepSession.class);
 		when(deepSession.getId()).thenReturn(99L);
+		CenterStar centerStar = CenterStar.builder()
+			.id(21L)
+			.user(user)
+			.shapeType(CenterStarShapeType.SPHERE)
+			.color("#FFFFFF")
+			.createdAt(OffsetDateTime.parse("2026-03-12T09:00:00+09:00"))
+			.updatedAt(OffsetDateTime.parse("2026-03-12T09:00:00+09:00"))
+			.build();
 
 		Constellation constellation = Constellation.builder()
 			.id(7L)
@@ -48,12 +69,65 @@ class ConstellationServiceImplTest {
 			.updatedAt(OffsetDateTime.parse("2026-03-12T09:15:30+09:00"))
 			.build();
 
+		when(centerStarRepository.findByUser_Id(1L)).thenReturn(java.util.Optional.of(centerStar));
 		when(starRepository.findAllByUserIdWithConstellation(1L)).thenReturn(List.of(star));
 
 		GetStarMapResp response = service.getStarMap(1L);
 
+		assertThat(response.getCenterStar().getShapeType()).isEqualTo("SPHERE");
+		assertThat(response.getCenterStar().getColor()).isEqualTo("#FFFFFF");
 		assertThat(response.getStars()).hasSize(1);
 		assertThat(response.getStars().get(0).getColor()).isEqualTo("#4FC3F7");
 		assertThat(response.getStars().get(0).getCreatedAt().toString()).isEqualTo("2026-03-12T09:15:30+09:00");
+	}
+
+	@Test
+	void getCenterStarReturnsDefaultWhenMissing() {
+		UserRepository userRepository = mock(UserRepository.class);
+		CenterStarRepository centerStarRepository = mock(CenterStarRepository.class);
+		ConstellationRepository constellationRepository = mock(ConstellationRepository.class);
+		StarRepository starRepository = mock(StarRepository.class);
+		ConstellationServiceImpl service = new ConstellationServiceImpl(
+			userRepository,
+			centerStarRepository,
+			constellationRepository,
+			starRepository
+		);
+
+		when(centerStarRepository.findByUser_Id(1L)).thenReturn(java.util.Optional.empty());
+
+		assertThat(service.getCenterStar(1L).getShapeType()).isEqualTo("SPHERE");
+		assertThat(service.getCenterStar(1L).getColor()).isEqualTo("#FFFFFF");
+	}
+
+	@Test
+	void updateCenterStarCreatesWhenMissing() throws Exception {
+		UserRepository userRepository = mock(UserRepository.class);
+		CenterStarRepository centerStarRepository = mock(CenterStarRepository.class);
+		ConstellationRepository constellationRepository = mock(ConstellationRepository.class);
+		StarRepository starRepository = mock(StarRepository.class);
+		ConstellationServiceImpl service = new ConstellationServiceImpl(
+			userRepository,
+			centerStarRepository,
+			constellationRepository,
+			starRepository
+		);
+		User user = User.builder().id(1L).build();
+		UpdateCenterStarReq req = new UpdateCenterStarReq();
+
+		java.lang.reflect.Field shapeTypeField = UpdateCenterStarReq.class.getDeclaredField("shapeType");
+		shapeTypeField.setAccessible(true);
+		shapeTypeField.set(req, CenterStarShapeType.TORUS_KNOT);
+
+		java.lang.reflect.Field colorField = UpdateCenterStarReq.class.getDeclaredField("color");
+		colorField.setAccessible(true);
+		colorField.set(req, "#12ABCD");
+
+		when(centerStarRepository.findByUser_Id(1L)).thenReturn(java.util.Optional.empty());
+		when(userRepository.findById(1L)).thenReturn(java.util.Optional.of(user));
+
+		service.updateCenterStar(1L, req);
+
+		verify(centerStarRepository).save(org.mockito.ArgumentMatchers.any(CenterStar.class));
 	}
 }
