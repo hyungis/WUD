@@ -238,14 +238,14 @@ public class ConstellationServiceImpl implements ConstellationService {
 
 	private GetCenterStarResp toCenterStarResp(CenterStar centerStar) {
 		return GetCenterStarResp.builder()
-			.shapeType(centerStar.getShapeType().name())
+			.shapeType(centerStar.getShapeType().getValue())
 			.color(centerStar.getColor())
 			.build();
 	}
 
 	private GetCenterStarResp defaultCenterStarResp() {
 		return GetCenterStarResp.builder()
-			.shapeType(CenterStar.DEFAULT_SHAPE_TYPE.name())
+			.shapeType(CenterStar.DEFAULT_SHAPE_TYPE.getValue())
 			.color(CenterStar.DEFAULT_COLOR)
 			.build();
 	}

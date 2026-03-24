@@ -6,9 +6,8 @@ import com.woojudraw.domain.user.entity.User;
 import com.woojudraw.global.time.AppTime;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -39,7 +38,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class CenterStar {
 
-	public static final CenterStarShapeType DEFAULT_SHAPE_TYPE = CenterStarShapeType.sphere;
+	public static final CenterStarShapeType DEFAULT_SHAPE_TYPE = CenterStarShapeType.SPHERE;
 	public static final String DEFAULT_COLOR = "#e2e8f0";
 
 	@Id
@@ -50,7 +49,7 @@ public class CenterStar {
 	@JoinColumn(name = "user_id", nullable = false, unique = true)
 	private User user;
 
-	@Enumerated(EnumType.STRING)
+	@Convert(converter = CenterStarShapeTypeConverter.class)
 	@Column(name = "shape_type", nullable = false, length = 30)
 	private CenterStarShapeType shapeType;
 
