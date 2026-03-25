@@ -623,6 +623,7 @@ function ViewModeTracker({ controlsRef, onModeChange, zoomThreshold, minDistance
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportPanelOpen, isMyUniverseOpen, isDailyDetailOpen, isWeeklyOpen, newbornStarId }: any) {
   const { camera } = useThree();
+  const preferredCameraView = useUiStore((state) => state.preferredCameraView);
   const isTransitioningRef = useRef(false);
   const progressRef = useRef(0);
   const fromCamRef = useRef(new Vector3());
@@ -630,16 +631,19 @@ function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportP
   const fromTargetRef = useRef(new Vector3());
   const toTargetRef = useRef(new Vector3());
   const lastKeyRef = useRef<string | number | null>(null);
+  const lastViewRef = useRef<string>("default");
   const isFirstMount = useRef(true);
 
   useFrame((_, delta) => {
     if (!focusPosition || !controlsRef.current) return;
 
     const keyChanged = focusKey !== lastKeyRef.current;
+    const viewChanged = preferredCameraView !== lastViewRef.current;
 
-    if (keyChanged) {
+    if (keyChanged || viewChanged) {
       const wasNull = lastKeyRef.current === null;
       lastKeyRef.current = focusKey ?? null;
+      lastViewRef.current = preferredCameraView;
 
       const baseTarget = focusPosition.lengthSq() < 0.01
         ? new Vector3(0, 0, 0)
@@ -656,25 +660,32 @@ function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportP
 
       const isOrigin = baseTarget.lengthSq() < 0.01;
       const currentTarget = controlsRef.current.target.clone();
-      let viewDir = camera.position.clone().sub(currentTarget).normalize();
-
-      // [추가] 수직 뷰(Top-down)일 경우 시프트 계산을 위해 강제로 비스듬한 뷰 방향 설정
-      if (Math.abs(viewDir.y) > 0.98 || viewDir.lengthSq() < 0.01) {
-        viewDir.set(0.5, 0.4, 0.8).normalize();
-      }
-
+      
       let nextTarget = baseTarget.clone();
+      let desiredCam = new Vector3();
 
-      const baseDistance = isOrigin ? 40 * countRatio : Math.max(25, 30 * countRatio);
-      const shouldShift = reportPanelOpen || isMyUniverseOpen || isDailyDetailOpen || isWeeklyOpen;
+      if (preferredCameraView === "top-distant") {
+        // 탑뷰에서 멀리서 본 뷰 (Y축 높이 강조 + 약간의 대각선)
+        const distance = isOrigin ? 180 : 130;
+        desiredCam.set(nextTarget.x + 15, nextTarget.y + distance, nextTarget.z + 25);
+      } else {
+        let viewDir = camera.position.clone().sub(currentTarget).normalize();
 
-      // 패널이 열리면 선택 별을 살짝 더 가까이 보여주고, 닫히면 원래 거리로 되돌린다.
-      const desiredDistance = shouldShift
-        ? baseDistance * 0.82
-        : baseDistance;
-      const desiredCam = nextTarget
-        .clone()
-        .add(viewDir.multiplyScalar(desiredDistance));
+        // [추가] 수직 뷰(Top-down)일 경우 시프트 계산을 위해 강제로 비스듬한 뷰 방향 설정
+        if (Math.abs(viewDir.y) > 0.98 || viewDir.lengthSq() < 0.01) {
+          viewDir.set(0.5, 0.4, 0.8).normalize();
+        }
+
+        const baseDistance = isOrigin ? 40 * countRatio : Math.max(25, 30 * countRatio);
+        const shouldShift = reportPanelOpen || isMyUniverseOpen || isDailyDetailOpen || isWeeklyOpen;
+
+        // 패널이 열리면 선택 별을 살짝 더 가까이 보여주고, 닫히면 원래 거리로 되돌린다.
+        const desiredDistance = shouldShift
+          ? baseDistance * 0.82
+          : baseDistance;
+        
+        desiredCam.copy(nextTarget).add(viewDir.multiplyScalar(desiredDistance));
+      }
 
       fromCamRef.current.copy(camera.position);
       toCamRef.current.copy(desiredCam);
