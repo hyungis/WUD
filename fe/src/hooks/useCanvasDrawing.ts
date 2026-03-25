@@ -175,8 +175,9 @@ export function useCanvasDrawing({
     const resizeCanvas = () => {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      const rect = canvas.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) return;
+      const width = canvas.offsetWidth;
+      const height = canvas.offsetHeight;
+      if (width === 0 || height === 0) return;
 
       const tempCanvas = document.createElement("canvas");
       tempCanvas.width = canvas.width || 1;
@@ -185,15 +186,14 @@ export function useCanvasDrawing({
       if (tempCtx && canvas.width > 0) tempCtx.drawImage(canvas, 0, 0);
 
       const dpr = window.devicePixelRatio || 1;
-      canvasSizeRef.current = { width: rect.width, height: rect.height };
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
+      canvasSizeRef.current = { width, height };
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      // ctx.fillStyle = "#ffffff";
-      // ctx.fillRect(0, 0, rect.width, rect.height);
-      ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, rect.width, rect.height);
+      // 물리적 픽셀 변경 후 tempCanvas 원상복구
+      ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, width, height);
 
       // 초기 로드 시 빈 화면을 첫 히스토리로 저장
       if (historyRef.current.length === 0) saveHistory();
