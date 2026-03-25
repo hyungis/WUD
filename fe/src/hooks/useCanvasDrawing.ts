@@ -3,36 +3,78 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /* ── Flood‑fill (기존과 동일) ── */
-function floodFill(ctx: CanvasRenderingContext2D, startX: number, startY: number, fillColor: string, tolerance = 32) {
+function floodFill(
+  ctx: CanvasRenderingContext2D,
+  startX: number,
+  startY: number,
+  fillColor: string,
+  boundaryCtx?: CanvasRenderingContext2D | null,
+  tolerance = 32
+) {
   const canvas = ctx.canvas;
   const w = canvas.width;
   const h = canvas.height;
   const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
+
+  // 경계 정보가 있는 경우 해당 데이터도 가져옴
+  let boundaryData: Uint8ClampedArray | null = null;
+  if (boundaryCtx) {
+    boundaryData = boundaryCtx.getImageData(0, 0, w, h).data;
+  }
+
   const tmp = document.createElement("canvas");
   tmp.width = tmp.height = 1;
   const tctx = tmp.getContext("2d")!;
   tctx.fillStyle = fillColor;
   tctx.fillRect(0, 0, 1, 1);
   const [fr, fg, fb, fa] = tctx.getImageData(0, 0, 1, 1).data;
+
   const sx = Math.round(startX);
   const sy = Math.round(startY);
   if (sx < 0 || sy < 0 || sx >= w || sy >= h) return;
+
   const idx = (sy * w + sx) * 4;
   const sr = data[idx], sg = data[idx + 1], sb = data[idx + 2], sa = data[idx + 3];
+
+  // 이미 같은 색이면 중단
   if (sr === fr && sg === fg && sb === fb && sa === fa) return;
-  const match = (i: number) => Math.abs(data[i] - sr) <= tolerance && Math.abs(data[i + 1] - sg) <= tolerance && Math.abs(data[i + 2] - sb) <= tolerance && Math.abs(data[i + 3] - sa) <= tolerance;
+
   const stack = [sx, sy];
   const visited = new Uint8Array(w * h);
+
   while (stack.length > 0) {
     const cy = stack.pop()!;
     const cx = stack.pop()!;
     const pi = cy * w + cx;
+
     if (visited[pi]) continue;
     visited[pi] = 1;
+
     const ci = pi * 4;
-    if (!match(ci)) continue;
-    data[ci] = fr; data[ci + 1] = fg; data[ci + 2] = fb; data[ci + 3] = fa;
+
+    // 현재 캔버스의 색상이 시작점과 일치하는지 확인
+    const isMatch =
+      Math.abs(data[ci] - sr) <= tolerance &&
+      Math.abs(data[ci + 1] - sg) <= tolerance &&
+      Math.abs(data[ci + 2] - sb) <= tolerance &&
+      Math.abs(data[ci + 3] - sa) <= tolerance;
+
+    if (!isMatch) continue;
+
+    // 경계가 있는 경우, 경계 레이어에 "의미 있는 선"이 있는지 확인
+    if (boundaryData) {
+      const r = boundaryData[ci], g = boundaryData[ci + 1], b = boundaryData[ci + 2], a = boundaryData[ci + 3];
+      // 선으로 간주: 불투명하면서 충분히 어두운 색상 (검은색/회색 계열)
+      const isLine = a > 50 && (r + g + b) / 3 < 200;
+      if (isLine) continue;
+    }
+
+    data[ci] = fr;
+    data[ci + 1] = fg;
+    data[ci + 2] = fb;
+    data[ci + 3] = fa;
+
     if (cx > 0) stack.push(cx - 1, cy);
     if (cx < w - 1) stack.push(cx + 1, cy);
     if (cy > 0) stack.push(cx, cy - 1);
@@ -48,9 +90,16 @@ interface UseCanvasDrawingProps {
   brushSize: number;
   tool: ToolType;
   symmetry?: number;
+  boundaryCanvasRef?: React.RefObject<HTMLCanvasElement | null>;
 }
 
-export function useCanvasDrawing({ paintColor, brushSize, tool, symmetry = 1 }: UseCanvasDrawingProps) {
+export function useCanvasDrawing({
+  paintColor,
+  brushSize,
+  tool,
+  symmetry = 1,
+  boundaryCanvasRef,
+}: UseCanvasDrawingProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
@@ -142,8 +191,8 @@ export function useCanvasDrawing({ paintColor, brushSize, tool, symmetry = 1 }: 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, rect.width, rect.height);
+      // ctx.fillStyle = "#ffffff";
+      // ctx.fillRect(0, 0, rect.width, rect.height);
       ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, rect.width, rect.height);
 
       // 초기 로드 시 빈 화면을 첫 히스토리로 저장
@@ -184,16 +233,18 @@ export function useCanvasDrawing({ paintColor, brushSize, tool, symmetry = 1 }: 
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!ctx || !canvas) return;
+
     if (tool === "fill") {
       const dpr = window.devicePixelRatio || 1;
       const point = getPoint(event);
-      floodFill(ctx, point.x * dpr, point.y * dpr, paintColor);
+      const boundaryCtx = boundaryCanvasRef?.current?.getContext("2d");
+      floodFill(ctx, point.x * dpr, point.y * dpr, paintColor, boundaryCtx);
       saveHistory(); // 채우기 후 히스토리 저장
       return;
     }
     isDrawingRef.current = true;
     lastPointRef.current = getPoint(event);
-  }, [tool, paintColor, getPoint, saveHistory]);
+  }, [tool, paintColor, getPoint, saveHistory, boundaryCanvasRef]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -251,9 +302,6 @@ export function useCanvasDrawing({ paintColor, brushSize, tool, symmetry = 1 }: 
     const ctx = canvas?.getContext("2d");
     if (!ctx || !canvas) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const rect = canvas.getBoundingClientRect();
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, rect.width, rect.height);
     saveHistory(); // 지우기 후 히스토리 저장
   }, [saveHistory]);
 

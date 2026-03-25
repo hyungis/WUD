@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useCanvasDrawing } from "../../hooks/useCanvasDrawing";
@@ -66,7 +66,8 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
   const [tool, setTool] = useState<ToolType>("brush");
   const [activePopup, setActivePopup] = useState<string | null>(null);
 
-  const drawing = useCanvasDrawing({ paintColor, brushSize, tool, symmetry: 1 });
+  const boundaryCanvasRef = useRef<HTMLCanvasElement>(null);
+  const drawing = useCanvasDrawing({ paintColor, brushSize, tool, symmetry: 1, boundaryCanvasRef });
 
   useEffect(() => {
     setRecentColors(getRecentPaintColors());
@@ -147,16 +148,30 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
 
   const exportAndComplete = () => {
     const originalCanvas = drawing.canvasRef.current;
+    const outlineCanvas = boundaryCanvasRef.current;
     let drawingImage = null;
+
     if (originalCanvas) {
       const exportCanvas = document.createElement("canvas");
       exportCanvas.width = 1024;
       exportCanvas.height = 1024;
       const exportCtx = exportCanvas.getContext("2d");
+
       if (exportCtx) {
+        // 1. 배경 (흰색)
         exportCtx.fillStyle = "#ffffff";
         exportCtx.fillRect(0, 0, 1024, 1024);
+
+        // 2. 중간: 사용자 드로잉
         exportCtx.drawImage(originalCanvas, 0, 0, 1024, 1024);
+
+        // 3. 최상단: 명화 윤곽선 (Multiply 모드로 병합하여 흰 배경 무시)
+        if (outlineCanvas) {
+          exportCtx.globalCompositeOperation = "multiply";
+          exportCtx.drawImage(outlineCanvas, 0, 0, 1024, 1024);
+          exportCtx.globalCompositeOperation = "source-over"; // 복구
+        }
+
         drawingImage = exportCanvas.toDataURL("image/jpeg", 0.6);
       }
     }
@@ -312,7 +327,7 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
           <div
             className="relative h-[min(88vw,calc(100dvh-180px))] w-[min(88vw,calc(100dvh-180px))] max-h-[760px] max-w-[760px] rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_16px_64px_rgba(0,0,0,0.5)] bg-white shrink-0 mt-2 mx-auto"
           >
-            <DailyColoringCanvas drawing={drawing} tool={tool} paintColor={paintColor} outlineUrl={COLORING_OUTLINE} brushSize={brushSize} />
+            <DailyColoringCanvas drawing={drawing} tool={tool} paintColor={paintColor} outlineUrl={COLORING_OUTLINE} brushSize={brushSize} boundaryCanvasRef={boundaryCanvasRef} />
           </div>
         </div>
 
