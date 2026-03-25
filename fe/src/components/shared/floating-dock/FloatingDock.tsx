@@ -100,6 +100,7 @@ export default function FloatingDock() {
     const setSelectedStarId = useUiStore((state) => state.setSelectedStarId);
 
     const setPreferredCameraView = useUiStore((state) => state.setPreferredCameraView);
+    const isCinematicMode = useUiStore((state) => state.isCinematicMode);
 
     const { showAlert } = useAlert();
 
@@ -161,6 +162,7 @@ export default function FloatingDock() {
                 id="floating-dock-container"
                 className={`fixed bottom-3 sm:bottom-4 lg:bottom-6 left-1/2 z-50 flex w-[min(calc(100vw-0.75rem),44rem)] sm:w-[min(calc(100vw-1rem),48rem)] lg:w-auto -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 sm:gap-2 lg:gap-3 px-1 transition-all duration-700 ${isDockHidden
                     || isOverlayOpen
+                    || isCinematicMode
                     ? "translate-y-[150%] opacity-0 pointer-events-none"
                     : "translate-y-0 opacity-100 pointer-events-auto"
                     }`}
@@ -192,6 +194,7 @@ export default function FloatingDock() {
                             incrementTimelineFocusNonce();
                         }}
                         className="relative flex h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 flex-shrink-0 items-center justify-center rounded-[12px] border border-white/25 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] backdrop-blur-lg transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/20 hover:border-white/50 hover:shadow-[0_8px_20px_rgba(255,255,255,0.15)] overflow-hidden group"
+                        title="중심별 감상"
                     >
                         <div className="absolute inset-0 z-0 h-full w-full">
                             <Canvas camera={{ position: [0, 0, 3.2], fov: 45 }} gl={{ antialias: true, alpha: true }}>

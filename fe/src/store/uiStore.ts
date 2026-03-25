@@ -45,6 +45,7 @@ type UiState = {
   selectedDeepStar: DeepStar | null;
   timelineFocusNonce: number;
   preferredCameraView: "default" | "top-distant";
+  isCinematicMode: boolean;
 
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
@@ -80,6 +81,7 @@ type UiState = {
   setSelectedDeepStar: (star: DeepStar | null) => void;
   incrementTimelineFocusNonce: () => void;
   setPreferredCameraView: (view: "default" | "top-distant") => void;
+  setIsCinematicMode: (isCinematicMode: boolean) => void;
 };
 
 export const useUiStore = create<UiState>((set) => ({
@@ -110,6 +112,7 @@ export const useUiStore = create<UiState>((set) => ({
   selectedDeepStar: null,
   timelineFocusNonce: 0,
   preferredCameraView: "default",
+  isCinematicMode: false,
 
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
@@ -266,6 +269,7 @@ export const useUiStore = create<UiState>((set) => ({
   setSelectedDeepStar: (selectedDeepStar) => set({ selectedDeepStar }),
   incrementTimelineFocusNonce: () => set((state) => ({ timelineFocusNonce: state.timelineFocusNonce + 1 })),
   setPreferredCameraView: (view) => set({ preferredCameraView: view }),
+  setIsCinematicMode: (isCinematicMode) => set({ isCinematicMode }),
 }));
 
 // Selector optimization
