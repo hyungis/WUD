@@ -24,43 +24,65 @@ export function DailyColoringCanvas({
   const cursor = getToolCursor(tool, paintColor, 18 + brushSize * 2);
   const hasLoadedRef = useRef(false);
 
-  // 명화 윤곽선 이미지를 상단 boundaryCanvas에 로드
+  // 명화 윤곽선 이미지를 상단 boundaryCanvas에 로드 및 리사이즈 감지
   useEffect(() => {
-    if (hasLoadedRef.current) return;
     const boundaryCanvas = boundaryCanvasRef.current;
     if (!boundaryCanvas) return;
+
+    let observer: ResizeObserver | null = null;
+    let isActive = true;
 
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
+      if (!isActive) return;
       const bCtx = boundaryCanvas.getContext("2d");
       if (!bCtx) return;
 
       const checkAndDraw = () => {
-        const rect = boundaryCanvas.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) {
+        if (!isActive) return;
+        const width = boundaryCanvas.offsetWidth;
+        const height = boundaryCanvas.offsetHeight;
+        if (width === 0 || height === 0) {
           requestAnimationFrame(checkAndDraw);
           return;
         }
 
-        // 고해상도 대응 (DPR 적용)
         const dpr = window.devicePixelRatio || 1;
-        boundaryCanvas.width = rect.width * dpr;
-        boundaryCanvas.height = rect.height * dpr;
+        // 캔버스 크기가 달라지지 않았다면 다시 그리지 않음
+        if (boundaryCanvas.width === Math.round(width * dpr) && boundaryCanvas.height === Math.round(height * dpr)) {
+          return;
+        }
+
+        boundaryCanvas.width = width * dpr;
+        boundaryCanvas.height = height * dpr;
         bCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
         // 명화 윤곽선 그리기
-        bCtx.clearRect(0, 0, rect.width, rect.height);
-        bCtx.drawImage(img, 0, 0, rect.width, rect.height);
+        bCtx.clearRect(0, 0, width, height);
+        bCtx.drawImage(img, 0, 0, width, height);
 
-        // 히스토리 리셋 및 로드 완료 표시
-        drawing.resetHistory();
-        hasLoadedRef.current = true;
+        // 최초 로드 시에만 히스토리 리셋
+        if (!hasLoadedRef.current) {
+          drawing.resetHistory();
+          hasLoadedRef.current = true;
+        }
       };
+
+      // 초기 1회 그리기 실행
       checkAndDraw();
+
+      // 이후 사이즈 변경 감지
+      observer = new ResizeObserver(() => checkAndDraw());
+      observer.observe(boundaryCanvas);
     };
     img.src = outlineUrl;
-  }, [outlineUrl, drawing, boundaryCanvasRef]);
+
+    return () => {
+      isActive = false;
+      if (observer) observer.disconnect();
+    };
+  }, [outlineUrl, drawing.resetHistory, boundaryCanvasRef]);
 
   return (
     <div

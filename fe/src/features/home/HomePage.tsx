@@ -14,6 +14,7 @@ import { StarSidePanel } from "./components/ui/StarSidePanel";
 import DailyContentSelector from "../daily/components/DailyContentSelector";
 import DailyDetailView from "../daily/DailyDetailView";
 import DailyColoringView from "../daily/DailyColoringView";
+import DailyFreeDrawView from "../daily/DailyFreeDrawView";
 import DailyCompleteView from "../daily/DailyCompleteView";
 import WeeklyContentView from "../deep/WeeklyContentView";
 import WeeklyHtpView from "../deep/WeeklyHtpView";
@@ -66,6 +67,8 @@ function HomePage() {
   const setDailyCompleteModalOpen = useUiStore((state) => state.setDailyCompleteModalOpen);
   const isDailyColoringModalOpen = useUiStore((state) => state.isDailyColoringModalOpen);
   const setDailyColoringModalOpen = useUiStore((state) => state.setDailyColoringModalOpen);
+  const isDailyFreeDrawModalOpen = useUiStore((state) => state.isDailyFreeDrawModalOpen);
+  const setDailyFreeDrawModalOpen = useUiStore((state) => state.setDailyFreeDrawModalOpen);
   const isWeeklyContentModalOpen = useUiStore((state) => state.isWeeklyContentModalOpen);
   const setWeeklyContentModalOpen = useUiStore((state) => state.setWeeklyContentModalOpen);
   const isWeeklyHtpModalOpen = useUiStore((state) => state.isWeeklyHtpModalOpen);
@@ -89,6 +92,7 @@ function HomePage() {
       || isDailyDetailModalOpen
       || isDailyCompleteModalOpen
       || isDailyColoringModalOpen
+      || isDailyFreeDrawModalOpen
       || isWeeklyContentModalOpen
       || isWeeklyHtpModalOpen
       || isWeeklyPirModalOpen
@@ -102,6 +106,7 @@ function HomePage() {
     isDailyDetailModalOpen,
     isDailyCompleteModalOpen,
     isDailyColoringModalOpen,
+    isDailyFreeDrawModalOpen,
     isWeeklyContentModalOpen,
     isWeeklyHtpModalOpen,
     isWeeklyPirModalOpen,
@@ -775,6 +780,24 @@ function HomePage() {
         }}
       />
 
+      {/* 데일리 자율 드로잉 모달 */}
+      {isDailyFreeDrawModalOpen && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-zinc-950">
+          <DailyFreeDrawView
+            isModal
+            onClose={() => setDailyFreeDrawModalOpen(false)}
+            onBackToContent={() => {
+              setDailyFreeDrawModalOpen(false);
+              setDailyContentModalOpen(true);
+            }}
+            onComplete={() => {
+              setDailyFreeDrawModalOpen(false);
+              setDailyCompleteModalOpen(true);
+            }}
+          />
+        </div>
+      )}
+
       {/* 튜토리얼 다시보기 버튼 */}
       <button
         id="re-tutorial-btn"
@@ -865,6 +888,11 @@ function HomePage() {
                   if (pending.dailyType === "COLORING") {
                     useUiStore.getState().setDailyColoringReturning(true);
                     setDailyColoringModalOpen(true);
+                    return;
+                  }
+                  if (pending.dailyType === "FREE_DRAW") {
+                    useUiStore.getState().setDailyFreeDrawReturning(true);
+                    setDailyFreeDrawModalOpen(true);
                     return;
                   }
                 } catch (e) {
