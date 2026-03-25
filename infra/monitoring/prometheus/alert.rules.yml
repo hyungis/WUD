@@ -18,9 +18,10 @@ groups:
           summary: "CPU 높음: {{ $labels.name }} ({{ $value }}%)"
 
       - alert: HighMemoryUsage
-        expr: container_memory_usage_bytes{name=~"infra-.*"} / container_spec_memory_limit_bytes > 0.85
+        expr: (container_memory_usage_bytes{name=~"infra-.*"} / container_spec_memory_limit_bytes) > 0.85 and container_spec_memory_limit_bytes > 0
         for: 5m
         labels:
           severity: warning
         annotations:
           summary: "메모리 높음: {{ $labels.name }}"
+          description: "메모리 사용률 {{ $value | humanizePercentage }} (제한 대비)"
