@@ -48,6 +48,8 @@ public class SecurityConfig {
 	private static final String[] PERMIT_ALL = {
 			"/health",
 			"/actuator/health",
+			"/actuator/prometheus",
+			"/actuator/metrics",
 			"/swagger-ui/**",
 			"/v3/api-docs/**",
 			"/rabbitmq/**",
