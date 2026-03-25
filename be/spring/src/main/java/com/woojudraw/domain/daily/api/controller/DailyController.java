@@ -22,6 +22,7 @@ import com.woojudraw.domain.daily.api.dto.resp.CreateDailyResp;
 import com.woojudraw.domain.daily.api.dto.resp.DailyDetailResp;
 import com.woojudraw.domain.daily.api.dto.resp.DailyListItemResp;
 import com.woojudraw.domain.daily.api.dto.resp.UpdateDailyResp;
+import com.woojudraw.domain.daily.entity.Emotion;
 import com.woojudraw.domain.daily.application.DailyService;
 import com.woojudraw.global.exception.BusinessException;
 import com.woojudraw.global.exception.ResponseCode;
@@ -53,9 +54,10 @@ public class DailyController {
 	public ApiResponse<List<DailyListItemResp>> getDailies(
 		Authentication authentication,
 		@RequestParam(required = false) DailyListPeriod period,
-		@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+		@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+		@RequestParam(required = false) Emotion emotion
 	) {
-		return ApiResponse.ok(dailyService.getDailies(resolveMemberId(authentication), period, date));
+		return ApiResponse.ok(dailyService.getDailies(resolveMemberId(authentication), period, date, emotion));
 	}
 
 	@GetMapping("/{dailyId}")

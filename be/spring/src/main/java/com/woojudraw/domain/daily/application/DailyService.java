@@ -9,13 +9,14 @@ import com.woojudraw.domain.daily.api.dto.req.UpdateDailyReq;
 import com.woojudraw.domain.daily.api.dto.resp.CreateDailyResp;
 import com.woojudraw.domain.daily.api.dto.resp.DailyDetailResp;
 import com.woojudraw.domain.daily.api.dto.resp.DailyListItemResp;
+import com.woojudraw.domain.daily.entity.Emotion;
 import com.woojudraw.domain.daily.api.dto.resp.UpdateDailyResp;
 
 public interface DailyService {
 
 	CreateDailyResp createDaily(Long userId, CreateDailyReq request);
 
-	List<DailyListItemResp> getDailies(Long userId, DailyListPeriod period, LocalDate date);
+	List<DailyListItemResp> getDailies(Long userId, DailyListPeriod period, LocalDate date, Emotion emotion);
 
 	DailyDetailResp getDaily(Long userId, Long dailyId);
 

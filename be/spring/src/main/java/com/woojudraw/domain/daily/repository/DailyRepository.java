@@ -18,4 +18,13 @@ public interface DailyRepository extends JpaRepository<Daily, Long> {
 		LocalDate startDate,
 		LocalDate endDate
 	);
+
+	List<Daily> findAllByUser_IdAndEmotionValueAndDeletedAtIsNullOrderByEntryDateDescIdDesc(Long userId, Integer emotionValue);
+
+	List<Daily> findAllByUser_IdAndEmotionValueAndDeletedAtIsNullAndEntryDateBetweenOrderByEntryDateDescIdDesc(
+		Long userId,
+		Integer emotionValue,
+		LocalDate startDate,
+		LocalDate endDate
+	);
 }
