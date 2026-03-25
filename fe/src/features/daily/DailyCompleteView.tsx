@@ -134,7 +134,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
   };
 
   const updateExistingDailyForDate = async (entryDate: string) => {
-    const listRes = await dailyApi.getDailyList();
+    const listRes = await dailyApi.getDailyList({ period: "DAY", date: entryDate });
     const list = (listRes.data ?? []) as Array<{ dailyId?: number; id?: number; entryDate?: string }>;
     const found = list.find((item) => item.entryDate === entryDate);
     const dailyId = Number(found?.dailyId ?? found?.id ?? 0);

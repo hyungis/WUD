@@ -1,6 +1,6 @@
 import api from "./axios";
 import type { ApiResponse } from "../types/api";
-import type { DailyCreateRequest, DailyCreateResponse, DailyDetailResponse } from "../types/daily";
+import type { DailyCreateRequest, DailyCreateResponse, DailyDetailResponse, DailyListItemResponse } from "../types/daily";
 
 type DailyListParams = {
     period?: "DAY" | "WEEK" | "MONTH";
@@ -11,7 +11,7 @@ export const dailyApi = {
     createDaily: (data: DailyCreateRequest) => api.post<any, ApiResponse<DailyCreateResponse>>("/dailies", data),
 
     getDailyList: (params?: DailyListParams) =>
-        api.get<any, ApiResponse<DailyDetailResponse[]>>("/dailies", { params }),
+        api.get<any, ApiResponse<DailyListItemResponse[]>>("/dailies", { params }),
 
     getDailyDetail: (dailyId: number) => api.get<any, ApiResponse<DailyDetailResponse>>(`/dailies/${dailyId}`),
 

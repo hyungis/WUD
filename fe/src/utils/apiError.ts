@@ -2,6 +2,7 @@ type ErrorLike = {
   status?: number;
   message?: string;
   code?: string;
+  timedOut?: boolean;
   error?: {
     code?: string;
     message?: string;
@@ -38,9 +39,17 @@ export const extractApiErrorStatus = (error: unknown): number | null => {
 
 export const getApiErrorMessage = (error: unknown, fallback = "요청 처리 중 오류가 발생했습니다."): string => {
   const status = extractApiErrorStatus(error);
+  const e = error as ErrorLike | undefined;
+
+  if (status === 0) {
+    const timeoutLike = e?.timedOut || e?.code === "ECONNABORTED" || /timeout/i.test(e?.message || "");
+    if (timeoutLike) {
+      return "서버 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.";
+    }
+    return "서버와 연결할 수 없습니다. 네트워크 상태를 확인해 주세요.";
+  }
 
   const byStatus: Record<number, string> = {
-    0: "서버와 연결할 수 없습니다. 네트워크 상태를 확인해 주세요.",
     400: "요청 형식이 올바르지 않습니다. 입력값을 확인해 주세요.",
     401: "로그인이 만료되었습니다. 다시 로그인해 주세요.",
     403: "해당 작업에 대한 권한이 없습니다.",
@@ -57,7 +66,6 @@ export const getApiErrorMessage = (error: unknown, fallback = "요청 처리 중
     return byStatus[status];
   }
 
-  const e = error as ErrorLike | undefined;
   return (
     e?.error?.message
     || e?.response?.data?.error?.message

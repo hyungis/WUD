@@ -5,11 +5,15 @@ import { getWeekKey, formatDate } from "../../utils/homeHelpers";
 import { useAuthStore } from "../../../../store/authStore";
 import { useCustomStarStore, STAR_SHAPES, STAR_COLORS } from "../../../../store/customStarStore";
 import { userApi } from "../../../../api/user";
+import { dailyApi } from "../../../../api/daily";
 import { logout } from "../../../../services/auth";
 import type { UserProfileResponse } from "../../../../types/user";
+import type { DailyListItemResponse } from "../../../../types/daily";
+import { getApiErrorMessage } from "../../../../utils/apiError";
 
 type TabKey = "overview" | "daily" | "deep" | "customize" | "profile";
 type EmotionRatioItem = { color: string; label: string; count: number; ratio: number };
+type DailyRangePreset = "DAY" | "WEEK" | "MONTH" | "ALL";
 
 const EMOTION_COLOR_PALETTE = [
   { label: "기쁨", color: "#FFD54F" },
@@ -24,6 +28,10 @@ const EMOTION_COLOR_PALETTE = [
 
 const COLOR_TO_EMOTION: Record<string, string> = Object.fromEntries(
   EMOTION_COLOR_PALETTE.map((item) => [item.color, item.label]),
+);
+
+const EMOTION_TO_COLOR: Record<string, string> = Object.fromEntries(
+  EMOTION_COLOR_PALETTE.map((item) => [item.label, item.color]),
 );
 
 const hexToRgb = (hex: string) => {
@@ -64,6 +72,42 @@ const emotionFromColor = (hex: string) => {
   });
 
   return bestLabel;
+};
+
+const emotionLabelToColor = (label: string) => {
+  return EMOTION_TO_COLOR[label] || "#71717A";
+};
+
+const DAILY_FETCH_COOLDOWN_MS = 30000;
+const DAILY_CACHE_TTL_MS = 5 * 60 * 1000;
+const DAILY_INITIAL_VISIBLE = 24;
+const DAILY_INCREMENT_VISIBLE = 24;
+
+type DailyCachePayload = {
+  fetchedAt: number;
+  items: DailyListItemResponse[];
+};
+
+const getTodayKstDate = () => {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  return formatter.format(new Date());
+};
+
+const startOfDay = (date: Date) => {
+  const next = new Date(date);
+  next.setHours(0, 0, 0, 0);
+  return next;
+};
+
+const toDateOrNull = (value?: string | null) => {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
 };
 
 const polarToCartesian = (cx: number, cy: number, radius: number, angleInDegrees: number) => {
@@ -133,6 +177,12 @@ const IconLogout = ({ className = "h-4 w-4" }: { className?: string }) => (
 const IconCustomize = ({ className = "h-4 w-4" }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className={className}>
     <path d="M12 3l1.912 5.813a2 2 0 0 0 1.275 1.275L21 12l-5.813 1.912a2 2 0 0 0-1.275 1.275L12 21l-1.912-5.813a2 2 0 0 0-1.275-1.275L3 12l5.813-1.912a2 2 0 0 0 1.275-1.275L12 3z" />
+  </svg>
+);
+const IconRefresh = ({ className = "h-3.5 w-3.5" }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={className}>
+    <path d="M21 12a9 9 0 1 1-2.64-6.36" />
+    <path d="M21 3v6h-6" />
   </svg>
 );
 
@@ -280,9 +330,27 @@ export function MyUniverseModal({
   const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [withdrawConfirm, setWithdrawConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const [selectedEmotion, setSelectedEmotion] = useState<EmotionRatioItem | null>(null);
   const [hoverPopup, setHoverPopup] = useState<{ emotion: EmotionRatioItem; x: number; y: number } | null>(null);
+  const [dailyFilterEmotion, setDailyFilterEmotion] = useState<string | null>(null);
+  const [dailyApiItems, setDailyApiItems] = useState<DailyListItemResponse[]>([]);
+  const [dailyApiLoading, setDailyApiLoading] = useState(false);
+  const [dailyApiError, setDailyApiError] = useState<string | null>(null);
+  const [dailyApiLoaded, setDailyApiLoaded] = useState(false);
+  const [dailyFetchBlockedUntil, setDailyFetchBlockedUntil] = useState(0);
+  const [dailyRangePreset, setDailyRangePreset] = useState<DailyRangePreset>("WEEK");
+  const [dailySelectedDate, setDailySelectedDate] = useState(() => getTodayKstDate());
+  const [dailyLastSyncedAt, setDailyLastSyncedAt] = useState<number | null>(null);
+  const [dailyFullVisibleCount, setDailyFullVisibleCount] = useState(DAILY_INITIAL_VISIBLE);
+  const [dailyCategoryVisibleCount, setDailyCategoryVisibleCount] = useState(12);
   const emotionCardRef = useRef<HTMLDivElement | null>(null);
+
+  const buildDailyCacheKey = (preset: DailyRangePreset, date: string) =>
+    `my-universe-daily-cache:${user?.email || "anon"}:${preset}:${date}`;
+
+  const buildDailyListParams = (preset: DailyRangePreset, date: string) => {
+    if (preset === "ALL") return undefined;
+    return { period: preset, date } as { period: "DAY" | "WEEK" | "MONTH"; date: string };
+  };
 
   const fetchProfile = useCallback(async () => {
     setProfileLoading(true);
@@ -301,10 +369,28 @@ export function MyUniverseModal({
       setPasswordForm({ current: "", next: "", confirm: "" });
       setPasswordMsg(null);
       setWithdrawConfirm(false);
+      setDailyFilterEmotion(null);
+      setDailyApiItems([]);
+      setDailyApiError(null);
+      setDailyApiLoaded(false);
+      setDailyFetchBlockedUntil(0);
+      setDailyRangePreset("WEEK");
+      setDailySelectedDate(getTodayKstDate());
+      setDailyLastSyncedAt(null);
+      setDailyFullVisibleCount(DAILY_INITIAL_VISIBLE);
+      setDailyCategoryVisibleCount(12);
       void fetchProfile();
       void fetchCenterStar();
     }
   }, [isOpen, fetchProfile, fetchCenterStar]);
+
+  useEffect(() => {
+    setDailyFullVisibleCount(DAILY_INITIAL_VISIBLE);
+  }, [dailyRangePreset, dailySelectedDate]);
+
+  useEffect(() => {
+    setDailyCategoryVisibleCount(12);
+  }, [dailyFilterEmotion, dailyRangePreset, dailySelectedDate]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -315,8 +401,6 @@ export function MyUniverseModal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-
-  if (!isOpen) return null;
 
   const totalRecords = dailyPlanets.length + deepStars.length;
   const uniqueWeeks = new Set([
@@ -360,17 +444,77 @@ export function MyUniverseModal({
     });
   })();
 
-  const selectedEmotionRecords = selectedEmotion
-    ? [...dailyPlanets]
-      .filter((planet) => emotionFromColor((planet.shell || "").toUpperCase()) === selectedEmotion.label)
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    : [];
-
   const getEmotionRecordsByLabel = (label: string) => {
     return [...dailyPlanets]
       .filter((planet) => emotionFromColor((planet.shell || "").toUpperCase()) === label)
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   };
+
+  const fetchDailyByApi = async (force = false, preset = dailyRangePreset, date = dailySelectedDate) => {
+    if (dailyApiLoading) return;
+    const now = Date.now();
+    if (!force && dailyFetchBlockedUntil > now) return;
+    const safeDate = toDateOrNull(date) ? date : getTodayKstDate();
+
+    const dailyCacheKey = buildDailyCacheKey(preset, safeDate);
+
+    if (!force) {
+      try {
+        const raw = sessionStorage.getItem(dailyCacheKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as DailyCachePayload;
+          if (Array.isArray(parsed.items) && parsed.items.length > 0) {
+            setDailyApiItems(parsed.items);
+            setDailyApiLoaded(true);
+            setDailyLastSyncedAt(parsed.fetchedAt || null);
+            if (now - (parsed.fetchedAt || 0) < DAILY_CACHE_TTL_MS) {
+              setDailyApiError(null);
+              return;
+            }
+          }
+        }
+      } catch {
+        // ignore cache parse errors
+      }
+    }
+
+    setDailyApiLoading(true);
+    setDailyApiError(null);
+    try {
+      const res = await dailyApi.getDailyList(buildDailyListParams(preset, safeDate));
+      const nextItems = res.data || [];
+      setDailyApiItems(nextItems);
+      setDailyApiLoaded(true);
+      setDailyLastSyncedAt(Date.now());
+      try {
+        const payload: DailyCachePayload = { fetchedAt: Date.now(), items: nextItems };
+        sessionStorage.setItem(dailyCacheKey, JSON.stringify(payload));
+      } catch {
+        // ignore cache write errors
+      }
+      setDailyFetchBlockedUntil(0);
+    } catch (error) {
+      setDailyApiError(getApiErrorMessage(error, "데일리 기록을 불러오지 못했습니다."));
+      setDailyFetchBlockedUntil(Date.now() + DAILY_FETCH_COOLDOWN_MS);
+    } finally {
+      setDailyApiLoading(false);
+    }
+  };
+
+  const openDailyTabByEmotion = (emotionLabel: string) => {
+    setTab("daily");
+    setDailyFilterEmotion(emotionLabel);
+    if (!dailyApiLoading && dailyApiItems.length === 0) {
+      void fetchDailyByApi();
+    }
+  };
+
+  useEffect(() => {
+    if (tab !== "daily") return;
+    void fetchDailyByApi();
+  }, [tab, dailyRangePreset, dailySelectedDate]);
+
+  if (!isOpen) return null;
 
   const handleEmotionHoverMove = (emotion: EmotionRatioItem, e: React.MouseEvent<HTMLElement | SVGPathElement>) => {
     const cardRect = emotionCardRef.current?.getBoundingClientRect();
@@ -448,7 +592,110 @@ export function MyUniverseModal({
     { key: "profile", label: "PROFILE", icon: <IconUser /> },
   ];
 
-  const switchTab = (key: TabKey) => { setTab(key); };
+  const switchTab = (key: TabKey) => {
+    setTab(key);
+    if (key !== "daily") {
+      setDailyFilterEmotion(null);
+    }
+  };
+
+  const getBackendEmotionLabel = (item: DailyListItemResponse) => {
+    if (item.emotion && item.emotion.trim().length > 0) return item.emotion;
+    return emotionFromColor((item.emotionColor || "").toUpperCase());
+  };
+
+  const dailyApiSorted = [...dailyApiItems].sort((a, b) => {
+    return new Date(b.entryDate).getTime() - new Date(a.entryDate).getTime();
+  });
+
+  const localDailySorted = [...dailyPlanets]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const isWithinDailyRange = (rawDate?: string | null) => {
+    const date = toDateOrNull(rawDate || undefined);
+    if (!date) return false;
+
+    if (dailyRangePreset === "ALL") return true;
+
+    const target = startOfDay(date);
+    const anchor = startOfDay(new Date(`${dailySelectedDate}T00:00:00`));
+
+    if (dailyRangePreset === "DAY") {
+      return target.getTime() === anchor.getTime();
+    }
+
+    if (dailyRangePreset === "WEEK") {
+      const weekStart = new Date(anchor);
+      weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekStart.getDate() + 6);
+      return target >= weekStart && target <= weekEnd;
+    }
+
+    return target.getFullYear() === anchor.getFullYear() && target.getMonth() === anchor.getMonth();
+  };
+
+  const dailyApiRanged = dailyApiSorted.filter((item) => isWithinDailyRange(item.entryDate));
+  const localDailyRanged = localDailySorted.filter((planet) => isWithinDailyRange(planet.createdAt));
+
+  const dailyApiEmotionSummary = dailyApiRanged.reduce<Record<string, number>>((acc, item) => {
+    const label = getBackendEmotionLabel(item);
+    acc[label] = (acc[label] || 0) + 1;
+    return acc;
+  }, {});
+
+  const localDailyEmotionSummary = localDailyRanged.reduce<Record<string, number>>((acc, planet) => {
+    const label = emotionFromColor((planet.shell || "").toUpperCase());
+    acc[label] = (acc[label] || 0) + 1;
+    return acc;
+  }, {});
+
+  const hasBackendDailyData = dailyApiLoaded;
+
+  const effectiveEmotionSummary = hasBackendDailyData
+    ? dailyApiEmotionSummary
+    : localDailyEmotionSummary;
+
+  const emotionFilterOptions = [
+    ...EMOTION_COLOR_PALETTE.map((item) => ({
+      label: item.label,
+      color: item.color,
+      count: effectiveEmotionSummary[item.label] || 0,
+    })),
+    ...Object.keys(effectiveEmotionSummary)
+      .filter((label) => !EMOTION_TO_COLOR[label])
+      .sort((a, b) => (effectiveEmotionSummary[b] || 0) - (effectiveEmotionSummary[a] || 0))
+      .map((label) => ({
+        label,
+        color: emotionLabelToColor(label),
+        count: effectiveEmotionSummary[label] || 0,
+      })),
+  ];
+
+  const dailyApiFiltered = dailyFilterEmotion
+    ? dailyApiRanged.filter((item) => getBackendEmotionLabel(item) === dailyFilterEmotion)
+    : [];
+
+  const localDailyFiltered = dailyFilterEmotion
+    ? localDailyRanged.filter((planet) => emotionFromColor((planet.shell || "").toUpperCase()) === dailyFilterEmotion)
+    : [];
+
+  const dailyApiVisibleBase = dailyFilterEmotion
+    ? dailyApiRanged.filter((item) => getBackendEmotionLabel(item) === dailyFilterEmotion)
+    : dailyApiRanged;
+
+  const localDailyVisibleBase = dailyFilterEmotion
+    ? localDailyRanged.filter((planet) => emotionFromColor((planet.shell || "").toUpperCase()) === dailyFilterEmotion)
+    : localDailyRanged;
+
+  const fullDailyListCount = dailyApiRanged.length > 0 ? dailyApiVisibleBase.length : localDailyVisibleBase.length;
+  const backendFullVisible = dailyApiVisibleBase.slice(0, dailyFullVisibleCount);
+  const localFullVisible = localDailyVisibleBase.slice(0, dailyFullVisibleCount);
+
+  const backendCategoryVisible = dailyApiFiltered.slice(0, dailyCategoryVisibleCount);
+  const localCategoryVisible = localDailyFiltered.slice(0, dailyCategoryVisibleCount);
+
+  const retryWaitSeconds = Math.max(0, Math.ceil((dailyFetchBlockedUntil - Date.now()) / 1000));
 
   // 공통 카드 스타일
   const cardCls = "rounded-2xl border border-white/[0.08] bg-white/[0.03] p-5 backdrop-blur-sm";
@@ -581,7 +828,7 @@ export function MyUniverseModal({
                               strokeWidth={donutStroke}
                               strokeLinecap="butt"
                               className="cursor-pointer transition-opacity hover:opacity-80"
-                              onClick={() => setSelectedEmotion(slice)}
+                              onClick={() => openDailyTabByEmotion(slice.label)}
                               onMouseEnter={(e) => handleEmotionHoverMove(slice, e)}
                               onMouseMove={(e) => handleEmotionHoverMove(slice, e)}
                               onMouseLeave={() => setHoverPopup(null)}
@@ -599,7 +846,7 @@ export function MyUniverseModal({
                       {emotionRatioItems.map((item) => (
                         <button
                           key={item.color}
-                          onClick={() => setSelectedEmotion(item)}
+                          onClick={() => openDailyTabByEmotion(item.label)}
                           onMouseEnter={(e) => handleEmotionHoverMove(item, e)}
                           onMouseMove={(e) => handleEmotionHoverMove(item, e)}
                           onMouseLeave={() => setHoverPopup(null)}
@@ -704,43 +951,295 @@ export function MyUniverseModal({
 
           {/* ── 데일리 ── */}
           {tab === "daily" && (
-            <div className="space-y-2">
-              {dailyPlanets.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/[0.06] p-10 text-center">
-                  <div className="text-3xl mb-3 opacity-30">◇</div>
-                  <p className="text-zinc-400 text-sm">DAILY PLANET이 없어요</p>
+            <div className="space-y-4">
+              {dailyApiLoading && dailyApiItems.length === 0 && (
+                <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] p-8 text-center">
+                  <p className="text-sm text-zinc-400">백엔드 데일리 기록 불러오는 중...</p>
                 </div>
-              ) : (
-                [...dailyPlanets]
-                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                  .map((planet, i) => (
+              )}
+
+              {dailyApiError && (
+                <div className="rounded-2xl border border-amber-500/20 bg-amber-500/[0.08] p-4 text-center">
+                  <p className="text-sm text-amber-300">{dailyApiError}</p>
+                  <p className="mt-1 text-[11px] text-zinc-400">전체 리스트는 모달 데이터로 계속 표시합니다.</p>
+                  <div className="mt-3">
                     <button
-                      key={planet.id || i}
-                      onClick={() => onDailyPlanetClick(planet)}
-                      className="w-full rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.1] p-4 flex items-center gap-4 transition-all text-left group"
+                      type="button"
+                      onClick={() => void fetchDailyByApi(true)}
+                      disabled={dailyApiLoading || retryWaitSeconds > 0}
+                      className="rounded-md border border-white/[0.12] bg-white/[0.05] px-3 py-1.5 text-[11px] text-zinc-200 transition hover:bg-white/[0.1] disabled:opacity-50"
                     >
-                      <div className="flex-shrink-0 h-9 w-9 flex items-center justify-center">
-                        <div
-                          className="h-6 w-6 rotate-45 rounded-[4px]"
-                          style={{
-                            background: `linear-gradient(135deg, ${planet.shell}, ${planet.core || planet.shell}88)`,
-                            boxShadow: `0 0 12px ${planet.shell}44`,
-                          }}
-                        />
+                      {retryWaitSeconds > 0 ? `재시도 대기 ${retryWaitSeconds}초` : "백엔드 다시 불러오기"}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+                <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-[11px] text-zinc-300">
+                  {dailyLastSyncedAt && (
+                    <span className="text-[10px] text-zinc-500">최근 동기화 {formatDate(new Date(dailyLastSyncedAt).toISOString())}</span>
+                  )}
+                  {!dailyApiLoading && (
+                    <button
+                      type="button"
+                      onClick={() => void fetchDailyByApi(true)}
+                      className="ml-auto inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/[0.12] bg-white/[0.04] text-zinc-400 transition hover:bg-white/[0.1] hover:text-zinc-200"
+                      aria-label="새로고침"
+                      title="새로고침"
+                    >
+                      <IconRefresh className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="mb-3 grid grid-cols-1 gap-2 md:grid-cols-[auto_1fr] md:items-center">
+                  <label className="flex items-center gap-2 rounded-lg border border-white/[0.12] bg-white/[0.02] px-3 py-2">
+                    <span className="text-[11px] text-zinc-400">기준 날짜</span>
+                    <input
+                      type="date"
+                      value={dailySelectedDate}
+                      onChange={(e) => setDailySelectedDate(e.target.value || getTodayKstDate())}
+                      disabled={dailyRangePreset === "ALL"}
+                      className="bg-transparent text-[12px] text-zinc-100 outline-none disabled:opacity-40"
+                    />
+                  </label>
+
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { key: "DAY" as const, label: "1일" },
+                      { key: "WEEK" as const, label: "1주" },
+                      { key: "MONTH" as const, label: "1개월" },
+                      { key: "ALL" as const, label: "전체" },
+                    ].map((option) => (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => setDailyRangePreset(option.key)}
+                        className={`rounded-full border px-2.5 py-1 text-[11px] transition ${dailyRangePreset === option.key
+                          ? "border-white/30 bg-white/10 text-white"
+                          : "border-white/[0.1] bg-white/[0.03] text-zinc-300 hover:bg-white/[0.07]"
+                          }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <p className="mb-3 text-[10px] text-zinc-500">기준 날짜를 중심으로 선택한 기간 안의 기록을 보여줍니다.</p>
+
+                <div className="mb-3 flex items-center justify-between">
+                  <p className="text-xs font-medium text-zinc-300">감정 분류 리스트</p>
+                  {dailyFilterEmotion && (
+                    <button
+                      type="button"
+                      onClick={() => setDailyFilterEmotion(null)}
+                      className="rounded-md border border-white/[0.08] bg-white/[0.02] px-2 py-1 text-[11px] text-zinc-300 hover:bg-white/[0.06] transition"
+                    >
+                      필터 해제
+                    </button>
+                  )}
+                </div>
+
+                <div className="mb-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDailyFilterEmotion(null)}
+                    className={`rounded-full border px-2.5 py-1 text-[11px] transition ${dailyFilterEmotion === null
+                      ? "border-white/30 bg-white/10 text-white"
+                      : "border-white/[0.1] bg-white/[0.03] text-zinc-300 hover:bg-white/[0.07]"
+                      }`}
+                  >
+                    전체 {hasBackendDailyData ? dailyApiRanged.length : localDailyRanged.length}
+                  </button>
+
+                  {emotionFilterOptions.map((option) => (
+                    <button
+                      key={option.label}
+                      type="button"
+                      onClick={() => setDailyFilterEmotion(option.label)}
+                      className={`rounded-full border px-2.5 py-1 text-[11px] transition ${dailyFilterEmotion === option.label
+                        ? "border-white/30 bg-white/10 text-white"
+                        : option.count === 0
+                          ? "border-white/[0.06] bg-white/[0.02] text-zinc-500"
+                          : "border-white/[0.1] bg-white/[0.03] text-zinc-300 hover:bg-white/[0.07]"
+                        }`}
+                    >
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: option.color }} />
+                        <span>{option.label}</span>
+                        <span className="text-zinc-500">{option.count}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {dailyFilterEmotion ? (
+                  hasBackendDailyData ? (
+                    dailyApiFiltered.length === 0 ? (
+                      <div className="rounded-xl border border-dashed border-white/[0.08] bg-white/[0.02] px-4 py-5 text-center">
+                        <p className="text-sm text-zinc-400">해당 감정의 데일리 기록이 없어요</p>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] text-zinc-200 truncate group-hover:text-white transition-colors">
-                          {planet.memo ? planet.memo.slice(0, 40) + (planet.memo.length > 40 ? "…" : "") : "DAILY PLANET"}
-                        </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {backendCategoryVisible.map((item) => (
+                          <div key={item.dailyId} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                            <p className="text-[13px] text-zinc-200">{item.resultSummary || "감정 분석 결과가 아직 없습니다."}</p>
+                            <div className="mt-1 flex items-center gap-2">
+                              <span className="text-[10px] text-zinc-600">{formatDate(item.entryDate)}</span>
+                              <span className="text-[10px] px-1.5 py-px rounded bg-sky-500/10 text-sky-400/80">{item.dailyType}</span>
+                              <span className="inline-flex items-center gap-1.5 text-[10px] px-1.5 py-px rounded bg-white/10 text-zinc-300">
+                                <span
+                                  className="h-2 w-2 rounded-full"
+                                  style={{ backgroundColor: item.emotionColor || emotionLabelToColor(getBackendEmotionLabel(item)) }}
+                                />
+                                <span>{getBackendEmotionLabel(item)}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                        {dailyApiFiltered.length > dailyCategoryVisibleCount && (
+                          <button
+                            type="button"
+                            onClick={() => setDailyCategoryVisibleCount((prev) => prev + 12)}
+                            className="w-full rounded-lg border border-white/[0.1] bg-white/[0.03] py-2 text-[11px] text-zinc-300 hover:bg-white/[0.08] transition"
+                          >
+                            분류 결과 더보기 ({dailyApiFiltered.length - dailyCategoryVisibleCount})
+                          </button>
+                        )}
+                      </div>
+                    )
+                  ) : localDailyFiltered.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-white/[0.08] bg-white/[0.02] px-4 py-5 text-center">
+                      <p className="text-sm text-zinc-400">해당 감정의 데일리 기록이 없어요</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {localCategoryVisible.map((planet, i) => (
+                        <div key={planet.id || i} className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3">
+                          <p className="text-[13px] text-zinc-200">{planet.memo || "DAILY 기록"}</p>
+                          <div className="mt-1 flex items-center gap-2">
+                            <span className="text-[10px] text-zinc-600">{formatDate(planet.createdAt)}</span>
+                            {planet.objectType && <span className="text-[10px] px-1.5 py-px rounded bg-sky-500/10 text-sky-400/80">{planet.objectType}</span>}
+                            <span className="inline-flex items-center gap-1.5 text-[10px] px-1.5 py-px rounded bg-white/10 text-zinc-300">
+                              <span
+                                className="h-2 w-2 rounded-full"
+                                style={{ backgroundColor: (planet.shell || "").toUpperCase() || emotionLabelToColor(emotionFromColor((planet.shell || "").toUpperCase())) }}
+                              />
+                              <span>{emotionFromColor((planet.shell || "").toUpperCase())}</span>
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                      {localDailyFiltered.length > dailyCategoryVisibleCount && (
+                        <button
+                          type="button"
+                          onClick={() => setDailyCategoryVisibleCount((prev) => prev + 12)}
+                          className="w-full rounded-lg border border-white/[0.1] bg-white/[0.03] py-2 text-[11px] text-zinc-300 hover:bg-white/[0.08] transition"
+                        >
+                          분류 결과 더보기 ({localDailyFiltered.length - dailyCategoryVisibleCount})
+                        </button>
+                      )}
+                    </div>
+                  )
+                ) : (
+                  <p className="text-[11px] text-zinc-500">감정을 선택하면 분류된 기록을 볼 수 있습니다.</p>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <p className="text-xs font-medium text-zinc-300">기록 리스트 ({fullDailyListCount})</p>
+                  {dailyFilterEmotion && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-white/[0.12] bg-white/[0.04] px-2 py-0.5 text-[10px] text-zinc-300">
+                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: emotionLabelToColor(dailyFilterEmotion) }} />
+                      <span>{dailyFilterEmotion}</span>
+                    </span>
+                  )}
+                </div>
+
+                {dailyApiRanged.length > 0 ? (
+                  <div className="space-y-2">
+                    {backendFullVisible.map((item) => (
+                      <div key={item.dailyId} className="w-full rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+                        <p className="text-[13px] text-zinc-200 truncate">{item.resultSummary || "DAILY 기록"}</p>
                         <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[10px] text-zinc-600">{formatDate(planet.createdAt)}</span>
-                          {planet.objectType && <span className="text-[10px] px-1.5 py-px rounded bg-sky-500/10 text-sky-400/80">{planet.objectType}</span>}
+                          <span className="text-[10px] text-zinc-600">{formatDate(item.entryDate)}</span>
+                          <span className="text-[10px] px-1.5 py-px rounded bg-sky-500/10 text-sky-400/80">{item.dailyType}</span>
+                          <span className="inline-flex items-center gap-1.5 text-[10px] px-1.5 py-px rounded bg-white/10 text-zinc-300">
+                            <span
+                              className="h-2 w-2 rounded-full"
+                              style={{ backgroundColor: item.emotionColor || emotionLabelToColor(getBackendEmotionLabel(item)) }}
+                            />
+                            <span>{getBackendEmotionLabel(item)}</span>
+                          </span>
                         </div>
                       </div>
-                      <IconChevron className="h-3.5 w-3.5 text-zinc-700 group-hover:text-zinc-400 flex-shrink-0 transition-colors" />
-                    </button>
-                  ))
-              )}
+                    ))}
+                    {fullDailyListCount > dailyFullVisibleCount && (
+                      <button
+                        type="button"
+                        onClick={() => setDailyFullVisibleCount((prev) => prev + DAILY_INCREMENT_VISIBLE)}
+                        className="w-full rounded-lg border border-white/[0.1] bg-white/[0.03] py-2 text-[11px] text-zinc-300 hover:bg-white/[0.08] transition"
+                      >
+                        전체 리스트 더보기 ({fullDailyListCount - dailyFullVisibleCount})
+                      </button>
+                    )}
+                  </div>
+                ) : localDailyRanged.length > 0 ? (
+                  <div className="space-y-2">
+                    {localFullVisible.map((planet, i) => (
+                      <button
+                        key={planet.id || i}
+                        onClick={() => onDailyPlanetClick(planet)}
+                        className="w-full rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.1] p-4 flex items-center gap-4 transition-all text-left group"
+                      >
+                        <div className="flex-shrink-0 h-9 w-9 flex items-center justify-center">
+                          <div
+                            className="h-6 w-6 rotate-45 rounded-[4px]"
+                            style={{
+                              background: `linear-gradient(135deg, ${planet.shell}, ${planet.core || planet.shell}88)`,
+                              boxShadow: `0 0 12px ${planet.shell}44`,
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] text-zinc-200 truncate group-hover:text-white transition-colors">
+                            {planet.memo ? planet.memo.slice(0, 40) + (planet.memo.length > 40 ? "..." : "") : "DAILY PLANET"}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[10px] text-zinc-600">{formatDate(planet.createdAt)}</span>
+                            {planet.objectType && <span className="text-[10px] px-1.5 py-px rounded bg-sky-500/10 text-sky-400/80">{planet.objectType}</span>}
+                            <span className="inline-flex items-center gap-1.5 text-[10px] px-1.5 py-px rounded bg-white/10 text-zinc-300">
+                              <span
+                                className="h-2 w-2 rounded-full"
+                                style={{ backgroundColor: (planet.shell || "").toUpperCase() || emotionLabelToColor(emotionFromColor((planet.shell || "").toUpperCase())) }}
+                              />
+                              <span>{emotionFromColor((planet.shell || "").toUpperCase())}</span>
+                            </span>
+                          </div>
+                        </div>
+                        <IconChevron className="h-3.5 w-3.5 text-zinc-700 group-hover:text-zinc-400 flex-shrink-0 transition-colors" />
+                      </button>
+                    ))}
+                    {fullDailyListCount > dailyFullVisibleCount && (
+                      <button
+                        type="button"
+                        onClick={() => setDailyFullVisibleCount((prev) => prev + DAILY_INCREMENT_VISIBLE)}
+                        className="w-full rounded-lg border border-white/[0.1] bg-white/[0.03] py-2 text-[11px] text-zinc-300 hover:bg-white/[0.08] transition"
+                      >
+                        전체 리스트 더보기 ({fullDailyListCount - dailyFullVisibleCount})
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-white/[0.06] p-8 text-center">
+                    <div className="text-3xl mb-3 opacity-30">◇</div>
+                    <p className="text-zinc-400 text-sm">DAILY 기록이 없어요</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -916,61 +1415,6 @@ export function MyUniverseModal({
           )}
         </div>
       </div>
-
-      {selectedEmotion && (
-        <div
-          className="fixed inset-0 z-[70] bg-black/65 backdrop-blur-sm flex items-center justify-center px-4"
-          onClick={() => setSelectedEmotion(null)}
-        >
-          <div
-            className="w-full max-w-[560px] rounded-2xl border border-white/[0.1] bg-[#0a0a0f] p-5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-3 mb-4">
-              <div>
-                <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">Emotion Detail</p>
-                <div className="mt-1 flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: selectedEmotion.color }} />
-                  <p className="text-lg font-semibold text-white">{selectedEmotion.label}</p>
-                  <p className="text-xs text-zinc-500">{selectedEmotion.count}회 · {selectedEmotion.ratio.toFixed(1)}%</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedEmotion(null)}
-                className="h-8 w-8 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] flex items-center justify-center text-zinc-500 hover:text-white transition-all"
-                aria-label="감정 모달 닫기"
-              >
-                <IconClose />
-              </button>
-            </div>
-
-            <div className="max-h-[360px] overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
-              {selectedEmotionRecords.length > 0 ? (
-                selectedEmotionRecords.map((planet, i) => (
-                  <button
-                    key={planet.id || i}
-                    onClick={() => {
-                      setSelectedEmotion(null);
-                      onDailyPlanetClick(planet);
-                    }}
-                    className="w-full rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] px-3 py-2.5 text-left transition-colors"
-                  >
-                    <p className="text-[13px] text-zinc-200 truncate">{planet.memo || "DAILY PLANET"}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="text-[10px] text-zinc-600">{formatDate(planet.createdAt)}</span>
-                      <span className="text-[10px] text-zinc-500">{emotionFromColor((planet.shell || "").toUpperCase())}</span>
-                    </div>
-                  </button>
-                ))
-              ) : (
-                <div className="rounded-xl border border-dashed border-white/[0.08] bg-white/[0.02] px-4 py-8 text-center">
-                  <p className="text-sm text-zinc-400">해당 감정 기록이 없습니다.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
