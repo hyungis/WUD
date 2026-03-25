@@ -975,7 +975,7 @@ export function StarScene({
       createdAt: star.createdAt,
       kind: "deep" as const,
       toneColor: star.toneColor,
-      weekKey: star.weekKey || getWeekKey(new Date(star.createdAt)),
+      weekKey: star.weekKey || "",
     }));
     const dailyItems = dailyPlanets.map((planet) => ({
       id: planet.id, targetId: (planet as any).targetId, createdAt: planet.createdAt, kind: "daily" as const, planet, weekKey: getWeekKey(new Date(planet.createdAt))

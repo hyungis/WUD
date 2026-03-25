@@ -321,7 +321,7 @@ export function MyUniverseModal({
   const totalRecords = dailyPlanets.length + deepStars.length;
   const uniqueWeeks = new Set([
     ...dailyPlanets.map((p) => getWeekKey(new Date(p.createdAt))),
-    ...deepStars.map((s) => s.weekKey || getWeekKey(new Date(s.createdAt))),
+    ...deepStars.map((s) => s.weekKey).filter((key): key is string => Boolean(key)),
   ]).size;
 
   const emotionRatioSource = dailyPlanets.reduce<Record<string, number>>((acc, planet) => {

@@ -134,7 +134,7 @@ function HomePage() {
       kind: (s.kind || "daily").toLowerCase(),
       color: s.color,
       label: s.kind === "DAILY" ? "DAILY PLANET" : "WEEKLY PLANET",
-      weekKey: s.weekStartDate ? getWeekKey(new Date(s.weekStartDate)) : getWeekKey(new Date(s.createdAt)),
+      weekKey: s.kind === "DEEP" ? (s.weekStartDate || undefined) : getWeekKey(new Date(s.createdAt)),
       createdAt: s.createdAt,
       original: s,
     }));
@@ -315,7 +315,7 @@ function HomePage() {
         constellationId: s.constellationId,
         toneColor: s.color,
         createdAt: s.createdAt,
-        weekKey: s.weekStartDate ? getWeekKey(new Date(s.weekStartDate)) : getWeekKey(new Date(s.createdAt)),
+        weekKey: s.weekStartDate || undefined,
         label: s.isTemporary ? "분석 중..." : "WEEKLY PLANET",
         isTemporary: s.isTemporary,
       })),
