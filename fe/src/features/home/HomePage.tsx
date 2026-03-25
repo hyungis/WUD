@@ -78,6 +78,8 @@ function HomePage() {
   const setWeeklyPirModalOpen = useUiStore((state) => state.setWeeklyPirModalOpen);
   const isWeeklySwModalOpen = useUiStore((state) => state.isWeeklySwModalOpen);
   const setWeeklySwModalOpen = useUiStore((state) => state.setWeeklySwModalOpen);
+  const isCinematicMode = useUiStore((state) => state.isCinematicMode);
+  const setIsCinematicMode = useUiStore((state) => state.setIsCinematicMode);
 
   const isMacro = viewMode === "macro";
   const hoverClearTimerRef = useRef<number | null>(null);
@@ -114,6 +116,8 @@ function HomePage() {
     isWeeklySwModalOpen,
     isSidePanelOpen,
     setOverlayOpen,
+    isCinematicMode,
+    setIsCinematicMode,
   ]);
 
   useEffect(() => {
@@ -762,31 +766,33 @@ function HomePage() {
         </div>
       )}
 
-      <TimelineHUD
-        isMacro={isMacro}
-        isTimelineOpen={isTimelineOpen}
-        setIsTimelineOpen={setIsTimelineOpen}
-        timelineItems={timelineItems}
-        dailyPlanets={dailyPlanets}
-        selectedStarId={selectedStarId}
-        selectedWeekKey={selectedWeekKey}
-        onItemClick={(id) => {
-          setTimelineFocusNonce();
-          if (id === mypageStar.id) {
+      {!isCinematicMode && (
+        <TimelineHUD
+          isMacro={isMacro}
+          isTimelineOpen={isTimelineOpen}
+          setIsTimelineOpen={setIsTimelineOpen}
+          timelineItems={timelineItems}
+          dailyPlanets={dailyPlanets}
+          selectedStarId={selectedStarId}
+          selectedWeekKey={selectedWeekKey}
+          onItemClick={(id) => {
+            setTimelineFocusNonce();
+            if (id === mypageStar.id) {
+              setSelectedStarId(id);
+              return;
+            }
+            // HUD 별 클릭 → 카메라 포커스 + 상세 리포트 사이드 패널 열기
             setSelectedStarId(id);
-            return;
-          }
-          // HUD 별 클릭 → 카메라 포커스 + 상세 리포트 사이드 패널 열기
-          setSelectedStarId(id);
-          const item = timelineItems.find((i) => i.id === id);
-          if (item) void handleTimelineItemClick(item);
-        }}
-        onWeekRowClick={(id) => {
-          // 주(행) 클릭은 리포트 오픈 없이 카메라/별자리 포커스만 이동
-          setTimelineFocusNonce();
-          setSelectedStarId(id);
-        }}
-      />
+            const item = timelineItems.find((i) => i.id === id);
+            if (item) void handleTimelineItemClick(item);
+          }}
+          onWeekRowClick={(id) => {
+            // 주(행) 클릭은 리포트 오픈 없이 카메라/별자리 포커스만 이동
+            setTimelineFocusNonce();
+            setSelectedStarId(id);
+          }}
+        />
+      )}
 
       {/* 데일리 자율 드로잉 모달 */}
       {isDailyFreeDrawModalOpen && (
@@ -807,16 +813,50 @@ function HomePage() {
       )}
 
       {/* 튜토리얼 다시보기 버튼 */}
-      <button
-        id="re-tutorial-btn"
-        onClick={handleStartTutorial}
-        className="fixed bottom-4 left-4 z-[60] flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/50 backdrop-blur-md transition-all hover:scale-110 hover:border-white/40 hover:bg-white/20 hover:text-white"
-        title="튜토리얼 다시보기"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" />
-        </svg>
-      </button>
+      {!isCinematicMode && (
+        <button
+          id="re-tutorial-btn"
+          onClick={handleStartTutorial}
+          className="fixed bottom-4 left-4 z-[60] flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/50 backdrop-blur-md transition-all hover:scale-110 hover:border-white/40 hover:bg-white/20 hover:text-white"
+          title="튜토리얼 다시보기"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </button>
+      )}
+
+      {/* 🎬 시네마틱 모드 종료 버튼 (모드 활성 시 상단 같은 위치에 아주 은은하게 표시) */}
+      {isCinematicMode && (
+        <button
+          id="exit-cinematic-btn"
+          onClick={() => setIsCinematicMode(false)}
+          className="fixed top-6 right-6 z-[60] flex h-10 w-10 items-center justify-center rounded-xl border border-white/5 bg-white/5 text-white/10 backdrop-blur-[2px] transition-all hover:scale-110 hover:border-white/30 hover:bg-white/15 hover:text-white/60 group"
+          title="UI 다시 보기"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-colors">
+            <line x1="1" y1="1" x2="23" y2="23" />
+            <path d="M21 21H3V3" />
+            <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+      )}
+
+      {/* 👀 시네마틱 모드 진입 버튼 (화면 우상단) */}
+      {!isCinematicMode && !isSidePanelOpen && (
+        <button
+          id="enter-cinematic-btn"
+          onClick={() => setIsCinematicMode(true)}
+          className="fixed top-6 right-6 z-[60] flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white/50 backdrop-blur-md transition-all hover:scale-110 hover:border-white/40 hover:bg-white/20 hover:text-white group shadow-lg"
+          title="UI 숨기기 (시네마틱 모드)"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-colors group-hover:text-white">
+            <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+      )}
 
       {/* HUD 우측 사이드 패널 (상세 리포트) */}
       <StarSidePanel
