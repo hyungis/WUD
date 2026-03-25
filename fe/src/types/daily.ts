@@ -39,3 +39,15 @@ export interface DailyDetailResponse {
     createdAt: string;
     updatedAt?: string;
 }
+
+export interface DailyListItemResponse {
+    dailyId: number;
+    dailyType: string;
+    entryDate: string;
+    emotion?: string;
+    emotionValue?: number;
+    emotionColor?: string;
+    drawingImageId?: number;
+    analysisStatus?: "PENDING" | "ANALYZING" | "DONE" | "FAILED" | string;
+    resultSummary?: string | null;
+}

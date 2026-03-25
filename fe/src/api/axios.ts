@@ -2,11 +2,11 @@ import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestCo
 import type { ApiErrorResponse } from "../types/api";
 import { useAuthStore } from "../store/authStore";
 
-const baseURL = import.meta.env.VITE_API_URL ?? import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8081";
+const baseURL = import.meta.env.VITE_API_URL ?? import.meta.env.VITE_API_BASE_URL ?? "/api";
 
 const api: AxiosInstance = axios.create({
     baseURL,
-    timeout: 10000, // 10초 타임아웃
+    timeout: 20000,
     withCredentials: true, // HTTP-Only 쿠키 전송 활성화
     headers: {
         "Content-Type": "application/json",
@@ -15,7 +15,7 @@ const api: AxiosInstance = axios.create({
 
 const refreshApi = axios.create({
     baseURL,
-    timeout: 10000,
+    timeout: 20000,
     withCredentials: true,
 });
 
@@ -102,10 +102,16 @@ api.interceptors.response.use(
         } else if (error.request) {
             // 요청은 성공했으나 응답이 오지 않은 경우
             console.error("No response from server:", error.message);
-            return Promise.reject({ success: false, message: "Server not responding", status: 0 });
+            return Promise.reject({
+                success: false,
+                message: "Server not responding",
+                status: 0,
+                code: error.code,
+                timedOut: error.code === "ECONNABORTED",
+            });
         } else {
             console.error("Axios Error:", error.message);
-            return Promise.reject({ success: false, message: error.message, status: 0 });
+            return Promise.reject({ success: false, message: error.message, status: 0, code: error.code });
         }
     }
 );
