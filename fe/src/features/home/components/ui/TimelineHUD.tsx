@@ -362,7 +362,7 @@ export function TimelineHUD({
                       ${selectedStarId === activeGroup.deep.id ? "bg-white/15 ring-1 ring-white/20" : ""}`}
                     >
                       <span className="flex items-center gap-2">
-                        <span className="h-2 w-2 flex-shrink-0 rounded-sm rotate-45" style={{ backgroundColor: activeGroup.deep.color }} />
+                        <span className="h-2.5 w-2.5 flex-shrink-0 rounded-sm rotate-45 bg-white shadow-[0_0_8px_rgba(255,255,255,0.7)]" />
                         <span className="truncate text-left w-28 font-medium text-white">{activeGroup.deep.label}</span>
                       </span>
                       <span className="text-[11px] text-slate-400 flex-shrink-0">{formatDate(activeGroup.deep.createdAt)}</span>
