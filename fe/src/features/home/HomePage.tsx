@@ -138,13 +138,25 @@ function HomePage() {
     label: "나의 중심",
   }), []);
 
+  const normalizeWeekKey = (weekStartDate?: string, createdAt?: string) => {
+    const primary = weekStartDate ? new Date(weekStartDate) : null;
+    if (primary && !Number.isNaN(primary.getTime())) return getWeekKey(primary);
+
+    const fallback = createdAt ? new Date(createdAt) : null;
+    if (fallback && !Number.isNaN(fallback.getTime())) return getWeekKey(fallback);
+
+    return "";
+  };
+
   const timelineItems = useMemo(() => {
     return stars.map((s) => ({
       id: s.id,
       kind: (s.kind || "daily").toLowerCase(),
       color: s.color,
       label: s.kind === "DAILY" ? "DAILY PLANET" : "WEEKLY PLANET",
-      weekKey: s.kind === "DEEP" ? (s.weekStartDate || undefined) : getWeekKey(new Date(s.createdAt)),
+      weekKey: s.kind === "DEEP"
+        ? normalizeWeekKey(s.weekStartDate, s.createdAt)
+        : getWeekKey(new Date(s.createdAt)),
       createdAt: s.createdAt,
       original: s,
     }));
@@ -325,7 +337,7 @@ function HomePage() {
         constellationId: s.constellationId,
         toneColor: s.color,
         createdAt: s.createdAt,
-        weekKey: s.weekStartDate || undefined,
+        weekKey: normalizeWeekKey(s.weekStartDate, s.createdAt) || undefined,
         label: s.isTemporary ? "분석 중..." : "WEEKLY PLANET",
         isTemporary: s.isTemporary,
       })),

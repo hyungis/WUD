@@ -976,6 +976,18 @@ export function StarScene({
     setFocusRequestNonce((prev) => prev + 1);
   };
 
+  const normalizeWeekKey = (weekLike?: string, createdAt?: string) => {
+    if (weekLike && /^\d{4}-W\d{1,2}$/.test(weekLike)) return weekLike;
+
+    const primary = weekLike ? new Date(weekLike) : null;
+    if (primary && !Number.isNaN(primary.getTime())) return getWeekKey(primary);
+
+    const fallback = createdAt ? new Date(createdAt) : null;
+    if (fallback && !Number.isNaN(fallback.getTime())) return getWeekKey(fallback);
+
+    return weekLike || "";
+  };
+
   const timelineItems = useMemo(() => {
     const deepItems = deepStars.map((star) => ({
       id: star.id,
@@ -984,7 +996,7 @@ export function StarScene({
       createdAt: star.createdAt,
       kind: "deep" as const,
       toneColor: star.toneColor,
-      weekKey: star.weekKey || "",
+      weekKey: normalizeWeekKey(star.weekKey, star.createdAt),
     }));
     const dailyItems = dailyPlanets.map((planet) => ({
       id: planet.id, targetId: (planet as any).targetId, createdAt: planet.createdAt, kind: "daily" as const, planet, weekKey: getWeekKey(new Date(planet.createdAt))
@@ -1125,7 +1137,8 @@ export function StarScene({
     return selectedItem ? selectedItem.weekKey : null;
   }, [selectedStarId, timelineItems, mypageStar.id]);
 
-  const highlightedWeekKey = hoveredLineGroupKey || selectedLineGroupKey || (selectedWeekKey ? selectedWeekKey : null);
+  const normalizedSelectedWeekKey = selectedWeekKey ? normalizeWeekKey(selectedWeekKey) : null;
+  const highlightedWeekKey = hoveredLineGroupKey || selectedLineGroupKey || normalizedSelectedWeekKey;
 
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
@@ -1197,7 +1210,12 @@ export function StarScene({
 
             <SpreadScaleGroup>
               {constellationLines
-                .filter((line) => hashSeed(line.weekKey) % 10 < 3)
+                .filter((line) => {
+                  if (highlightedWeekKey && line.weekKey === highlightedWeekKey) {
+                    return true;
+                  }
+                  return hashSeed(line.weekKey) % 10 < 3;
+                })
                 .map(({ weekKey, pts }) => (
                   <AnimatedConstellationLine
                     key={`constellation-${weekKey}`}
