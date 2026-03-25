@@ -100,7 +100,7 @@ function CustomCenterStar({
   const geometry = SHAPE_GEOMETRIES[currentShape] || STAR_STELLATED_GEOMETRY;
   const baseSize = 2.4;
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (!meshRef.current) return;
 
     // 트리거 변경 감지 → 부풀기 시작
@@ -128,10 +128,8 @@ function CustomCenterStar({
       meshRef.current.rotation.x += delta * 0.1;
     }
 
-    // ── 조도 애니메이션 (Breathing Light) ──
-    const time = state.clock.elapsedTime;
-    const breathe = Math.sin(time * 0.4) * 0.5 + 0.5; // 0 ~ 1
-    const intensityFactor = 0.8 + breathe * 0.2; // 80% ~ 100%
+    // ── 조도 애니메이션 (Breathing Light) 제거 → 일정한 밝기 유지 ──
+    const intensityFactor = 1.0;
 
     // PointLight 색상 및 강도 동기화
     if (lightRef.current) {
@@ -144,7 +142,7 @@ function CustomCenterStar({
     }
   });
 
-  const emissiveIntensity = isActive ? 3.0 : 1.4;
+  const emissiveIntensity = isActive ? 3.0 : 1.6;
 
   const body = (
     <group>
@@ -172,7 +170,7 @@ function CustomCenterStar({
         />
       </mesh>
       {/* 중심 광원 */}
-      <mesh scale={[baseSize * 0.18, baseSize * 0.18, baseSize * 0.18]} position={[baseSize * 0.2, baseSize * 0.2, baseSize * 0.18]}>
+      <mesh scale={[baseSize * 0.18, baseSize * 0.18, baseSize * 0.18]} position={[0, 0, 0]}>
         <sphereGeometry args={[1, 20, 20]} />
         <meshBasicMaterial color="#ffffff" toneMapped={false} opacity={1} transparent />
       </mesh>
@@ -254,11 +252,12 @@ function DeepPlanet({
     const offset = seed * 100;
     // 사인파를 변형하여 더 "은은한" 반짝임 유도 (제곱수를 낮추어 부드럽게)
     const t = Math.pow(Math.sin(time * freq + offset) * 0.5 + 0.5, 2);
-    const factor = 0.7 + t * 0.3; // 0.7 ~ 1.0 사이 조절
+    // 임계값(0.5)에 맞춰 반짝임 폭을 더 넓힘 (Off: 1.6 * 0.2 = 0.32, On: 1.6 * 1.2 = 1.92)
+    const factor = 0.2 + t * 1.0; // 0.2 ~ 1.2 사이 조절
     setTwinkleIntensity(factor);
   });
 
-  const targetEmissive = isActive ? (variant === "star" ? 3.0 : 4.0) : (variant === "star" ? 1.4 : 1.8);
+  const targetEmissive = isActive ? (variant === "star" ? 3.0 : 4.0) : (variant === "star" ? 1.6 : 1.8);
   const currentEmissiveIntensity = (isBirthFinished
     ? targetEmissive
     : targetEmissive + (8.0 - targetEmissive) * (1 - easedBirth)) * twinkleIntensity;
@@ -323,7 +322,7 @@ function DeepPlanet({
           </mesh>
 
           {/* 중심 광원 */}
-          <mesh scale={[currentSize * 0.18, currentSize * 0.18, currentSize * 0.18]} position={[currentSize * 0.2, currentSize * 0.2, currentSize * 0.18]}>
+          <mesh scale={[currentSize * 0.18, currentSize * 0.18, currentSize * 0.18]} position={[0, 0, 0]}>
             <sphereGeometry args={[1, 20, 20]} />
             <meshBasicMaterial color="#ffffff" toneMapped={false} opacity={isBirthFinished ? 1 : 1} transparent />
           </mesh>
@@ -1169,7 +1168,7 @@ export function StarScene({
           <pointLight position={[0, 0, 0]} intensity={150} color="#f97316" distance={60} decay={2} />
 
           <EffectComposer enableNormalPass={false} multisampling={0}>
-            <Bloom luminanceThreshold={1.1} mipmapBlur luminanceSmoothing={0.1} intensity={1.5} />
+            <Bloom luminanceThreshold={0.5} mipmapBlur luminanceSmoothing={0.1} intensity={1.5} />
           </EffectComposer>
 
           <SpreadCtx.Provider value={spreadRef}>
