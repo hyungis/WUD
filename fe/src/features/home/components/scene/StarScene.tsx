@@ -100,7 +100,7 @@ function CustomCenterStar({
   const geometry = SHAPE_GEOMETRIES[currentShape] || STAR_STELLATED_GEOMETRY;
   const baseSize = 2.4;
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
     if (!meshRef.current) return;
 
     // 트리거 변경 감지 → 부풀기 시작
@@ -128,9 +128,19 @@ function CustomCenterStar({
       meshRef.current.rotation.x += delta * 0.1;
     }
 
-    // PointLight 색상 동기화
+    // ── 조도 애니메이션 (Breathing Light) ──
+    const time = state.clock.elapsedTime;
+    const breathe = Math.sin(time * 0.4) * 0.5 + 0.5; // 0 ~ 1
+    const intensityFactor = 0.8 + breathe * 0.2; // 80% ~ 100%
+
+    // PointLight 색상 및 강도 동기화
     if (lightRef.current) {
       lightRef.current.color.set(currentColor);
+      lightRef.current.intensity = 80 * intensityFactor;
+    }
+    
+    if (meshRef.current?.material) {
+      (meshRef.current.material as any).emissiveIntensity = emissiveIntensity * intensityFactor;
     }
   });
 
@@ -231,10 +241,27 @@ function DeepPlanet({
   // easeOutCubic for smooth scale-in
   const easedBirth = isBirthFinished ? 1 : 1 - Math.pow(1 - birthProgress.current, 3);
   const currentSize = size * easedBirth;
+
+  // ── 반짝임(Twinkle) 로직 ──
+  const [twinkleIntensity, setTwinkleIntensity] = useState(1);
+  useFrame((state) => {
+    if (freezeMotion) {
+      if (twinkleIntensity !== 1) setTwinkleIntensity(1);
+      return;
+    }
+    const time = state.clock.elapsedTime;
+    const freq = 0.3 + seededRandom(seed) * 0.5;
+    const offset = seed * 100;
+    // 사인파를 변형하여 더 "은은한" 반짝임 유도 (제곱수를 낮추어 부드럽게)
+    const t = Math.pow(Math.sin(time * freq + offset) * 0.5 + 0.5, 2);
+    const factor = 0.7 + t * 0.3; // 0.7 ~ 1.0 사이 조절
+    setTwinkleIntensity(factor);
+  });
+
   const targetEmissive = isActive ? (variant === "star" ? 3.0 : 4.0) : (variant === "star" ? 1.4 : 1.8);
-  const currentEmissiveIntensity = isBirthFinished
+  const currentEmissiveIntensity = (isBirthFinished
     ? targetEmissive
-    : targetEmissive + (8.0 - targetEmissive) * (1 - easedBirth);
+    : targetEmissive + (8.0 - targetEmissive) * (1 - easedBirth)) * twinkleIntensity;
 
   const handlers = {
     onClick,
@@ -270,15 +297,15 @@ function DeepPlanet({
 
         </>
       ) : (
-        /* ── 심층별: 성형 다면체(stellated polyhedron) ── */
+        /* ── 심층별: 정팔면체(octahedron) ── */
         <>
-          {/* 메인 성형 다면체 */}
+          {/* 메인 정팔면체 */}
           <mesh
             {...handlers}
-            geometry={STAR_STELLATED_GEOMETRY}
             rotation={[0.2, 0.4, isActive ? 0.24 : 0.08]}
             scale={isActive ? [currentSize * 1.2, currentSize * 1.2, currentSize * 1.2] : [currentSize, currentSize, currentSize]}
           >
+            <octahedronGeometry args={[1, 0]} />
             <meshPhysicalMaterial
               color={color}
               emissive={color}
@@ -389,7 +416,7 @@ function MacroGalaxy({ timelineItems, positionMap, starTone, hiddenIds, freezeMo
       tempObject.updateMatrix();
       meshRef.current!.setMatrixAt(i, tempObject.matrix);
 
-      const baseColor = new Color(item.kind === "deep" ? (item.toneColor || starTone) : item.planet.shell);
+      const baseColor = new Color(item.kind === "deep" ? "#ffffff" : item.planet.shell);
       baseColor.multiplyScalar(1.2);
       meshRef.current!.setColorAt(i, new Color().set(baseColor));
     });
@@ -425,14 +452,26 @@ function MacroGalaxy({ timelineItems, positionMap, starTone, hiddenIds, freezeMo
       tempObject.scale.set(scale, scale, scale);
       tempObject.updateMatrix();
       meshRef.current!.setMatrixAt(i, tempObject.matrix);
+
+      // ── 반짝임 색상 업데이트 ──
+      const seed = hashSeed(item.id);
+      const time = state.clock.elapsedTime;
+      const freq = 0.2 + seededRandom(seed) * 0.4;
+      const t = Math.pow(Math.sin(time * freq + seed * 10) * 0.5 + 0.5, 2);
+      const factor = 0.6 + t * 0.4; // 0.6 ~ 1.0
+
+      const baseColor = new Color(item.kind === "deep" ? "#ffffff" : item.planet.shell);
+      baseColor.multiplyScalar(1.2 * factor);
+      meshRef.current!.setColorAt(i, baseColor);
     });
     meshRef.current.instanceMatrix.needsUpdate = true;
+    if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
     meshRef.current.position.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.5;
   });
 
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, timelineItems.length]}>
-      <sphereGeometry args={[0.5, 16, 16]} />
+      <octahedronGeometry args={[0.5, 0]} />
       <meshBasicMaterial transparent opacity={0.9} blending={2} depthWrite={false} toneMapped={false} />
     </instancedMesh>
   );
@@ -1187,10 +1226,10 @@ export function StarScene({
                       }
                     }}
                     onHover={(data) => onStarHover?.({ id: data.isHovered ? item.id : null, x: data.x, y: data.y })}
-                    color={item.kind === "deep" ? (item.toneColor || starTone) : item.planet.shell}
+                    color={item.kind === "deep" ? "#ffffff" : item.planet.shell}
                     variant={item.kind === "deep" ? "star" : "planet"}
                     size={item.kind === "deep"
-                      ? (isReportOpen ? 1.05 : (viewMode === "macro" ? 1.2 : 0.7))
+                      ? (isReportOpen ? 1.2 : (viewMode === "macro" ? 1.5 : 0.95))
                       : (isReportOpen ? 0.52 : (viewMode === "macro" ? 0.6 : 0.35))}
                     isSelected={selectedStarId === item.id}
                     isNewborn={isNewborn}
