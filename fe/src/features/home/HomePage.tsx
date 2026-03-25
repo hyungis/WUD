@@ -858,6 +858,19 @@ function HomePage() {
             }}
             onBackToDetail={() => {
               setDailyCompleteModalOpen(false);
+              const pendingRaw = localStorage.getItem("pendingDailyRecord");
+              if (pendingRaw) {
+                try {
+                  const pending = JSON.parse(pendingRaw);
+                  if (pending.dailyType === "COLORING") {
+                    useUiStore.getState().setDailyColoringReturning(true);
+                    setDailyColoringModalOpen(true);
+                    return;
+                  }
+                } catch (e) {
+                  // ignore
+                }
+              }
               setDailyDetailModalOpen(true);
             }}
           />

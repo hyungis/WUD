@@ -29,6 +29,7 @@ type UiState = {
   isWeeklyHtpModalOpen: boolean;
   isWeeklyPirModalOpen: boolean;
   isWeeklySwModalOpen: boolean;
+  isDailyColoringReturning: boolean;
   stars: HomeStar[];
   pendingBirth: PendingBirth;
   newbornStarId: string | null;
@@ -55,6 +56,7 @@ type UiState = {
   setWeeklyHtpModalOpen: (isOpen: boolean) => void;
   setWeeklyPirModalOpen: (isOpen: boolean) => void;
   setWeeklySwModalOpen: (isOpen: boolean) => void;
+  setDailyColoringReturning: (isReturning: boolean) => void;
 
   // Actions
   setStars: (stars: HomeStar[]) => void;
@@ -87,6 +89,7 @@ export const useUiStore = create<UiState>((set) => ({
   isWeeklyHtpModalOpen: false,
   isWeeklyPirModalOpen: false,
   isWeeklySwModalOpen: false,
+  isDailyColoringReturning: false,
 
   globalPhase: "landing",
   stars: [],
@@ -112,6 +115,7 @@ export const useUiStore = create<UiState>((set) => ({
   setWeeklyHtpModalOpen: (isWeeklyHtpModalOpen) => set({ isWeeklyHtpModalOpen }),
   setWeeklyPirModalOpen: (isWeeklyPirModalOpen) => set({ isWeeklyPirModalOpen }),
   setWeeklySwModalOpen: (isWeeklySwModalOpen) => set({ isWeeklySwModalOpen }),
+  setDailyColoringReturning: (isDailyColoringReturning) => set({ isDailyColoringReturning }),
 
   setGlobalPhase: (globalPhase) => set({ globalPhase }),
   setStars: (stars) => set({ stars }),
