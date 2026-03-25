@@ -37,14 +37,25 @@ const DAILY_FEATURES = [
   },
 ];
 
+import { useConfirm } from "../../../components/shared/ConfirmProvider";
+
 type DailyContentSelectorProps = {
   isModal?: boolean;
   onClose: () => void;
 };
 
-function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; isModal?: boolean }) {
+function DailyContentInner({ 
+  onClose, 
+  isModal = false,
+  step,
+  setStep,
+}: { 
+  onClose: () => void; 
+  isModal?: boolean;
+  step: number;
+  setStep: (step: number) => void;
+}) {
   const navigate = useNavigate();
-  const [step, setStep] = useState(0); // 0: 감정 선택, 1: 컨텐츠 선택
   const [selectedEmotion, setSelectedEmotion] = useState<{ label: string; color: string; value: number } | null>(null);
   const [selectedContentId, setSelectedContentId] = useState<string | null>(null);
   const [isCheckingDailyLimit, setIsCheckingDailyLimit] = useState(false);
@@ -348,6 +359,25 @@ function DailyContentInner({ onClose, isModal = false }: { onClose: () => void; 
 }
 
 export default function DailyContentSelector({ isModal = false, onClose }: DailyContentSelectorProps) {
+  const [step, setStep] = useState(0);
+  const { showConfirm } = useConfirm();
+
+  const handleCloseAttempt = async () => {
+    if (step > 0) {
+      const confirmed = await showConfirm({
+        title: "작업 중단",
+        message: "현재 진행 중인 정보가 사라집니다. 정말로 나가시겠습니까?",
+        confirmText: "나가기",
+        cancelText: "계속하기",
+        type: "danger",
+      });
+      if (confirmed) {
+        onClose();
+      }
+    } else {
+      onClose();
+    }
+  };
   if (isModal) {
     return (
       <div className="custom-scrollbar fixed inset-0 z-[80] flex items-center justify-center bg-black/80 px-4 py-4 text-zinc-100 backdrop-blur-md">
@@ -357,7 +387,7 @@ export default function DailyContentSelector({ isModal = false, onClose }: Daily
           exit={{ opacity: 0 }}
           type="button"
           aria-label="모달 닫기"
-          onClick={onClose}
+          onClick={handleCloseAttempt}
           className="absolute inset-0 h-full w-full cursor-default"
         />
         <motion.div
@@ -367,11 +397,22 @@ export default function DailyContentSelector({ isModal = false, onClose }: Daily
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className="relative z-10 mx-auto w-full max-w-5xl h-full max-h-[85vh] overflow-hidden rounded-3xl border border-white/10 shadow-2xl flex flex-col bg-zinc-950"
         >
-          <DailyContentInner onClose={onClose} isModal />
+          <DailyContentInner 
+            onClose={handleCloseAttempt} 
+            isModal 
+            step={step}
+            setStep={setStep}
+          />
         </motion.div>
       </div>
     );
   }
 
-  return <DailyContentInner onClose={onClose} />;
+  return (
+    <DailyContentInner 
+      onClose={handleCloseAttempt} 
+      step={step}
+      setStep={setStep}
+    />
+  );
 }
