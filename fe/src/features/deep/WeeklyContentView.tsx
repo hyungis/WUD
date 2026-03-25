@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { deepApi } from "../../api/deep";
 import { useAlert } from "../../components/shared/AlertProvider";
+import { useConfirm } from "../../components/shared/ConfirmProvider";
 import type { DeepTestGuide, DeepTestInfo } from "../../types/deep";
 import { WEEKLY_LIMIT_MESSAGE, hasWeeklyDeepEntryByType } from "../../utils/dailyLimit";
 
@@ -52,6 +53,7 @@ type WeeklyContentViewProps = {
 function WeeklyContentView({ isModal = false, onClose, onStartHtp, onStartPir, onStartSw }: WeeklyContentViewProps) {
     const navigate = useNavigate();
     const { showAlert } = useAlert();
+    const { showConfirm } = useConfirm();
     const [features, setFeatures] = useState<DeepTestInfo[]>(DEFAULT_FEATURES);
     const [guide, setGuide] = useState<DeepTestGuide>(DEFAULT_GUIDE);
     const [loading, setLoading] = useState(false);
@@ -93,7 +95,15 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp, onStartPir, o
         };
     }, []);
 
-    const handleClose = () => {
+    const handleClose = async () => {
+        const confirmed = await showConfirm({
+            title: "화면 나가기",
+            message: "정말로 위클리 콘텐츠 화면에서 나가시겠습니까?",
+            confirmText: "나가기",
+            cancelText: "계속하기",
+        });
+        if (!confirmed) return;
+
         if (onClose) {
             onClose();
             return;
@@ -310,7 +320,7 @@ function WeeklyContentView({ isModal = false, onClose, onStartHtp, onStartPir, o
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 type="button"
-                onClick={onClose}
+                onClick={() => void handleClose()}
                 className="absolute inset-0 h-full w-full cursor-default pointer-events-auto"
             />
             <motion.div

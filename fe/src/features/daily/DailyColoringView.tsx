@@ -5,6 +5,7 @@ import { useCanvasDrawing } from "../../hooks/useCanvasDrawing";
 import type { ToolType } from "../../hooks/useCanvasDrawing";
 import { DailyColoringCanvas } from "./components/DailyColoringCanvas";
 import { useAlert } from "../../components/shared/AlertProvider";
+import { useConfirm } from "../../components/shared/ConfirmProvider";
 import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntryByType } from "../../utils/dailyLimit";
 import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, saveRecentPaintColors } from "../../utils/paintColors";
 
@@ -62,6 +63,7 @@ type DailyColoringViewProps = {
 function DailyColoringView({ isModal = false, onClose, onBackToContent, onComplete }: DailyColoringViewProps) {
   const navigate = useNavigate();
   const { showAlert } = useAlert();
+  const { showConfirm } = useConfirm();
 
   const [selectedMasterpiece] = useState(() => MASTERPIECES[Math.floor(Math.random() * MASTERPIECES.length)]);
 
@@ -134,13 +136,31 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
     };
   }, [isModal, navigate, onClose]);
 
-  const handleClose = () => {
+  const handleClose = async () => {
+    const confirmed = await showConfirm({
+      title: "색칠하기 중단",
+      message: "현재 작업 중인 내용이 사라집니다. 정말로 나가시겠습니까?",
+      confirmText: "나가기",
+      cancelText: "계속하기",
+      type: "danger",
+    });
+    if (!confirmed) return;
+
     if (onClose) { onClose(); return; }
     if (window.history.length > 1) { navigate(-1); return; }
     navigate("/");
   };
 
-  const handleBackToContent = () => {
+  const handleBackToContent = async () => {
+    const confirmed = await showConfirm({
+      title: "색칠하기 중단",
+      message: "현재 작업 중인 내용이 사라집니다. 정말로 돌아가시겠습니까?",
+      confirmText: "돌아가기",
+      cancelText: "계속하기",
+      type: "danger",
+    });
+    if (!confirmed) return;
+
     if (onBackToContent) { onBackToContent(); return; }
     navigate("/daily/content");
   };
@@ -204,7 +224,7 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
       {/* ─── 헤더 ─── */}
       <header className="z-10 flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-zinc-950/95 px-4 backdrop-blur-md">
         <div className="flex items-center gap-2.5">
-          <button type="button" onClick={handleBackToContent}
+          <button type="button" onClick={() => void handleBackToContent()}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-white/10 hover:text-white">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
           </button>
@@ -212,7 +232,7 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
         </div>
         <div className="flex items-center gap-2">
           {isModal && (
-            <button type="button" onClick={handleClose}
+            <button type="button" onClick={() => void handleClose()}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 hover:text-white hover:bg-white/10 transition text-xs">✕</button>
           )}
           <button type="button" onClick={exportAndComplete}
@@ -350,7 +370,7 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         type="button"
-        onClick={onClose}
+        onClick={() => void handleClose()}
         className="absolute inset-0 h-full w-full cursor-default pointer-events-auto"
       />
       <motion.div

@@ -7,6 +7,7 @@ import { imageApi } from "../../api/image";
 import { useUiStore } from "../../store/uiStore";
 import { extractApiErrorCode, getApiErrorMessage } from "../../utils/apiError";
 import { getTodayKstDate } from "../../utils/dailyLimit";
+import { useConfirm } from "../../components/shared/ConfirmProvider";
 
 type PendingDailyRecord = {
   shellColor: string;
@@ -34,6 +35,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
   const [savedDailyId, setSavedDailyId] = useState<number | null>(null);
   const [isSaved, setIsSaved] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const { showConfirm } = useConfirm();
   const savedCloseRef = useRef<((dailyId?: number) => void) | undefined>(undefined);
   const memoCount = useMemo(() => memo.trim().length, [memo]);
   const record = useMemo(() => {
@@ -185,7 +187,16 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
     localStorage.setItem("openDailyReport", "true");
   };
 
-  const handleClose = () => {
+  const handleClose = async () => {
+    const confirmed = await showConfirm({
+      title: "기록 중단",
+      message: "작성 중인 메모가 사라집니다. 정말로 나가시겠습니까?",
+      confirmText: "나가기",
+      cancelText: "계속 작성",
+      type: "danger",
+    });
+    if (!confirmed) return;
+
     if (onClose) {
       onClose();
       return;
@@ -199,7 +210,16 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
     navigate("/");
   };
 
-  const handleBack = () => {
+  const handleBack = async () => {
+    const confirmed = await showConfirm({
+      title: "기록 중단",
+      message: "작성 중인 메모가 사라집니다. 정말로 돌아가시겠습니까?",
+      confirmText: "돌아가기",
+      cancelText: "계속 작성",
+      type: "danger",
+    });
+    if (!confirmed) return;
+
     if (onBackToDetail) {
       onBackToDetail();
       return;
@@ -373,7 +393,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={handleBack}
+            onClick={() => void handleBack()}
             className="h-8 rounded-xl border border-zinc-800 px-4 text-xs font-medium text-zinc-400 transition hover:border-zinc-600 hover:text-zinc-200"
           >
             뒤로
@@ -381,7 +401,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
           {isModal && (
             <button
               type="button"
-              onClick={handleClose}
+              onClick={() => void handleClose()}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-white/10 hover:text-white"
               aria-label="닫기"
             >✕</button>
@@ -491,7 +511,7 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
           exit={{ opacity: 0 }}
           type="button"
           aria-label="모달 닫기"
-          onClick={handleClose}
+          onClick={() => void handleClose()}
           className="absolute inset-0 h-full w-full cursor-default"
         />
         <motion.div

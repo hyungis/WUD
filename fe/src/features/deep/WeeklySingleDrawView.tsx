@@ -8,6 +8,7 @@ import { imageApi } from "../../api/image";
 import type { DeepDetailResponse } from "../../types/deep";
 import SingleDrawResultView from "./components/SingleDrawResultView";
 import { useAlert } from "../../components/shared/AlertProvider";
+import { useConfirm } from "../../components/shared/ConfirmProvider";
 import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
 import { useUiStore } from "../../store/uiStore";
 import { WEEKLY_LIMIT_MESSAGE, hasWeeklyDeepEntryByType } from "../../utils/dailyLimit";
@@ -108,6 +109,7 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
 
   const config = TEST_CONFIGS[testType];
   const { showAlert } = useAlert();
+  const { showConfirm } = useConfirm();
 
   const [phase, setPhase] = useState<DrawPhase>("survey");
   const [surveyPageIndex, setSurveyPageIndex] = useState(0);
@@ -216,13 +218,34 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
 
   const togglePopup = (name: string) => setActivePopup(prev => prev === name ? null : name);
 
-  const handleClose = () => {
+  const handleClose = async () => {
+    if (phase !== "result") {
+      const confirmed = await showConfirm({
+        title: "검사 중단",
+        message: "현재 진행 중인 검사 내용이 사라집니다. 정말로 나가시겠습니까?",
+        confirmText: "나가기",
+        cancelText: "계속하기",
+        type: "danger",
+      });
+      if (!confirmed) return;
+    }
+
     if (onClose) { onClose(); return; }
     if (window.history.length > 1) { navigate(-1); return; }
     navigate("/");
   };
 
-  const handleBackToWeeklyContent = () => {
+  const handleBackToWeeklyContent = async () => {
+    if (phase !== "result") {
+      const confirmed = await showConfirm({
+        title: "검사 중단",
+        message: "현재 진행 중인 검사 내용이 사라집니다. 정말로 돌아가시겠습니까?",
+        confirmText: "돌아가기",
+        cancelText: "계속하기",
+        type: "danger",
+      });
+      if (!confirmed) return;
+    }
     if (onBackToWeeklyContent) { onBackToWeeklyContent(); return; }
     navigate("/deep/content");
   };
@@ -422,7 +445,7 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
       {/* ─── Header ─── */}
       <header className="z-10 flex h-14 shrink-0 items-center justify-between border-b border-white/10 bg-zinc-950/95 px-4 backdrop-blur-md">
         <div className="flex items-center gap-2.5">
-          <button type="button" onClick={handleBackToWeeklyContent}
+          <button type="button" onClick={() => void handleBackToWeeklyContent()}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-white/10 hover:text-white">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4"><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></svg>
           </button>
@@ -436,7 +459,7 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
             </button>
           )}
           {isModal && (
-            <button type="button" onClick={handleClose}
+            <button type="button" onClick={() => void handleClose()}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 hover:text-white hover:bg-white/10 transition text-xs"
               aria-label="닫기">
               ✕
@@ -715,7 +738,7 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         type="button"
-        onClick={onClose}
+        onClick={() => void handleClose()}
         className="absolute inset-0 h-full w-full cursor-default pointer-events-auto"
       />
       <motion.div
