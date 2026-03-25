@@ -87,6 +87,20 @@ export const getWeekKey = (date: Date) => {
   return `${target.getUTCFullYear()}-W${weekNo}`;
 };
 
+export const getSundayWeekKey = (date: Date) => {
+  const target = new Date(date);
+  target.setHours(0, 0, 0, 0);
+
+  // 일요일 시작 기준으로 해당 주의 시작일(일요일)을 구한다.
+  const day = target.getDay();
+  target.setDate(target.getDate() - day);
+
+  const y = target.getFullYear();
+  const m = String(target.getMonth() + 1).padStart(2, "0");
+  const d = String(target.getDate()).padStart(2, "0");
+  return `${y}-S${m}${d}`;
+};
+
 export const formatDate = (value: string) => {
   const normalized = normalizeUtcTimestamp(value);
   const date = new Date(normalized);

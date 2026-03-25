@@ -17,7 +17,7 @@ interface StarSceneProps extends BaseStarSceneProps {
 }
 import {
   hashSeed, seededRandom, gaussianRandom, seededGaussian,
-  getWeekKey,
+  getSundayWeekKey,
   ZOOM_THRESHOLD, MAX_DISTANCE, MIN_DISTANCE
 } from "../../utils/homeHelpers";
 
@@ -711,7 +711,7 @@ function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportP
 }
 
 // 🚨 [수정됨] 별자리 선 애니메이션 개선 (비활성 상태에서도 은은하게 반짝임 유지)
-function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = false }: { weekKey: string; pts: Vector3[]; isHovered: boolean; freezeMotion?: boolean }) {
+function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = false, lowCountMode = false }: { weekKey: string; pts: Vector3[]; isHovered: boolean; freezeMotion?: boolean; lowCountMode?: boolean }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const lineRef = useRef<any>(null);
 
@@ -781,11 +781,12 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = fal
         const smooth = normalized * normalized * (3 - 2 * normalized);
 
         // 평소(0.02)에서 최대 0.35까지 부드럽게 밝아짐
-        goalOpacity = 0.02 + (smooth * 0.33);
+        const baseOpacity = lowCountMode ? 0.08 : 0.02;
+        goalOpacity = baseOpacity + (smooth * 0.33);
         goalWidth = 0.8 + (smooth * 0.2);
       } else {
-        // 나머지 80%의 시간 동안은 거의 꺼진 상태(0.02) 유지
-        goalOpacity = 0.0;
+        // 별 수가 적을 땐 선이 완전히 사라지지 않도록 하한을 둔다.
+        goalOpacity = lowCountMode ? 0.08 : 0.0;
         goalWidth = 0.8;
       }
     }
@@ -976,13 +977,13 @@ export function StarScene({
   };
 
   const normalizeWeekKey = (weekLike?: string, createdAt?: string) => {
-    if (weekLike && /^\d{4}-W\d{1,2}$/.test(weekLike)) return weekLike;
+    if (weekLike && /^\d{4}-S\d{4}$/.test(weekLike)) return weekLike;
 
     const primary = weekLike ? new Date(weekLike) : null;
-    if (primary && !Number.isNaN(primary.getTime())) return getWeekKey(primary);
+    if (primary && !Number.isNaN(primary.getTime())) return getSundayWeekKey(primary);
 
     const fallback = createdAt ? new Date(createdAt) : null;
-    if (fallback && !Number.isNaN(fallback.getTime())) return getWeekKey(fallback);
+    if (fallback && !Number.isNaN(fallback.getTime())) return getSundayWeekKey(fallback);
 
     return weekLike || "";
   };
@@ -998,7 +999,7 @@ export function StarScene({
       weekKey: normalizeWeekKey(star.weekKey, star.createdAt),
     }));
     const dailyItems = dailyPlanets.map((planet) => ({
-      id: planet.id, targetId: (planet as any).targetId, createdAt: planet.createdAt, kind: "daily" as const, planet, weekKey: getWeekKey(new Date(planet.createdAt))
+      id: planet.id, targetId: (planet as any).targetId, createdAt: planet.createdAt, kind: "daily" as const, planet, weekKey: getSundayWeekKey(new Date(planet.createdAt))
     }));
     return [...deepItems, ...dailyItems].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [dailyPlanets, deepStars]);
@@ -1137,7 +1138,8 @@ export function StarScene({
   }, [selectedStarId, timelineItems, mypageStar.id]);
 
   const normalizedSelectedWeekKey = selectedWeekKey ? normalizeWeekKey(selectedWeekKey) : null;
-  const highlightedWeekKey = hoveredLineGroupKey || selectedLineGroupKey || normalizedSelectedWeekKey;
+  const highlightedWeekKey = hoveredLineGroupKey || normalizedSelectedWeekKey || selectedLineGroupKey;
+  const lowCountMode = timelineItems.length <= 10;
 
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
 
@@ -1213,6 +1215,9 @@ export function StarScene({
                   if (highlightedWeekKey && line.weekKey === highlightedWeekKey) {
                     return true;
                   }
+                  if (lowCountMode) {
+                    return true;
+                  }
                   return hashSeed(line.weekKey) % 10 < 3;
                 })
                 .map(({ weekKey, pts }) => (
@@ -1222,6 +1227,7 @@ export function StarScene({
                     pts={pts}
                     isHovered={highlightedWeekKey === weekKey}
                     freezeMotion={freezeSceneMotion}
+                    lowCountMode={lowCountMode}
                   />
                 ))}
             </SpreadScaleGroup>
