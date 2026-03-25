@@ -21,7 +21,7 @@ export function DrawingCanvas({
       ref={canvasRef}
       // 🚨 핵심 수정: absolute inset-0 block을 넣어 부모 영역과 100% 일치시킴
       className="absolute inset-0 w-full h-full touch-none block rounded-2xl"
-      style={{ cursor, backgroundColor: "#ffffff" }}
+      style={{ cursor }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}

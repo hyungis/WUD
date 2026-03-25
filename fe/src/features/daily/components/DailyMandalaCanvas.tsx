@@ -22,7 +22,7 @@ export function DailyMandalaCanvas({
 
   return (
     <div
-      className="w-full h-full overflow-hidden rounded-2xl"
+      className="w-full h-full overflow-hidden rounded-2xl bg-white"
       style={{ position: "relative", zIndex: 30, isolation: "isolate" }}
     >
       <DrawingCanvas
