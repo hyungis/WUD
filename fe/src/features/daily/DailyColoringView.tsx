@@ -14,7 +14,11 @@ const PALETTE = [
   "#06B6D4", "#3B82F6", "#6366F1", "#8B5CF6", "#EC4899", "#F43F5E",
 ];
 
-const COLORING_OUTLINE = "/coloring/mona_lisa.png";
+const MASTERPIECES = [
+  { id: "mona_lisa", name: "모나리자", url: "/coloring/mona_lisa.png" },
+  { id: "self_portrait", name: "자화상", url: "/coloring/self_portrait.png" },
+  { id: "the_starry_night", name: "별이 빛나는 밤", url: "/coloring/the_starry_night.png" },
+];
 
 /* ── tiny SVG icons (Lucide-based) ── */
 const BrushIcon = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>;
@@ -58,6 +62,8 @@ type DailyColoringViewProps = {
 function DailyColoringView({ isModal = false, onClose, onBackToContent, onComplete }: DailyColoringViewProps) {
   const navigate = useNavigate();
   const { showAlert } = useAlert();
+
+  const [selectedMasterpiece] = useState(() => MASTERPIECES[Math.floor(Math.random() * MASTERPIECES.length)]);
 
   const [shellColor] = useState(() => localStorage.getItem("dailyMoodColor") || PALETTE[0]);
   const [paintColor, setPaintColor] = useState<string>(PAINT_PRESET_COLORS[0]);
@@ -320,14 +326,14 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
         >
           {/* 가이드 메시지 */}
           <div className="z-10 bg-zinc-900/72 backdrop-blur-md border border-white/12 px-5 py-2.5 rounded-full shadow-xl pointer-events-none text-center shrink-0">
-            <p className="text-sm text-zinc-200">모나리자에 자유롭게 색을 칠해보세요 🎨</p>
+            <p className="text-sm text-zinc-200">{selectedMasterpiece.name}에 자유롭게 색을 칠해보세요 🎨</p>
           </div>
 
           {/* 캔버스 래퍼 */}
           <div
             className="relative h-[min(88vw,calc(100dvh-180px))] w-[min(88vw,calc(100dvh-180px))] max-h-[760px] max-w-[760px] rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_16px_64px_rgba(0,0,0,0.5)] bg-white shrink-0 mt-2 mx-auto"
           >
-            <DailyColoringCanvas drawing={drawing} tool={tool} paintColor={paintColor} outlineUrl={COLORING_OUTLINE} brushSize={brushSize} boundaryCanvasRef={boundaryCanvasRef} />
+            <DailyColoringCanvas drawing={drawing} tool={tool} paintColor={paintColor} outlineUrl={selectedMasterpiece.url} brushSize={brushSize} boundaryCanvasRef={boundaryCanvasRef} />
           </div>
         </div>
 
