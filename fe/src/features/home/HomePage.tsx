@@ -3,7 +3,7 @@ import { AnimatePresence } from "framer-motion";
 import { dailyApi } from "../../api/daily";
 import { deepApi } from "../../api/deep";
 import type { DailyPlanet, DeepStar } from "./utils/homeHelpers";
-import { getWeekKey, normalizeDeepReportText, colorFromId } from "./utils/homeHelpers";
+import { getSundayWeekKey, normalizeDeepReportText, colorFromId } from "./utils/homeHelpers";
 import { StarScene } from "./components/scene/StarScene";
 import { useUiStore } from "../../store/uiStore";
 import { getApiErrorMessage } from "../../utils/apiError";
@@ -139,11 +139,13 @@ function HomePage() {
   }), []);
 
   const normalizeWeekKey = (weekStartDate?: string, createdAt?: string) => {
+    if (weekStartDate && /^\d{4}-S\d{4}$/.test(weekStartDate)) return weekStartDate;
+
     const primary = weekStartDate ? new Date(weekStartDate) : null;
-    if (primary && !Number.isNaN(primary.getTime())) return getWeekKey(primary);
+    if (primary && !Number.isNaN(primary.getTime())) return getSundayWeekKey(primary);
 
     const fallback = createdAt ? new Date(createdAt) : null;
-    if (fallback && !Number.isNaN(fallback.getTime())) return getWeekKey(fallback);
+    if (fallback && !Number.isNaN(fallback.getTime())) return getSundayWeekKey(fallback);
 
     return "";
   };
@@ -156,7 +158,7 @@ function HomePage() {
       label: s.kind === "DAILY" ? "DAILY PLANET" : "WEEKLY PLANET",
       weekKey: s.kind === "DEEP"
         ? normalizeWeekKey(s.weekStartDate, s.createdAt)
-        : getWeekKey(new Date(s.createdAt)),
+        : getSundayWeekKey(new Date(s.createdAt)),
       createdAt: s.createdAt,
       original: s,
     }));
@@ -1023,14 +1025,20 @@ function HomePage() {
             isModal
             onClose={() => setWeeklyHtpModalOpen(false)}
             onSaved={async (sid) => {
-              const existingDeepStar = useUiStore.getState().stars.find(s => s.kind === "DEEP" && !s.isTemporary);
               setWeeklyHtpModalOpen(false);
               const starColor = colorFromId(String(sid), "DEEP");
-              const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "HTP", deepType: "HTP" } as any;
+              const createdAt = new Date().toISOString();
+                const deepWeekKey = getSundayWeekKey(new Date(createdAt));
+                const existingDeepStar = useUiStore.getState().stars.find((s) => {
+                  if (s.kind !== "DEEP" || s.isTemporary) return false;
+                  return normalizeWeekKey(s.weekStartDate, s.createdAt) === deepWeekKey;
+                });
+              setSelectedWeekKey(deepWeekKey);
+              const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt, weekKey: deepWeekKey, label: "HTP", deepType: "HTP" } as any;
               if (!existingDeepStar) {
                 pendingBirthReport.current = reportPayload;
                 pendingBirthKind.current = "deep";
-                addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
+                addTemporaryStar({ kind: "DEEP", createdAt, color: starColor, targetId: sid, weekStartDate: deepWeekKey });
                 setPendingSessionId(sid);
               } else {
                 setDeepPages([{
@@ -1040,7 +1048,7 @@ function HomePage() {
                   submissions: [],
                   psychAssessments: [],
                   status: "ANALYZING",
-                  createdAt: new Date().toISOString(),
+                  createdAt,
                 }]);
                 setSelectedDeepStar((prev: any) => ({
                   ...(prev ?? {}),
@@ -1070,14 +1078,20 @@ function HomePage() {
             isModal
             onClose={() => setWeeklyPirModalOpen(false)}
             onSaved={async (sid) => {
-              const existingDeepStar = useUiStore.getState().stars.find(s => s.kind === "DEEP" && !s.isTemporary);
               setWeeklyPirModalOpen(false);
               const starColor = colorFromId(String(sid), "DEEP");
-              const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "PIR", deepType: "PERSON_IN_RAIN" } as any;
+              const createdAt = new Date().toISOString();
+                const deepWeekKey = getSundayWeekKey(new Date(createdAt));
+                const existingDeepStar = useUiStore.getState().stars.find((s) => {
+                  if (s.kind !== "DEEP" || s.isTemporary) return false;
+                  return normalizeWeekKey(s.weekStartDate, s.createdAt) === deepWeekKey;
+                });
+              setSelectedWeekKey(deepWeekKey);
+              const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt, weekKey: deepWeekKey, label: "PIR", deepType: "PERSON_IN_RAIN" } as any;
               if (!existingDeepStar) {
                 pendingBirthReport.current = reportPayload;
                 pendingBirthKind.current = "deep";
-                addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
+                addTemporaryStar({ kind: "DEEP", createdAt, color: starColor, targetId: sid, weekStartDate: deepWeekKey });
                 setPendingSessionId(sid);
               } else {
                 setDeepPages([{
@@ -1087,7 +1101,7 @@ function HomePage() {
                   submissions: [],
                   psychAssessments: [],
                   status: "ANALYZING",
-                  createdAt: new Date().toISOString(),
+                  createdAt,
                 }]);
                 setSelectedDeepStar((prev: any) => ({
                   ...(prev ?? {}),
@@ -1117,14 +1131,20 @@ function HomePage() {
             isModal
             onClose={() => setWeeklySwModalOpen(false)}
             onSaved={async (sid) => {
-              const existingDeepStar = useUiStore.getState().stars.find(s => s.kind === "DEEP" && !s.isTemporary);
               setWeeklySwModalOpen(false);
               const starColor = colorFromId(String(sid), "DEEP");
-              const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt: new Date().toISOString(), weekKey: "", label: "SW", deepType: "STAR_WAVE" } as any;
+              const createdAt = new Date().toISOString();
+                const deepWeekKey = getSundayWeekKey(new Date(createdAt));
+                const existingDeepStar = useUiStore.getState().stars.find((s) => {
+                  if (s.kind !== "DEEP" || s.isTemporary) return false;
+                  return normalizeWeekKey(s.weekStartDate, s.createdAt) === deepWeekKey;
+                });
+              setSelectedWeekKey(deepWeekKey);
+              const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt, weekKey: deepWeekKey, label: "SW", deepType: "STAR_WAVE" } as any;
               if (!existingDeepStar) {
                 pendingBirthReport.current = reportPayload;
                 pendingBirthKind.current = "deep";
-                addTemporaryStar({ kind: "DEEP", createdAt: new Date().toISOString(), color: starColor, targetId: sid });
+                addTemporaryStar({ kind: "DEEP", createdAt, color: starColor, targetId: sid, weekStartDate: deepWeekKey });
                 setPendingSessionId(sid);
               } else {
                 setDeepPages([{
@@ -1134,7 +1154,7 @@ function HomePage() {
                   submissions: [],
                   psychAssessments: [],
                   status: "ANALYZING",
-                  createdAt: new Date().toISOString(),
+                  createdAt,
                 }]);
                 setSelectedDeepStar((prev: any) => ({
                   ...(prev ?? {}),
