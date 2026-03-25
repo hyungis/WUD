@@ -8,6 +8,7 @@ import { useAlert } from "../../components/shared/AlertProvider";
 import { useConfirm } from "../../components/shared/ConfirmProvider";
 import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntryByType } from "../../utils/dailyLimit";
 import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, saveRecentPaintColors } from "../../utils/paintColors";
+import { useUiStore } from "../../store/uiStore";
 
 /* ── constants ── */
 const PALETTE = [
@@ -65,7 +66,24 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
   const { showAlert } = useAlert();
   const { showConfirm } = useConfirm();
 
-  const [selectedMasterpiece] = useState(() => MASTERPIECES[Math.floor(Math.random() * MASTERPIECES.length)]);
+  const isDailyColoringReturning = useUiStore((state) => state.isDailyColoringReturning);
+  const setDailyColoringReturning = useUiStore((state) => state.setDailyColoringReturning);
+
+  const [selectedMasterpiece] = useState(() => {
+    if (isDailyColoringReturning) {
+      const pendingRaw = localStorage.getItem("pendingDailyRecord");
+      if (pendingRaw) {
+        try {
+          const pending = JSON.parse(pendingRaw);
+          if (pending.dailyType === "COLORING" && pending.masterpieceId) {
+            const found = MASTERPIECES.find(m => m.id === pending.masterpieceId);
+            if (found) return found;
+          }
+        } catch (e) { /* ignore */ }
+      }
+    }
+    return MASTERPIECES[Math.floor(Math.random() * MASTERPIECES.length)];
+  });
 
   const [shellColor] = useState(() => localStorage.getItem("dailyMoodColor") || PALETTE[0]);
   const [paintColor, setPaintColor] = useState<string>(PAINT_PRESET_COLORS[0]);
@@ -133,8 +151,44 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
     void guardByDailyLimit();
     return () => {
       alive = false;
+      // 컴포넌트 마운트 해제 시 복원 플래그 초기화
+      setDailyColoringReturning(false);
     };
-  }, [isModal, navigate, onClose]);
+  }, [isModal, navigate, onClose, setDailyColoringReturning]);
+  
+  // ─── 기존 작업 내역 복원 (드로잉 데이터) ───
+  useEffect(() => {
+    if (!isDailyColoringReturning) return;
+    
+    const canvas = drawing.canvasRef.current;
+    if (!canvas) return;
+
+    const pendingRaw = localStorage.getItem("pendingDailyRecord");
+    if (!pendingRaw) return;
+
+    try {
+      const pending = JSON.parse(pendingRaw);
+      // 명화 색칠 타입이고 복구할 이미지가 있는 경우
+      if (pending.dailyType === "COLORING" && pending.mandalaImage) {
+        const img = new Image();
+        img.src = pending.mandalaImage;
+        img.onload = () => {
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            ctx.restore();
+            // 복원된 상태를 히스토리에 저장하여 Undo/Redo 가능하게 함
+            drawing.saveHistory();
+          }
+        };
+      }
+    } catch (e) {
+      console.error("복원 실패:", e);
+    }
+  }, [drawing.canvasRef.current]);
 
   const handleClose = async () => {
     const confirmed = await showConfirm({
@@ -179,22 +233,22 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
 
     if (originalCanvas) {
       const exportCanvas = document.createElement("canvas");
-      exportCanvas.width = 1024;
-      exportCanvas.height = 1024;
+      exportCanvas.width = 768;
+      exportCanvas.height = 768;
       const exportCtx = exportCanvas.getContext("2d");
 
       if (exportCtx) {
         // 1. 배경 (흰색)
         exportCtx.fillStyle = "#ffffff";
-        exportCtx.fillRect(0, 0, 1024, 1024);
+        exportCtx.fillRect(0, 0, 768, 768);
 
         // 2. 중간: 사용자 드로잉
-        exportCtx.drawImage(originalCanvas, 0, 0, 1024, 1024);
+        exportCtx.drawImage(originalCanvas, 0, 0, 768, 768);
 
         // 3. 최상단: 명화 윤곽선 (Multiply 모드로 병합하여 흰 배경 무시)
         if (outlineCanvas) {
           exportCtx.globalCompositeOperation = "multiply";
-          exportCtx.drawImage(outlineCanvas, 0, 0, 1024, 1024);
+          exportCtx.drawImage(outlineCanvas, 0, 0, 768, 768);
           exportCtx.globalCompositeOperation = "source-over"; // 복구
         }
 
@@ -205,7 +259,7 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
     localStorage.removeItem("dailyDrawingImageId");
     localStorage.setItem("pendingDailyRecord", JSON.stringify({
       shellColor, coreColor: paintColor, objectType: "halo", objectColor: paintColor,
-      mandalaImage: drawingImage, dailyType: "COLORING", createdAt,
+      mandalaImage: drawingImage, dailyType: "COLORING", masterpieceId: selectedMasterpiece.id, createdAt,
     }));
     localStorage.setItem("dailyMoodColor", shellColor);
     handleOpenComplete();

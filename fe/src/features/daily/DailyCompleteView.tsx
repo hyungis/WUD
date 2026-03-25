@@ -168,23 +168,33 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
       objectType: record.objectType,
       objectColor: record.objectColor,
       memo: memo.trim(),
-      drawingImage: record.mandalaImage,
       createdAt: nowIso,
     };
-    const stored = localStorage.getItem("dailyPlanets");
-    const parsed = stored ? (JSON.parse(stored) as typeof nextPlanet[]) : [];
-    const nextPlanets = [nextPlanet, ...parsed].slice(0, 365);
-    localStorage.setItem("dailyPlanets", JSON.stringify(nextPlanets));
-    localStorage.setItem("dailyPlanetReady", "true");
-    localStorage.setItem("dailyPlanetShellColor", record.shellColor);
-    localStorage.setItem("dailyPlanetCoreColor", record.coreColor);
-    localStorage.setItem("dailyMemo", memo);
-    localStorage.setItem("dailyPaintColor", record.objectColor);
-    if (record.mandalaImage) {
-      localStorage.setItem("dailyDrawingImage", record.mandalaImage);
+
+    try {
+      const stored = localStorage.getItem("dailyPlanets");
+      const parsed = stored ? (JSON.parse(stored) as any[]) : [];
+      // 드로잉 이미지는 용량 문제로 개별 기록(dailyPlanets)에는 저장하지 않음 (서버 데이터 활용 권장)
+      const nextPlanets = [nextPlanet, ...parsed].slice(0, 365);
+      localStorage.setItem("dailyPlanets", JSON.stringify(nextPlanets));
+
+      localStorage.setItem("dailyPlanetReady", "true");
+      localStorage.setItem("dailyPlanetShellColor", record.shellColor);
+      localStorage.setItem("dailyPlanetCoreColor", record.coreColor);
+      localStorage.setItem("dailyMemo", memo);
+      localStorage.setItem("dailyPaintColor", record.objectColor);
+      
+      if (record.mandalaImage) {
+        localStorage.setItem("dailyDrawingImage", record.mandalaImage);
+      }
+      
+      localStorage.removeItem("pendingDailyRecord");
+      localStorage.setItem("openDailyReport", "true");
+    } catch (e) {
+      console.warn("로컬 스토리지 한도 초과로 일부 데이터가 로컬에 저장되지 않았습니다.", e);
+      // 필수 데이터 삭제하여 공간 확보 시도
+      localStorage.removeItem("pendingDailyRecord"); 
     }
-    localStorage.removeItem("pendingDailyRecord");
-    localStorage.setItem("openDailyReport", "true");
   };
 
   const handleClose = async () => {
