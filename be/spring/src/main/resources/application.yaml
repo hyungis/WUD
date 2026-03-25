@@ -91,6 +91,21 @@ ai:
       result-routing-key: ${AI_DAILY_RABBITMQ_RESULT_ROUTING_KEY:wud.daily.ai.result.routing-key}
       result-queue: ${AI_DAILY_RABBITMQ_RESULT_QUEUE:wud.daily.ai.result.queue}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
 logging:
   level:
     org.hibernate.SQL: debug
