@@ -807,7 +807,7 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = fal
     />
   );
 }
-function GalaxyStars({ freezeMotion = false }: { freezeMotion?: boolean }) {
+function GalaxyStars({ radius = 150, freezeMotion = false }: { radius?: number; freezeMotion?: boolean }) {
   const starsRef = useRef<Group>(null);
   useFrame((state) => {
     if (freezeMotion) return;
@@ -818,7 +818,7 @@ function GalaxyStars({ freezeMotion = false }: { freezeMotion?: boolean }) {
   });
   return (
     <group ref={starsRef}>
-      <Stars radius={150} depth={50} count={6000} factor={4} saturation={0.8} fade speed={1} />
+      <Stars radius={radius} depth={50} count={6000} factor={4} saturation={0.8} fade speed={1} />
     </group>
   );
 }
@@ -1154,7 +1154,7 @@ export function StarScene({
             : "translateX(0px)",
         }}
       >
-        <Canvas camera={{ position: [0, 110 * countRatio, 0.1], fov: 45 }} className="w-full h-full">
+        <Canvas camera={{ position: [0, 110 * countRatio, 0.1], fov: 45, far: Math.max(5000, dynamicMaxDistance * 4) }} className="w-full h-full">
           <RenderNotifier onReady={onReady} />
           <ambientLight intensity={0.15} color="#4c1d95" />
           <pointLight position={[0, 0, 0]} intensity={150} color="#f97316" distance={60} decay={2} />
@@ -1165,7 +1165,7 @@ export function StarScene({
 
           <SpreadCtx.Provider value={spreadRef}>
             <SpreadDriver freezeMotion={freezeSceneMotion} />
-            <GalaxyStars freezeMotion={freezeSceneMotion} />
+            <GalaxyStars radius={dynamicMaxDistance * 2.5} freezeMotion={freezeSceneMotion} />
 
             <ViewModeTracker
               controlsRef={controlsRef}
