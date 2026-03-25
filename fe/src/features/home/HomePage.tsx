@@ -39,6 +39,7 @@ function HomePage() {
   const [selectedDailyPlanet, setSelectedDailyPlanet] = useState<DailyPlanet | null>(null);
   const [isStarSceneReady, setIsStarSceneReady] = useState(false);
   const [isSidePanelOpen, setIsSidePanelOpen] = useState(false);
+  const [reportOrigin, setReportOrigin] = useState<"mypage" | "scene" | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportError, setReportError] = useState<string | null>(null);
   const [pendingSessionId, setPendingSessionId] = useState<number | null>(null);
@@ -329,7 +330,7 @@ function HomePage() {
 
   const openDeepReport = async (
     star: DeepStar & { targetId?: number; aiSummary?: string; questions?: string[]; deepType?: string },
-    options?: { silent?: boolean },
+    options?: { silent?: boolean; source?: "mypage" | "scene" },
   ) => {
     setReportError(null);
     setSelectedDeepStar(star);
@@ -343,6 +344,9 @@ function HomePage() {
     }
 
     const silent = Boolean(options?.silent);
+    if (!silent) {
+      setReportOrigin(options?.source ?? "scene");
+    }
     if (!silent) {
       setReportLoading(true);
     }
@@ -517,10 +521,14 @@ function HomePage() {
     return () => { cancelled = true; window.clearInterval(id); };
   }, [pendingDailyId]);
 
-  const openDailyReport = async (planet: DailyPlanet & { targetId?: number; aiSummary?: string }) => {
+  const openDailyReport = async (
+    planet: DailyPlanet & { targetId?: number; aiSummary?: string },
+    options?: { source?: "mypage" | "scene" },
+  ) => {
     setReportError(null);
     setSelectedDailyPlanet(planet);
     setSelectedDeepStar(null);
+    setReportOrigin(options?.source ?? "scene");
     setIsSidePanelOpen(true);
 
     const dailyId = Number(planet.targetId ?? planet.id);
@@ -813,7 +821,18 @@ function HomePage() {
       {/* HUD 우측 사이드 패널 (상세 리포트) */}
       <StarSidePanel
         isOpen={isSidePanelOpen}
-        onClose={() => setIsSidePanelOpen(false)}
+        onClose={() => {
+          setIsSidePanelOpen(false);
+          setReportOrigin(null);
+        }}
+        onBack={reportOrigin === "mypage" && (selectedDeepStar || selectedDailyPlanet)
+          ? () => {
+            setIsSidePanelOpen(false);
+            setSelectedDeepStar(null);
+            setSelectedDailyPlanet(null);
+            setIsMyUniverseOpen(true);
+          }
+          : undefined}
         reportLoading={reportLoading}
         reportError={reportError}
         selectedDeepStar={selectedDeepStar}
@@ -829,8 +848,8 @@ function HomePage() {
         mypageStar={mypageStar}
         dailyPlanets={dailyPlanets}
         deepStars={deepStars}
-        onDailyPlanetClick={(planet) => { setIsMyUniverseOpen(false); void openDailyReport(planet as any); }}
-        onDeepStarClick={(star) => { setIsMyUniverseOpen(false); void openDeepReport(star as any); }}
+        onDailyPlanetClick={(planet) => { setIsMyUniverseOpen(false); void openDailyReport(planet as any, { source: "mypage" }); }}
+        onDeepStarClick={(star) => { setIsMyUniverseOpen(false); void openDeepReport(star as any, { source: "mypage" }); }}
       />
 
       <AnimatePresence>

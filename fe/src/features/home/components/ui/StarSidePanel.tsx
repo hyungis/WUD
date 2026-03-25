@@ -17,6 +17,7 @@ const emotionFromColor = (hex: string) => COLOR_TO_EMOTION[hex.toUpperCase()] ||
 interface StarSidePanelProps {
   isOpen: boolean;
   onClose: () => void;
+  onBack?: () => void;
   reportLoading: boolean;
   reportError: string | null;
   selectedDeepStar: (DeepStar & {
@@ -36,6 +37,7 @@ interface StarSidePanelProps {
 export function StarSidePanel({
   isOpen,
   onClose,
+  onBack,
   reportLoading,
   reportError,
   selectedDeepStar,
@@ -147,9 +149,9 @@ export function StarSidePanel({
         style={{ animation: "slideInRight 0.35s ease-out" }}
       >
           {/* ── 헤더 ── */}
-          <div className="flex items-center justify-between px-5 py-3 sm:px-7 sm:py-3.5 border-b border-white/[0.06] flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.04]">
+          <div className="flex items-center justify-between gap-3 px-5 py-3 sm:px-7 sm:py-3.5 border-b border-white/[0.06] flex-shrink-0">
+            <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.04]">
                 {isDeep ? (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" strokeWidth="1.5">
                     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
@@ -161,9 +163,9 @@ export function StarSidePanel({
                   </svg>
                 )}
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-[10px] uppercase tracking-[0.3em] text-slate-500 font-semibold">{reportLabel}</p>
-                <h2 className="text-sm sm:text-base font-bold text-slate-100 mt-0.5">{reportTitle}</h2>
+                <h2 className="mt-0.5 truncate text-sm font-bold text-slate-100 sm:text-base">{reportTitle}</h2>
               </div>
             </div>
             <button
@@ -178,7 +180,7 @@ export function StarSidePanel({
 
           {/* ── 본문 ── */}
           <div
-            className="custom-scrollbar flex-1 overflow-y-auto px-5 py-4 sm:px-7 sm:py-4"
+            className={`custom-scrollbar flex-1 overflow-y-auto px-5 py-4 sm:px-7 sm:py-4 ${onBack ? "pb-20 sm:pb-24" : ""}`}
             style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.12) transparent" }}
           >
             <div className="flex flex-col gap-4">
@@ -460,6 +462,18 @@ export function StarSidePanel({
               )}
           </div>
         </div>
+
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="absolute bottom-4 left-5 z-20 flex h-8 items-center gap-1.5 rounded-lg border border-white/[0.1] bg-[#0f1119]/80 px-2.5 text-[11px] font-medium text-slate-300 backdrop-blur-sm transition-colors hover:bg-white/[0.08] hover:text-white sm:bottom-5 sm:left-7"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              뒤로가기
+            </button>
+          )}
       </div>
     </div>
   );
