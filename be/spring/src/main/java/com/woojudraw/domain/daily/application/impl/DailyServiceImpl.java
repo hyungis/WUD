@@ -110,15 +110,31 @@ public class DailyServiceImpl implements DailyService {
 	}
 
 	@Override
-	public List<DailyListItemResp> getDailies(Long userId, DailyListPeriod period, LocalDate date) {
+	public List<DailyListItemResp> getDailies(Long userId, DailyListPeriod period, LocalDate date, Emotion emotion) {
 		DateRange dateRange = resolveDateRange(period, date);
-		List<Daily> dailies = (dateRange == null)
-			? dailyRepository.findAllByUser_IdAndDeletedAtIsNullOrderByEntryDateDescIdDesc(userId)
-			: dailyRepository.findAllByUser_IdAndDeletedAtIsNullAndEntryDateBetweenOrderByEntryDateDescIdDesc(
-				userId,
-				dateRange.startDate(),
-				dateRange.endDate()
-			);
+		List<Daily> dailies;
+
+		if (emotion == null) {
+			dailies = (dateRange == null)
+				? dailyRepository.findAllByUser_IdAndDeletedAtIsNullOrderByEntryDateDescIdDesc(userId)
+				: dailyRepository.findAllByUser_IdAndDeletedAtIsNullAndEntryDateBetweenOrderByEntryDateDescIdDesc(
+					userId,
+					dateRange.startDate(),
+					dateRange.endDate()
+				);
+		} else {
+			dailies = (dateRange == null)
+				? dailyRepository.findAllByUser_IdAndEmotionValueAndDeletedAtIsNullOrderByEntryDateDescIdDesc(
+					userId,
+					emotion.getValue()
+				)
+				: dailyRepository.findAllByUser_IdAndEmotionValueAndDeletedAtIsNullAndEntryDateBetweenOrderByEntryDateDescIdDesc(
+					userId,
+					emotion.getValue(),
+					dateRange.startDate(),
+					dateRange.endDate()
+				);
+		}
 
 		List<Long> dailyIds = dailies.stream().map(Daily::getId).toList();
 		Map<Long, DailyResult> resultMap = dailyIds.isEmpty()

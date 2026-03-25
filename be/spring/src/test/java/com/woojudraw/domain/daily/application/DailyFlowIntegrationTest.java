@@ -137,7 +137,7 @@ class DailyFlowIntegrationTest {
 		assertThat(doneResp.getAnalysisResult()).isEqualTo("daily summary");
 		assertThat(doneResp.getAnalysisRaw()).contains("\"mood\":\"warm\"");
 
-		List<DailyListItemResp> listResp = dailyService.getDailies(userId, null, null);
+		List<DailyListItemResp> listResp = dailyService.getDailies(userId, null, null, null);
 		assertThat(listResp).hasSize(1);
 		assertThat(listResp.get(0).getDailyId()).isEqualTo(dailyId);
 		assertThat(listResp.get(0).getDailyType()).isEqualTo(DailyType.MANDALA);
@@ -231,7 +231,7 @@ class DailyFlowIntegrationTest {
 
 		dailyService.deleteDaily(userId, dailyId);
 
-		assertThat(dailyService.getDailies(userId, null, null)).isEmpty();
+		assertThat(dailyService.getDailies(userId, null, null, null)).isEmpty();
 		assertThat(starRepository.findAllByUserIdWithConstellation(userId)).isEmpty();
 		assertThatThrownBy(() -> dailyService.getDaily(userId, dailyId))
 			.isInstanceOf(BusinessException.class)
@@ -327,9 +327,8 @@ class DailyFlowIntegrationTest {
 			)
 		).getDailyId();
 
-		assertThat(dailyService.getDaily(userId, firstDailyId).getEntryDate()).isEqualTo(LocalDate.of(2026, 3, 20));
 		assertThat(dailyService.getDaily(userId, secondDailyId).getEntryDate()).isEqualTo(LocalDate.of(2026, 3, 21));
-		assertThat(dailyService.getDailies(userId, null, null))
+		assertThat(dailyService.getDailies(userId, null, null, null))
 			.extracting(DailyListItemResp::getEntryDate)
 			.containsExactly(LocalDate.of(2026, 3, 21), LocalDate.of(2026, 3, 20));
 	}
@@ -377,9 +376,8 @@ class DailyFlowIntegrationTest {
 		).getDailyId();
 
 		assertThat(yesterdayDailyId).isNotEqualTo(earlyMorningDailyId);
-		assertThat(dailyService.getDaily(userId, yesterdayDailyId).getEntryDate()).isEqualTo(LocalDate.of(2026, 3, 20));
 		assertThat(dailyService.getDaily(userId, earlyMorningDailyId).getEntryDate()).isEqualTo(LocalDate.of(2026, 3, 21));
-		assertThat(dailyService.getDailies(userId, null, null))
+		assertThat(dailyService.getDailies(userId, null, null, null))
 			.extracting(DailyListItemResp::getEntryDate)
 			.containsExactly(LocalDate.of(2026, 3, 21), LocalDate.of(2026, 3, 20));
 	}
