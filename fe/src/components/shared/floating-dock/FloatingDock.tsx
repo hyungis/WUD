@@ -1,8 +1,90 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { Canvas, useFrame } from "@react-three/fiber";
+import { IcosahedronGeometry, Vector3, BufferGeometry, Float32BufferAttribute, SphereGeometry, BoxGeometry, OctahedronGeometry, TorusKnotGeometry, DodecahedronGeometry, TetrahedronGeometry } from "three";
+import { Float } from "@react-three/drei";
 import { useAuthStore } from "../../../store/authStore";
 import { useUiStore } from "../../../store/uiStore";
+import { useCustomStarStore, type StarShape } from "../../../store/customStarStore";
 import { hasTodayDailyEntry } from "../../../utils/dailyLimit";
 import { useAlert } from "../../../components/shared/AlertProvider";
+
+// ── 커스텀 중심별에 사용할 geometry 캐시 (StarScene.tsx와 동기화) ──
+function createStellatedPolyhedronGeometry(baseRadius = 1, spikeLength = 0.62) {
+    const baseGeometry = new IcosahedronGeometry(baseRadius, 0).toNonIndexed();
+    const positions = baseGeometry.getAttribute("position").array as Float32Array;
+    const vertices: number[] = [];
+
+    for (let i = 0; i < positions.length; i += 9) {
+        const a = new Vector3(positions[i], positions[i + 1], positions[i + 2]);
+        const b = new Vector3(positions[i + 3], positions[i + 4], positions[i + 5]);
+        const c = new Vector3(positions[i + 6], positions[i + 7], positions[i + 8]);
+
+        const centroid = new Vector3().add(a).add(b).add(c).multiplyScalar(1 / 3);
+        const normal = new Vector3().subVectors(b, a).cross(new Vector3().subVectors(c, a)).normalize();
+        if (normal.dot(centroid) < 0) {
+            normal.multiplyScalar(-1);
+        }
+
+        const apex = centroid.clone().addScaledVector(normal, spikeLength);
+        vertices.push(
+            a.x, a.y, a.z, b.x, b.y, b.z, apex.x, apex.y, apex.z,
+            b.x, b.y, b.z, c.x, c.y, c.z, apex.x, apex.y, apex.z,
+            c.x, c.y, c.z, a.x, a.y, a.z, apex.x, apex.y, apex.z,
+        );
+    }
+
+    const stellated = new BufferGeometry();
+    stellated.setAttribute("position", new Float32BufferAttribute(vertices, 3));
+    stellated.computeVertexNormals();
+    baseGeometry.dispose();
+    return stellated;
+}
+
+const MINI_STELLATED_GEOMETRY = createStellatedPolyhedronGeometry(1, 0.62);
+
+const MINI_SHAPE_GEOMETRIES: Record<StarShape, BufferGeometry> = {
+    sphere: new SphereGeometry(1, 16, 16),
+    box: new BoxGeometry(1.2, 1.2, 1.2),
+    octahedron: new OctahedronGeometry(1, 0),
+    icosahedron: new IcosahedronGeometry(1, 0),
+    torusKnot: new TorusKnotGeometry(0.7, 0.2, 64, 12),
+    dodecahedron: new DodecahedronGeometry(1, 0),
+    tetrahedron: new TetrahedronGeometry(1, 0),
+    stellated: MINI_STELLATED_GEOMETRY,
+};
+
+function MiniStarMesh() {
+    const meshRef = useRef<any>(null);
+    const currentShape = useCustomStarStore((s) => s.currentShape);
+    const currentColor = useCustomStarStore((s) => s.currentColor);
+    const geometry = MINI_SHAPE_GEOMETRIES[currentShape] || MINI_STELLATED_GEOMETRY;
+
+    useFrame((state, delta) => {
+        if (meshRef.current) {
+            meshRef.current.rotation.y += delta * 0.8;
+            meshRef.current.rotation.x += delta * 0.3;
+            
+            // 은은한 반짝임 효과
+            const time = state.clock.elapsedTime;
+            const intensity = 1.5 + Math.sin(time * 2) * 0.5;
+            if (meshRef.current.material) {
+                meshRef.current.material.emissiveIntensity = intensity;
+            }
+        }
+    });
+
+    return (
+        <mesh ref={meshRef} geometry={geometry}>
+            <meshStandardMaterial
+                color={currentColor}
+                emissive={currentColor}
+                emissiveIntensity={1.5}
+                roughness={0.2}
+                metalness={0.5}
+            />
+        </mesh>
+    );
+}
 
 export default function FloatingDock() {
     const user = useAuthStore((state) => state.user);
@@ -16,6 +98,8 @@ export default function FloatingDock() {
     const setWeeklyHtpModalOpen = useUiStore((state) => state.setWeeklyHtpModalOpen);
     const setIsMyUniverseOpen = useUiStore((state) => state.setIsMyUniverseOpen);
     const setSelectedStarId = useUiStore((state) => state.setSelectedStarId);
+
+    const setPreferredCameraView = useUiStore((state) => state.setPreferredCameraView);
 
     const { showAlert } = useAlert();
 
@@ -45,6 +129,7 @@ export default function FloatingDock() {
         if (isCheckingWeekly) {
             return;
         }
+        setPreferredCameraView("default");
 
         setIsCheckingWeekly(true);
         try {
@@ -58,12 +143,12 @@ export default function FloatingDock() {
         }
     };
 
-    // 🚨 데일리 클릭 핸들러 추가
     const handleDailyClick = () => {
         if (isDailyCompleted) {
             showAlert("이미 빛나는 별 하나를 심으셨네요! 내일 또 다른 별을 만들어봐요.", "success");
             return;
         }
+        setPreferredCameraView("default");
         setDailyDetailModalOpen(false);
         setDailyContentModalOpen(true);
     };
@@ -90,13 +175,35 @@ export default function FloatingDock() {
                         {isCheckingWeekly ? "CHECKING..." : "WEEKLY"}
                     </button>
 
-                    {/* 🚨 버튼 스타일은 원래대로 복구하고 onClick만 변경 */}
                     <button
                         id="daily-star-btn"
                         onClick={handleDailyClick}
                         className={`${glassButtonClass} min-w-[64px] sm:min-w-[76px] lg:min-w-[90px]`}
                     >
                         DAILY
+                    </button>
+
+                    {/* 🌟 미니어처 커스텀 별 버튼 */}
+                    <button
+                        id="mini-custom-star-btn"
+                        onClick={() => {
+                            setPreferredCameraView("top-distant");
+                            setSelectedStarId("center-mypage-star");
+                            incrementTimelineFocusNonce();
+                        }}
+                        className="relative flex h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 flex-shrink-0 items-center justify-center rounded-[12px] border border-white/25 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] backdrop-blur-lg transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/20 hover:border-white/50 hover:shadow-[0_8px_20px_rgba(255,255,255,0.15)] overflow-hidden group"
+                    >
+                        <div className="absolute inset-0 z-0 h-full w-full">
+                            <Canvas camera={{ position: [0, 0, 3.2], fov: 45 }} gl={{ antialias: true, alpha: true }}>
+                                <ambientLight intensity={1.2} />
+                                <pointLight position={[5, 5, 5]} intensity={50} />
+                                <Float speed={2} rotationIntensity={1} floatIntensity={1}>
+                                    <MiniStarMesh />
+                                </Float>
+                            </Canvas>
+                        </div>
+                        {/* 글로우 효과 (커서 호버 시) */}
+                        <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     </button>
                 </div>
 
@@ -105,6 +212,7 @@ export default function FloatingDock() {
                         id="mypage-btn"
                         type="button"
                         onClick={() => {
+                            setPreferredCameraView("default");
                             setSelectedStarId("center-mypage-star");
                             setIsMyUniverseOpen(true);
                             incrementTimelineFocusNonce();
@@ -121,4 +229,4 @@ export default function FloatingDock() {
             </div>
         </>
     );
-}
+}
