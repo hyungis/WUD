@@ -278,8 +278,10 @@ function DailyCompleteView({ isModal = false, onClose, onBackToDetail, onSaved }
 
       let createRes;
       try {
+        const mappedDailyType = record.dailyType === "FREE_DRAW" ? "FREE" : (record.dailyType || "MANDALA");
+        
         createRes = await dailyApi.createDaily({
-          dailyType: (record.dailyType as "MANDALA" | "COLORING") || "MANDALA",
+          dailyType: mappedDailyType as any,
           entryDate,
           content: memo.trim(),
           emotion: resolveEmotionLabel(),

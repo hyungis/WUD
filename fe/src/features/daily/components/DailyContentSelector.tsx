@@ -30,11 +30,12 @@ const DAILY_FEATURES = [
     enabled: true,
   },
   {
-    id: "story",
-    title: "감정 스토리",
-    description: "준비중",
-    enabled: false,
-  },
+    id: "free_draw",
+    type: "FREE_DRAW",
+    title: "자율 드로잉",
+    description: "오늘 감정을 자유롭게 그리면서 해소해요",
+    enabled: true,
+  }
 ];
 
 import { useConfirm } from "../../../components/shared/ConfirmProvider";
@@ -44,13 +45,13 @@ type DailyContentSelectorProps = {
   onClose: () => void;
 };
 
-function DailyContentInner({ 
-  onClose, 
+function DailyContentInner({
+  onClose,
   isModal = false,
   step,
   setStep,
-}: { 
-  onClose: () => void; 
+}: {
+  onClose: () => void;
   isModal?: boolean;
   step: number;
   setStep: (step: number) => void;
@@ -66,8 +67,9 @@ function DailyContentInner({
   const setDailyContentModalOpen = useUiStore((state) => state.setDailyContentModalOpen);
   const setDailyDetailModalOpen = useUiStore((state) => state.setDailyDetailModalOpen);
   const setDailyColoringModalOpen = useUiStore((state) => state.setDailyColoringModalOpen);
+  const setDailyFreeDrawModalOpen = useUiStore((state) => state.setDailyFreeDrawModalOpen);
 
-  const markSelectedDailyContent = (content: "MANDALA" | "COLORING") => {
+  const markSelectedDailyContent = (content: "MANDALA" | "COLORING" | "FREE_DRAW") => {
     localStorage.setItem("dailySelectedContent", content);
   };
 
@@ -152,6 +154,38 @@ function DailyContentInner({
     }
   };
 
+  const handleOpenDailyFreeDraw = async () => {
+    if (isCheckingDailyLimit) return;
+
+    setIsCheckingDailyLimit(true);
+    try {
+      const existsToday = await checkDailyLimitWithTimeout("COLORING");
+      if (existsToday) {
+        showAlert(DAILY_LIMIT_MESSAGE, "error");
+        return;
+      }
+
+      if (selectedEmotion) {
+        localStorage.setItem("dailyMoodColor", selectedEmotion.color);
+        localStorage.setItem("dailyMoodValue", String(selectedEmotion.value));
+        localStorage.setItem("dailyMoodLabel", selectedEmotion.label);
+      }
+      markSelectedDailyContent("FREE_DRAW");
+
+      setIsLeaving(true);
+      setTimeout(() => {
+        if (isDailyContentModalOpen) {
+          setDailyContentModalOpen(false);
+          setDailyFreeDrawModalOpen(true);
+          return;
+        }
+        navigate("/daily/free-draw");
+      }, 280);
+    } finally {
+      setIsCheckingDailyLimit(false);
+    }
+  };
+
   const handleStartSelectedContent = async () => {
     if (!selectedContentId) return;
 
@@ -162,6 +196,11 @@ function DailyContentInner({
 
     if (selectedContentId === "coloring") {
       await handleOpenDailyColoring();
+      return;
+    }
+
+    if (selectedContentId === "free_draw") {
+      await handleOpenDailyFreeDraw();
       return;
     }
 
@@ -397,9 +436,9 @@ export default function DailyContentSelector({ isModal = false, onClose }: Daily
           transition={{ type: "spring", damping: 25, stiffness: 300 }}
           className="relative z-10 mx-auto w-full max-w-5xl h-full max-h-[85vh] overflow-hidden rounded-3xl border border-white/10 shadow-2xl flex flex-col bg-zinc-950"
         >
-          <DailyContentInner 
-            onClose={handleCloseAttempt} 
-            isModal 
+          <DailyContentInner
+            onClose={handleCloseAttempt}
+            isModal
             step={step}
             setStep={setStep}
           />
@@ -409,8 +448,8 @@ export default function DailyContentSelector({ isModal = false, onClose }: Daily
   }
 
   return (
-    <DailyContentInner 
-      onClose={handleCloseAttempt} 
+    <DailyContentInner
+      onClose={handleCloseAttempt}
       step={step}
       setStep={setStep}
     />

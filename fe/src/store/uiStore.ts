@@ -25,11 +25,13 @@ type UiState = {
   isDailyDetailModalOpen: boolean;
   isDailyCompleteModalOpen: boolean;
   isDailyColoringModalOpen: boolean;
+  isDailyFreeDrawModalOpen: boolean;
   isWeeklyContentModalOpen: boolean;
   isWeeklyHtpModalOpen: boolean;
   isWeeklyPirModalOpen: boolean;
   isWeeklySwModalOpen: boolean;
   isDailyColoringReturning: boolean;
+  isDailyFreeDrawReturning: boolean;
   stars: HomeStar[];
   pendingBirth: PendingBirth;
   newbornStarId: string | null;
@@ -52,11 +54,13 @@ type UiState = {
   setDailyDetailModalOpen: (isOpen: boolean) => void;
   setDailyCompleteModalOpen: (isOpen: boolean) => void;
   setDailyColoringModalOpen: (isOpen: boolean) => void;
+  setDailyFreeDrawModalOpen: (isOpen: boolean) => void;
   setWeeklyContentModalOpen: (isOpen: boolean) => void;
   setWeeklyHtpModalOpen: (isOpen: boolean) => void;
   setWeeklyPirModalOpen: (isOpen: boolean) => void;
   setWeeklySwModalOpen: (isOpen: boolean) => void;
   setDailyColoringReturning: (isReturning: boolean) => void;
+  setDailyFreeDrawReturning: (isReturning: boolean) => void;
 
   // Actions
   setStars: (stars: HomeStar[]) => void;
@@ -85,11 +89,13 @@ export const useUiStore = create<UiState>((set) => ({
   isDailyDetailModalOpen: false,
   isDailyCompleteModalOpen: false,
   isDailyColoringModalOpen: false,
+  isDailyFreeDrawModalOpen: false,
   isWeeklyContentModalOpen: false,
   isWeeklyHtpModalOpen: false,
   isWeeklyPirModalOpen: false,
   isWeeklySwModalOpen: false,
   isDailyColoringReturning: false,
+  isDailyFreeDrawReturning: false,
 
   globalPhase: "landing",
   stars: [],
@@ -111,11 +117,13 @@ export const useUiStore = create<UiState>((set) => ({
   setDailyDetailModalOpen: (isDailyDetailModalOpen) => set({ isDailyDetailModalOpen }),
   setDailyCompleteModalOpen: (isDailyCompleteModalOpen) => set({ isDailyCompleteModalOpen }),
   setDailyColoringModalOpen: (isDailyColoringModalOpen) => set({ isDailyColoringModalOpen }),
+  setDailyFreeDrawModalOpen: (isDailyFreeDrawModalOpen) => set({ isDailyFreeDrawModalOpen }),
   setWeeklyContentModalOpen: (isWeeklyContentModalOpen) => set({ isWeeklyContentModalOpen }),
   setWeeklyHtpModalOpen: (isWeeklyHtpModalOpen) => set({ isWeeklyHtpModalOpen }),
   setWeeklyPirModalOpen: (isWeeklyPirModalOpen) => set({ isWeeklyPirModalOpen }),
   setWeeklySwModalOpen: (isWeeklySwModalOpen) => set({ isWeeklySwModalOpen }),
   setDailyColoringReturning: (isDailyColoringReturning) => set({ isDailyColoringReturning }),
+  setDailyFreeDrawReturning: (isDailyFreeDrawReturning) => set({ isDailyFreeDrawReturning }),
 
   setGlobalPhase: (globalPhase) => set({ globalPhase }),
   setStars: (stars) => set({ stars }),
