@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import type { DailyPlanet, DeepStar } from "../../utils/homeHelpers";
 import { getWeekKey, formatDate } from "../../utils/homeHelpers";
@@ -9,6 +9,7 @@ import { logout } from "../../../../services/auth";
 import type { UserProfileResponse } from "../../../../types/user";
 
 type TabKey = "overview" | "daily" | "deep" | "customize" | "profile";
+type EmotionRatioItem = { color: string; label: string; count: number; ratio: number };
 
 const EMOTION_COLOR_PALETTE = [
   { label: "기쁨", color: "#FFD54F" },
@@ -63,6 +64,21 @@ const emotionFromColor = (hex: string) => {
   });
 
   return bestLabel;
+};
+
+const polarToCartesian = (cx: number, cy: number, radius: number, angleInDegrees: number) => {
+  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180;
+  return {
+    x: cx + radius * Math.cos(angleInRadians),
+    y: cy + radius * Math.sin(angleInRadians),
+  };
+};
+
+const describeArc = (cx: number, cy: number, radius: number, startAngle: number, endAngle: number) => {
+  const start = polarToCartesian(cx, cy, radius, endAngle);
+  const end = polarToCartesian(cx, cy, radius, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArcFlag} 0 ${end.x} ${end.y}`;
 };
 
 interface MyUniverseModalProps {
@@ -264,6 +280,9 @@ export function MyUniverseModal({
   const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [withdrawConfirm, setWithdrawConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [selectedEmotion, setSelectedEmotion] = useState<EmotionRatioItem | null>(null);
+  const [hoverPopup, setHoverPopup] = useState<{ emotion: EmotionRatioItem; x: number; y: number } | null>(null);
+  const emotionCardRef = useRef<HTMLDivElement | null>(null);
 
   const fetchProfile = useCallback(async () => {
     setProfileLoading(true);
@@ -313,7 +332,7 @@ export function MyUniverseModal({
   }, {});
 
   const totalEmotionCount = Object.values(emotionRatioSource).reduce((sum, count) => sum + count, 0);
-  const emotionRatioItems = Object.entries(emotionRatioSource)
+  const emotionRatioItems: EmotionRatioItem[] = Object.entries(emotionRatioSource)
     .map(([color, count]) => ({
       color,
       label: emotionFromColor(color),
@@ -322,16 +341,46 @@ export function MyUniverseModal({
     }))
     .sort((a, b) => b.count - a.count);
 
-  const donutGradient = (() => {
-    if (!emotionRatioItems.length) return "conic-gradient(#3f3f46 0% 100%)";
-    let acc = 0;
-    const slices = emotionRatioItems.map((item) => {
-      const start = acc;
-      acc += item.ratio;
-      return `${item.color} ${start.toFixed(2)}% ${acc.toFixed(2)}%`;
+  const donutSize = 184;
+  const donutRadius = 72;
+  const donutStroke = 28;
+  const donutCenter = donutSize / 2;
+  const donutSlices = (() => {
+    let accRatio = 0;
+    return emotionRatioItems.map((item) => {
+      const startRatio = accRatio;
+      const endRatio = accRatio + item.ratio;
+      accRatio = endRatio;
+      const startAngle = (startRatio / 100) * 360;
+      const endAngle = (endRatio / 100) * 360;
+      return {
+        ...item,
+        d: describeArc(donutCenter, donutCenter, donutRadius, startAngle, endAngle),
+      };
     });
-    return `conic-gradient(${slices.join(", ")})`;
   })();
+
+  const selectedEmotionRecords = selectedEmotion
+    ? [...dailyPlanets]
+      .filter((planet) => emotionFromColor((planet.shell || "").toUpperCase()) === selectedEmotion.label)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    : [];
+
+  const getEmotionRecordsByLabel = (label: string) => {
+    return [...dailyPlanets]
+      .filter((planet) => emotionFromColor((planet.shell || "").toUpperCase()) === label)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  };
+
+  const handleEmotionHoverMove = (emotion: EmotionRatioItem, e: React.MouseEvent<HTMLElement | SVGPathElement>) => {
+    const cardRect = emotionCardRef.current?.getBoundingClientRect();
+    if (!cardRect) return;
+    setHoverPopup({
+      emotion,
+      x: e.clientX - cardRect.left + 12,
+      y: e.clientY - cardRect.top + 12,
+    });
+  };
 
   const displayName = user?.nickname || user?.name || user?.email?.split("@")[0] || "사용자";
 
@@ -508,34 +557,64 @@ export function MyUniverseModal({
               </div>
 
               {/* 선택 감정 비율 */}
-              <div className={cardCls}>
+              <div className={`${cardCls} relative overflow-visible z-30`} ref={emotionCardRef}>
                 <p className={labelCls}>선택 감정 비율</p>
                 {emotionRatioItems.length > 0 ? (
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                    <div className="relative mx-auto sm:mx-0">
-                      <div
-                        className="h-32 w-32 rounded-full"
-                        style={{
-                          background: donutGradient,
-                          boxShadow: "inset 0 0 0 1px rgba(255,255,255,0.08)",
-                        }}
-                      />
-                      <div className="absolute inset-0 m-auto h-20 w-20 rounded-full bg-[#0a0a0f] border border-white/[0.08] flex flex-col items-center justify-center">
-                        <p className="text-[10px] uppercase tracking-[0.16em] text-zinc-500">Daily</p>
-                        <p className="text-xl font-bold text-white leading-none">{totalEmotionCount}</p>
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-6 md:divide-x md:divide-white/[0.08]">
+                    <div className="flex items-center justify-center min-h-[220px] md:pr-6">
+                      <div className="relative" style={{ width: donutSize, height: donutSize }}>
+                        <svg width={donutSize} height={donutSize} viewBox={`0 0 ${donutSize} ${donutSize}`} className="overflow-visible">
+                          <circle
+                            cx={donutCenter}
+                            cy={donutCenter}
+                            r={donutRadius}
+                            fill="none"
+                            stroke="rgba(255,255,255,0.08)"
+                            strokeWidth={donutStroke}
+                          />
+                          {donutSlices.map((slice) => (
+                            <path
+                              key={slice.color}
+                              d={slice.d}
+                              fill="none"
+                              stroke={slice.color}
+                              strokeWidth={donutStroke}
+                              strokeLinecap="butt"
+                              className="cursor-pointer transition-opacity hover:opacity-80"
+                              onClick={() => setSelectedEmotion(slice)}
+                              onMouseEnter={(e) => handleEmotionHoverMove(slice, e)}
+                              onMouseMove={(e) => handleEmotionHoverMove(slice, e)}
+                              onMouseLeave={() => setHoverPopup(null)}
+                            />
+                          ))}
+                        </svg>
+                        <div className="pointer-events-none absolute inset-0 m-auto h-24 w-24 rounded-full bg-[#0a0a0f] border border-white/[0.08] flex flex-col items-center justify-center">
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-zinc-500">Daily</p>
+                          <p className="text-2xl font-bold text-white leading-none">{totalEmotionCount}</p>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="flex-1 space-y-2">
+                    <div className="space-y-1.5 md:pl-6">
                       {emotionRatioItems.map((item) => (
-                        <div key={item.color} className="flex items-center gap-2.5">
+                        <button
+                          key={item.color}
+                          onClick={() => setSelectedEmotion(item)}
+                          onMouseEnter={(e) => handleEmotionHoverMove(item, e)}
+                          onMouseMove={(e) => handleEmotionHoverMove(item, e)}
+                          onMouseLeave={() => setHoverPopup(null)}
+                          className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors text-left ${hoverPopup?.emotion.label === item.label ? "bg-white/[0.05]" : "hover:bg-white/[0.03]"
+                            }`}
+                        >
                           <span className="h-2.5 w-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
                           <span className="flex-1 text-[12px] text-zinc-300">{item.label}</span>
-                          <span className="text-[11px] text-zinc-500">{item.count}회</span>
-                          <span className="text-[12px] font-semibold text-white tabular-nums min-w-[42px] text-right">
-                            {item.ratio.toFixed(1)}%
-                          </span>
-                        </div>
+                          <div className="flex items-baseline gap-2.5">
+                            <span className="text-[11px] text-zinc-500 tabular-nums">{item.count}회</span>
+                            <span className="text-[12px] font-semibold text-white tabular-nums min-w-[42px] text-right">
+                              {item.ratio.toFixed(1)}%
+                            </span>
+                          </div>
+                        </button>
                       ))}
                     </div>
                   </div>
@@ -544,13 +623,41 @@ export function MyUniverseModal({
                     <p className="text-sm text-zinc-400">감정 비율을 계산할 DAILY 기록이 아직 없어요</p>
                   </div>
                 )}
+
+                {hoverPopup && (
+                  <div
+                    className="absolute z-[70] w-[320px] rounded-xl border border-white/[0.14] bg-[#0c0c12] shadow-[0_12px_28px_rgba(0,0,0,0.45)] overflow-hidden pointer-events-none"
+                    style={{ left: hoverPopup.x, top: hoverPopup.y }}
+                  >
+                    <div className="flex items-center gap-2 px-3 py-2 border-b border-white/[0.08] bg-white/[0.02]">
+                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: hoverPopup.emotion.color }} />
+                      <span className="text-[11px] text-zinc-200 font-medium">{hoverPopup.emotion.label}</span>
+                      <span className="text-[10px] text-zinc-500">{hoverPopup.emotion.count}회 · {hoverPopup.emotion.ratio.toFixed(1)}%</span>
+                    </div>
+                    <div className="grid grid-cols-[1fr_auto] gap-2 px-3 py-2 text-[10px] uppercase tracking-[0.12em] text-zinc-500 border-b border-white/[0.08] bg-white/[0.02]">
+                      <span>기록</span>
+                      <span>날짜</span>
+                    </div>
+                    <div className="max-h-40 overflow-y-auto custom-scrollbar">
+                      {getEmotionRecordsByLabel(hoverPopup.emotion.label).slice(0, 4).map((planet, i) => (
+                        <div key={planet.id || i} className="grid grid-cols-[1fr_auto] gap-2 px-3 py-2 border-b border-white/[0.04] last:border-b-0">
+                          <span className="text-[11px] text-zinc-300 truncate">{planet.memo || "DAILY PLANET"}</span>
+                          <span className="text-[10px] text-zinc-500">{formatDate(planet.createdAt)}</span>
+                        </div>
+                      ))}
+                      {getEmotionRecordsByLabel(hoverPopup.emotion.label).length === 0 && (
+                        <div className="px-3 py-3 text-[11px] text-zinc-500">기록이 없습니다.</div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 최근 활동 */}
               {totalRecords > 0 && (
-                <div className={cardCls}>
+                <div className={`${cardCls} relative z-0`}>
                   <p className={labelCls}>최근 활동</p>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     {[
                       ...dailyPlanets.map((p) => ({ type: "daily" as const, id: p.id, color: p.shell, label: p.memo || "DAILY PLANET", date: p.createdAt, raw: p })),
                       ...deepStars.map((s) => ({ type: "deep" as const, id: s.id, color: s.toneColor, label: s.label || "WEEKLY 기록", date: s.createdAt, raw: s })),
@@ -565,15 +672,19 @@ export function MyUniverseModal({
                               ? onDailyPlanetClick(item.raw as DailyPlanet)
                               : onDeepStarClick(item.raw as any)
                           }
-                          className="w-full flex items-center gap-3 rounded-xl hover:bg-white/[0.04] px-3 py-2.5 -mx-1 transition-colors text-left group"
+                          className="w-full flex items-center gap-2.5 rounded-xl hover:bg-white/[0.04] px-3 py-2.5 -mx-1 transition-colors text-left group"
                         >
                           <div className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} />
-                          <span className="flex-1 text-[13px] text-zinc-300 truncate group-hover:text-white transition-colors">{item.label}</span>
-                          <span className="text-[10px] text-zinc-600 flex-shrink-0">{formatDate(item.date)}</span>
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded flex-shrink-0 ${item.type === "deep" ? "bg-violet-500/15 text-violet-400" : "bg-sky-500/15 text-sky-400"
-                            }`}>
-                            {item.type === "deep" ? "WEEKLY" : "DAILY"}
-                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13px] text-zinc-300 truncate group-hover:text-white transition-colors">{item.label}</p>
+                            <div className="mt-0.5 flex items-center gap-1.5">
+                              <span className="text-[10px] text-zinc-600">{formatDate(item.date)}</span>
+                              <span className={`text-[9px] px-1.5 py-0.5 rounded ${item.type === "deep" ? "bg-violet-500/15 text-violet-400" : "bg-sky-500/15 text-sky-400"
+                                }`}>
+                                {item.type === "deep" ? "WEEKLY" : "DAILY"}
+                              </span>
+                            </div>
+                          </div>
                           <IconChevron className="h-3 w-3 text-zinc-700 group-hover:text-zinc-400 flex-shrink-0 transition-colors" />
                         </button>
                       ))}
@@ -805,6 +916,61 @@ export function MyUniverseModal({
           )}
         </div>
       </div>
+
+      {selectedEmotion && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/65 backdrop-blur-sm flex items-center justify-center px-4"
+          onClick={() => setSelectedEmotion(null)}
+        >
+          <div
+            className="w-full max-w-[560px] rounded-2xl border border-white/[0.1] bg-[#0a0a0f] p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.24em] text-zinc-500">Emotion Detail</p>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: selectedEmotion.color }} />
+                  <p className="text-lg font-semibold text-white">{selectedEmotion.label}</p>
+                  <p className="text-xs text-zinc-500">{selectedEmotion.count}회 · {selectedEmotion.ratio.toFixed(1)}%</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedEmotion(null)}
+                className="h-8 w-8 rounded-lg bg-white/[0.04] hover:bg-white/[0.1] flex items-center justify-center text-zinc-500 hover:text-white transition-all"
+                aria-label="감정 모달 닫기"
+              >
+                <IconClose />
+              </button>
+            </div>
+
+            <div className="max-h-[360px] overflow-y-auto custom-scrollbar space-y-1.5 pr-1">
+              {selectedEmotionRecords.length > 0 ? (
+                selectedEmotionRecords.map((planet, i) => (
+                  <button
+                    key={planet.id || i}
+                    onClick={() => {
+                      setSelectedEmotion(null);
+                      onDailyPlanetClick(planet);
+                    }}
+                    className="w-full rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] px-3 py-2.5 text-left transition-colors"
+                  >
+                    <p className="text-[13px] text-zinc-200 truncate">{planet.memo || "DAILY PLANET"}</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="text-[10px] text-zinc-600">{formatDate(planet.createdAt)}</span>
+                      <span className="text-[10px] text-zinc-500">{emotionFromColor((planet.shell || "").toUpperCase())}</span>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="rounded-xl border border-dashed border-white/[0.08] bg-white/[0.02] px-4 py-8 text-center">
+                  <p className="text-sm text-zinc-400">해당 감정 기록이 없습니다.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
