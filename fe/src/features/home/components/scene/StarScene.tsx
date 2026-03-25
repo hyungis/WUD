@@ -608,8 +608,6 @@ function ViewModeTracker({ controlsRef, onModeChange, zoomThreshold, minDistance
     let goalHidden = false;
     if (forceHideDock) {
       goalHidden = true;
-    } else if (dist > 350) {
-      goalHidden = true;
     }
 
     if (goalHidden !== lastIsHidden.current) {
