@@ -63,7 +63,7 @@ function MiniStarMesh() {
         if (meshRef.current) {
             meshRef.current.rotation.y += delta * 0.8;
             meshRef.current.rotation.x += delta * 0.3;
-            
+
             // 은은한 반짝임 효과
             const time = state.clock.elapsedTime;
             const intensity = 1.5 + Math.sin(time * 2) * 0.5;
@@ -193,11 +193,11 @@ export default function FloatingDock() {
                             setSelectedStarId("center-mypage-star");
                             incrementTimelineFocusNonce();
                         }}
-                        className="relative flex h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 flex-shrink-0 items-center justify-center rounded-[12px] border border-white/25 bg-white/10 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)] backdrop-blur-lg transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/20 hover:border-white/50 hover:shadow-[0_8px_20px_rgba(255,255,255,0.15)] overflow-hidden group"
-                        title="중심별 감상"
+                        className="relative flex h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10 flex-shrink-0 items-center justify-center transition-all duration-300 hover:-translate-y-1 group"
+                        title="중심별로 이동"
                     >
                         <div className="absolute inset-0 z-0 h-full w-full">
-                            <Canvas camera={{ position: [0, 0, 3.2], fov: 45 }} gl={{ antialias: true, alpha: true }}>
+                            <Canvas camera={{ position: [0, 0, 4.0], fov: 45 }} gl={{ antialias: true, alpha: true }}>
                                 <ambientLight intensity={1.2} />
                                 <pointLight position={[5, 5, 5]} intensity={50} />
                                 <Float speed={2} rotationIntensity={1} floatIntensity={1}>
@@ -205,8 +205,6 @@ export default function FloatingDock() {
                                 </Float>
                             </Canvas>
                         </div>
-                        {/* 글로우 효과 (커서 호버 시) */}
-                        <div className="pointer-events-none absolute inset-0 z-10 bg-gradient-to-tr from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     </button>
                 </div>
 
@@ -232,4 +230,4 @@ export default function FloatingDock() {
             </div>
         </>
     );
-}
+}
