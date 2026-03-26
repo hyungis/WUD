@@ -751,7 +751,8 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, isVisible = false,
 
   useFrame((state, delta) => {
     if (!lineRef.current?.material) return;
-    if (freezeMotion) return;
+    // freezeMotion이어도 선택된(isVisible) 별자리는 opacity 업데이트 허용
+    if (freezeMotion && !isVisible && !isHovered) return;
 
     const dt = Math.min(delta, 0.1);
 
@@ -794,8 +795,8 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, isVisible = false,
       }
     }
 
-    // 보간(Lerp) 속도. 평상시에는 dt * 0.5를 사용하여 목표값으로 스르륵 이동하게 만듦
-    const lerpSpeed = isHovered ? dt * 4.0 : dt * 0.5;
+    // 보간(Lerp) 속도
+    const lerpSpeed = isHovered ? dt * 4.0 : isVisible ? dt * 3.0 : dt * 0.5;
 
     currentOpacity.current += (goalOpacity - currentOpacity.current) * lerpSpeed;
     currentLineWidth.current += (goalWidth - currentLineWidth.current) * lerpSpeed;
