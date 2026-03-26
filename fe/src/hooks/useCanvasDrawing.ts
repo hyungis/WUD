@@ -106,8 +106,6 @@ export function useCanvasDrawing({
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const canvasSizeRef = useRef({ width: 0, height: 0 });
   
-  // 브러시 속성들을 Ref로 관리하여 쓰기 동작 시 최신 값을 즉시 참조하고, 
-  // 포인터 이벤트 핸들러가 자주 바뀌어 렉이 걸리는 현상을 방지함
   const brushSizeRef = useRef(brushSize);
   const paintColorRef = useRef(paintColor);
   const toolRef = useRef(tool);
@@ -122,7 +120,6 @@ export function useCanvasDrawing({
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
 
-  // 현재 캔버스 상태를 역사(History)에 저장하는 함수
   const saveHistory = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || canvas.width === 0) return;
@@ -131,7 +128,6 @@ export function useCanvasDrawing({
 
     try {
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      // 새로운 그림을 그리면 앞으로 가기(Redo) 기록은 삭제
       historyRef.current = historyRef.current.slice(0, historyStepRef.current + 1);
       historyRef.current.push(data);
       
@@ -149,7 +145,6 @@ export function useCanvasDrawing({
     }
   }, [MAX_HISTORY_STEPS]);
 
-  // 외부에서 캔버스를 수동으로 업데이트한 후 호출하는 초기화 함수
   const resetHistory = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas || canvas.width === 0) return;
@@ -171,7 +166,28 @@ export function useCanvasDrawing({
     if (historyStepRef.current > 0) {
       historyStepRef.current -= 1;
       const data = historyRef.current[historyStepRef.current];
-      canvasRef.current?.getContext("2d")?.putImageData(data, 0, 0);
+      const canvas = canvasRef.current;
+      if (canvas) {
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+              // 캔버스 크기가 물리적으로 맞는지 확인 (ImageData 사이즈가 일치해야 함)
+              if (data.width === canvas.width && data.height === canvas.height) {
+                  ctx.putImageData(data, 0, 0);
+              } else {
+                  // 크기가 다르면 임시 캔버스로 리스케일링 하여 그려줌
+                  const tempCanvas = document.createElement("canvas");
+                  tempCanvas.width = data.width;
+                  tempCanvas.height = data.height;
+                  tempCanvas.getContext("2d")?.putImageData(data, 0, 0);
+                  
+                  ctx.save();
+                  ctx.setTransform(1, 0, 0, 1, 0, 0);
+                  ctx.clearRect(0, 0, canvas.width, canvas.height);
+                  ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+                  ctx.restore();
+              }
+          }
+      }
       setCanUndo(historyStepRef.current > 0);
       setCanRedo(true);
     }
@@ -181,21 +197,42 @@ export function useCanvasDrawing({
     if (historyStepRef.current < historyRef.current.length - 1) {
       historyStepRef.current += 1;
       const data = historyRef.current[historyStepRef.current];
-      canvasRef.current?.getContext("2d")?.putImageData(data, 0, 0);
+      const canvas = canvasRef.current;
+      if (canvas) {
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+              if (data.width === canvas.width && data.height === canvas.height) {
+                  ctx.putImageData(data, 0, 0);
+              } else {
+                  const tempCanvas = document.createElement("canvas");
+                  tempCanvas.width = data.width;
+                  tempCanvas.height = data.height;
+                  tempCanvas.getContext("2d")?.putImageData(data, 0, 0);
+                  
+                  ctx.save();
+                  ctx.setTransform(1, 0, 0, 1, 0, 0);
+                  ctx.clearRect(0, 0, canvas.width, canvas.height);
+                  ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
+                  ctx.restore();
+              }
+          }
+      }
       setCanUndo(true);
       setCanRedo(historyStepRef.current < historyRef.current.length - 1);
     }
   }, []);
 
-  /* 캔버스 초기화 & 리사이즈 방어 */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
     const resizeCanvas = () => {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      
-      // getBoundingClientRect 대신 offsetWidth/Height 사용 (Transform 영향 방지 및 성능)
+
+      // 드로잉 중에는 리사이즈를 건너뜜 (내용 소실 방지)
+      if (isDrawingRef.current) return;
+
       const width = canvas.offsetWidth;
       const height = canvas.offsetHeight;
       if (width === 0 || height === 0) return;
@@ -204,9 +241,10 @@ export function useCanvasDrawing({
       const newW = Math.round(width * dpr);
       const newH = Math.round(height * dpr);
 
-      // 실제 픽셀 크기가 바뀌지 않았다면 아무것도 안함 (애니메이션 도중 중복 redraw 방지)
+      // 이미 크기가 같으면 리턴
       if (canvas.width === newW && canvas.height === newH) return;
 
+      // 이전 내용 백업
       const tempCanvas = document.createElement("canvas");
       tempCanvas.width = canvas.width || 1;
       tempCanvas.height = canvas.height || 1;
@@ -221,19 +259,28 @@ export function useCanvasDrawing({
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      
-      // 이전 내용을 복구 (비율 유지)
+
+      // 백업된 내용 복구 (크기 변동 시 scale 조정)
       ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, width, height);
 
-      if (historyRef.current.length === 0) saveHistory();
+      // 리사이즈 후 히스토리가 비어있으면 초기 상태 저장
+      if (historyRef.current.length === 0) {
+        saveHistory();
+      }
     };
-    const observer = new ResizeObserver(() => resizeCanvas());
+
+    // 마운트 직후 초기 크기 설정
+    resizeCanvas();
+
+    const observer = new ResizeObserver(() => {
+      // 애니메이션 중 잦은 리사이즈 방지를 위해 requestAnimationFrame 사용
+      requestAnimationFrame(resizeCanvas);
+    });
     observer.observe(canvas);
     return () => observer.disconnect();
   }, [saveHistory]);
 
   const getPoint = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    // nativeEvent.offsetX / offsetY를 사용하여 레이아웃 리플로우(reflow) 방지
     return {
       x: event.nativeEvent.offsetX,
       y: event.nativeEvent.offsetY,
@@ -248,7 +295,7 @@ export function useCanvasDrawing({
 
     try {
       canvas.setPointerCapture(event.pointerId);
-    } catch (e) { /* ignore */ }
+    } catch { /* ignore */ }
 
     if (toolRef.current === "fill") {
       const dpr = window.devicePixelRatio || 1;
@@ -318,17 +365,23 @@ export function useCanvasDrawing({
     lastPointRef.current = point;
   }, [symmetry, getPoint]);
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     if (isDrawingRef.current) {
       saveHistory();
     }
     isDrawingRef.current = false;
     lastPointRef.current = null;
+    try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch { /* ignore */ }
   }, [saveHistory]);
 
-  const handlePointerCancel = useCallback(() => {
+  const handlePointerCancel = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     isDrawingRef.current = false;
     lastPointRef.current = null;
+    try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+    } catch { /* ignore */ }
   }, []);
 
   const handleClearCanvas = useCallback(() => {
