@@ -102,6 +102,7 @@ export function DailyColoringCanvas({
           onPointerDown={drawing.handlePointerDown}
           onPointerMove={drawing.handlePointerMove}
           onPointerUp={drawing.handlePointerUp}
+          onPointerCancel={drawing.handlePointerCancel}
           cursor={cursor}
         />
       </div>
