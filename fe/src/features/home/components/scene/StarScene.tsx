@@ -20,6 +20,11 @@ import {
   getSundayWeekKey,
   ZOOM_THRESHOLD, MAX_DISTANCE, MIN_DISTANCE
 } from "../../utils/homeHelpers";
+import { Spaceship } from "./Spaceship";
+import { Monsters } from "./Monsters";
+import type { MonsterData } from "./Monsters";
+import { Explosions } from "./Explosions";
+import type { ExplosionData } from "./Explosions";
 
 // ==========================================
 // 2. 3D 컴포넌트
@@ -619,7 +624,7 @@ function ViewModeTracker({ controlsRef, onModeChange, zoomThreshold, minDistance
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportPanelOpen, isMyUniverseOpen, isDailyDetailOpen, isWeeklyOpen, newbornStarId }: any) {
+function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportPanelOpen, isMyUniverseOpen, isDailyDetailOpen, isWeeklyOpen, newbornStarId, disabled = false }: any) {
   const { camera } = useThree();
   const preferredCameraView = useUiStore((state) => state.preferredCameraView);
   const isTransitioningRef = useRef(false);
@@ -633,7 +638,7 @@ function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportP
   const isFirstMount = useRef(true);
 
   useFrame((_, delta) => {
-    if (!focusPosition || !controlsRef.current) return;
+    if (disabled || !focusPosition || !controlsRef.current) return;
 
     const keyChanged = focusKey !== lastKeyRef.current;
     const viewChanged = preferredCameraView !== lastViewRef.current;
@@ -971,6 +976,24 @@ export function StarScene({
   const spreadRef = useRef(0);
   const starTone = useMemo(() => localStorage.getItem("htpToneColor") || "#f8fafc", []);
   const freezeSceneMotion = Boolean(isReportOpen);
+  const isExplorationMode = useUiStore((state) => state.isExplorationMode);
+
+  // 몬스터 데이터 초기화 (InstancedMesh 연동)
+  const monstersRef = useRef<MonsterData[]>(
+    Array.from({ length: 50 }).map((_, i) => ({
+      id: i,
+      position: new Vector3(
+        (Math.random() - 0.5) * 800,
+        (Math.random() - 0.5) * 800,
+        (Math.random() - 0.5) * 800
+      ),
+      rotation: new Vector3(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI),
+      scale: Math.random() * 7 + 5,
+      alive: true
+    }))
+  );
+
+  const explosionsRef = useRef<ExplosionData[]>([]);
 
   const requestFocus = (id: string) => {
     onStarSelect?.(id);
@@ -1288,6 +1311,15 @@ export function StarScene({
                 onComplete={onBirthComplete}
               />
             )}
+
+            {/* 우주 탐험 모드 우주선 */}
+            {isExplorationMode && (
+                <group>
+                  <Spaceship timelinePositions={timelinePositions} monstersRef={monstersRef} explosionsRef={explosionsRef} />
+                  <Monsters monstersRef={monstersRef} />
+                  <Explosions explosionsRef={explosionsRef} />
+                </group>
+            )}
           </SpreadCtx.Provider>
 
           <CameraFocus
@@ -1300,13 +1332,14 @@ export function StarScene({
             isDailyDetailOpen={isDailyDetailOpen}
             isWeeklyOpen={isWeeklyOpen}
             newbornStarId={newbornStarId}
+            disabled={isExplorationMode}
           />
 
           <OrbitControls
             ref={controlsRef}
-            enabled={!isAnyDetailOpen}
+            enabled={!isAnyDetailOpen && !isExplorationMode}
             enablePan={false}
-            enableRotate={!isAnyDetailOpen}
+            enableRotate={!isAnyDetailOpen && !isExplorationMode}
             minDistance={dynamicMinDistance}
             maxDistance={dynamicMaxDistance}
             autoRotate={!isReportOpen}

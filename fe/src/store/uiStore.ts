@@ -46,6 +46,11 @@ type UiState = {
   timelineFocusNonce: number;
   preferredCameraView: "default" | "top-distant";
   isCinematicMode: boolean;
+  isExplorationMode: boolean;
+  explorationDistance: number;
+  explorationSpeed: number;
+  monstersDefeated: number;
+  nearestStarInfo: { label: string; date: string; summary: string } | null;
 
   setLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
@@ -82,6 +87,10 @@ type UiState = {
   incrementTimelineFocusNonce: () => void;
   setPreferredCameraView: (view: "default" | "top-distant") => void;
   setIsCinematicMode: (isCinematicMode: boolean) => void;
+  setIsExplorationMode: (isExplorationMode: boolean) => void;
+  setExplorationStats: (distance: number, speed: number) => void;
+  incrementMonstersDefeated: () => void;
+  setNearestStarInfo: (info: { label: string; date: string; summary: string } | null) => void;
 };
 
 export const useUiStore = create<UiState>((set) => ({
@@ -113,6 +122,11 @@ export const useUiStore = create<UiState>((set) => ({
   timelineFocusNonce: 0,
   preferredCameraView: "default",
   isCinematicMode: false,
+  isExplorationMode: false,
+  explorationDistance: 0,
+  explorationSpeed: 0,
+  monstersDefeated: 0,
+  nearestStarInfo: null,
 
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
@@ -270,6 +284,10 @@ export const useUiStore = create<UiState>((set) => ({
   incrementTimelineFocusNonce: () => set((state) => ({ timelineFocusNonce: state.timelineFocusNonce + 1 })),
   setPreferredCameraView: (view) => set({ preferredCameraView: view }),
   setIsCinematicMode: (isCinematicMode) => set({ isCinematicMode }),
+  setIsExplorationMode: (isExplorationMode) => set({ isExplorationMode }),
+  setExplorationStats: (distance, speed) => set({ explorationDistance: distance, explorationSpeed: speed }),
+  incrementMonstersDefeated: () => set((state) => ({ monstersDefeated: state.monstersDefeated + 1 })),
+  setNearestStarInfo: (info) => set({ nearestStarInfo: info }),
 }));
 
 // Selector optimization

@@ -80,6 +80,12 @@ function HomePage() {
   const setWeeklySwModalOpen = useUiStore((state) => state.setWeeklySwModalOpen);
   const isCinematicMode = useUiStore((state) => state.isCinematicMode);
   const setIsCinematicMode = useUiStore((state) => state.setIsCinematicMode);
+  const isExplorationMode = useUiStore((state) => state.isExplorationMode);
+  const setIsExplorationMode = useUiStore((state) => state.setIsExplorationMode);
+  const explorationDistance = useUiStore((state: any) => state.explorationDistance);
+  const explorationSpeed = useUiStore((state: any) => state.explorationSpeed);
+  const monstersDefeated = useUiStore((state: any) => state.monstersDefeated);
+  const nearestStarInfo = useUiStore((state: any) => state.nearestStarInfo);
 
   const isMacro = viewMode === "macro";
   const hoverClearTimerRef = useRef<number | null>(null);
@@ -747,7 +753,7 @@ function HomePage() {
     <div className="relative min-h-screen overflow-hidden bg-black text-slate-100 animate-[fadeIn_0.6s_ease-out]">
       <div className="absolute inset-0 z-0">
         {/* 🔮 브랜드 로고 (상단 좌측) */}
-        {!isCinematicMode && (
+        {!isCinematicMode && !isExplorationMode && (
           <div className="fixed top-8 left-8 z-[60] pointer-events-none select-none animate-[fadeIn_1s_ease-out]">
             <h1 className="logo-text text-2xl">WOULD YOU DRAW</h1>
           </div>
@@ -810,7 +816,7 @@ function HomePage() {
         </div>
       )}
 
-      {!isCinematicMode && (
+      {!isCinematicMode && !isExplorationMode && (
         <TimelineHUD
           isMacro={isMacro}
           isTimelineOpen={isTimelineOpen}
@@ -857,7 +863,7 @@ function HomePage() {
       )}
 
       {/* 튜토리얼 다시보기 버튼 */}
-      {!isCinematicMode && (
+      {!isCinematicMode && !isExplorationMode && (
         <button
           id="re-tutorial-btn"
           onClick={handleStartTutorial}
@@ -888,7 +894,7 @@ function HomePage() {
       )}
 
       {/* 👀 시네마틱 모드 진입 버튼 (화면 우상단) */}
-      {!isCinematicMode && !isSidePanelOpen && (
+      {!isCinematicMode && !isSidePanelOpen && !isExplorationMode && (
         <button
           id="enter-cinematic-btn"
           onClick={() => setIsCinematicMode(true)}
@@ -900,6 +906,76 @@ function HomePage() {
             <circle cx="12" cy="12" r="3" />
           </svg>
         </button>
+      )}
+
+      {/* 🚀 우주 탐험 모드 토글 버튼 (시네마틱 모드 버튼 아래) */}
+      {!isSidePanelOpen && (
+        <button
+          id="exploration-mode-btn"
+          onClick={() => setIsExplorationMode(!isExplorationMode)}
+          className={`fixed top-20 right-6 z-[60] flex h-10 w-10 items-center justify-center rounded-xl border backdrop-blur-md transition-all hover:scale-110 shadow-lg ${
+            isExplorationMode 
+              ? "border-orange-400/50 bg-orange-500/20 text-orange-400" 
+              : "border-white/20 bg-white/10 text-white/50 hover:border-white/40 hover:bg-white/20 hover:text-white"
+          }`}
+          title={isExplorationMode ? "탐험 모드 종료" : "우주 탐험 모드 (조작)"}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.71-2.13 0-2.97a2.1 2.1 0 0 0-2.97 0z" />
+            <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+            <path d="M9 12H4s.55-3.03 2-4.5c1.1.25 1.5.7 2 2.5Z" />
+            <path d="M12 15v5s3.03-.55 4.5-2c-.25-1.1-.7-1.5-2.5-2Z" />
+          </svg>
+        </button>
+      )}
+
+      {/* 📊 탐험 HUD (속도, 거리, 성진 수집, 근접 스캔 등 표시) */}
+      {isExplorationMode && !isSidePanelOpen && (
+        <>
+          {/* 하단 메인 텔레메트리 */}
+          <div className="fixed bottom-8 left-8 z-[60] flex flex-col gap-1 p-5 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-xl text-white font-mono shadow-2xl pointer-events-none select-none min-w-[200px]">
+            <div className="flex items-center gap-2 mb-1">
+              <div className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />
+              <span className="text-[9px] uppercase tracking-[0.2em] text-white/40 font-bold">Flight Telemetry</span>
+            </div>
+            
+            <div className="flex flex-col gap-0">
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-light text-white tracking-tighter">{(explorationSpeed * 10).toFixed(0)}</span>
+                <span className="text-[10px] text-white/30 uppercase">SPD</span>
+              </div>
+              
+              <div className="h-[1px] w-full bg-white/5 my-2" />
+              
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[10px] text-white/30 uppercase tracking-wider">Distance</span>
+                <span className="text-sm font-medium text-orange-400/80">{(explorationDistance / 10).toFixed(1)} <small className="text-[9px] opacity-50">LY</small></span>
+              </div>
+              
+              <div className="h-[1px] w-full bg-white/5 my-1" />
+              
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] text-white/30 uppercase tracking-wider">Void Sentinels</span>
+                <span className="text-sm font-medium text-purple-400">{monstersDefeated} <small className="text-[9px] opacity-50">KILLS</small></span>
+              </div>
+            </div>
+          </div>
+
+          {/* 우측 하단 근접 스캔 홀로그램 (Proximity Scan) */}
+          {nearestStarInfo && (
+            <div className="fixed bottom-8 right-8 z-[60] flex flex-col items-end gap-3 animate-in fade-in slide-in-from-right-10 duration-500 pointer-events-none select-none">
+              <div className="px-5 py-1.5 rounded-full border border-orange-400/30 bg-orange-500/10 backdrop-blur-md">
+                <span className="text-orange-400 text-[10px] font-bold tracking-[0.3em] uppercase animate-pulse shrink-0">Proximity Scan Active</span>
+              </div>
+              <div className="p-5 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-2xl text-right min-w-[260px] shadow-[0_0_50px_rgba(251,146,60,0.1)]">
+                <div className="text-[9px] text-orange-400/60 uppercase tracking-widest mb-1">{nearestStarInfo.label}</div>
+                <div className="text-xl font-bold text-white mb-1">{nearestStarInfo.date}</div>
+                <div className="h-[1px] w-12 bg-orange-400/30 ml-auto mb-2" />
+                <div className="text-xs text-white/60 font-light italic break-keep max-w-[220px]">" {nearestStarInfo.summary} "</div>
+              </div>
+            </div>
+          )}
+        </>
       )}
 
       {/* HUD 우측 사이드 패널 (상세 리포트) */}
