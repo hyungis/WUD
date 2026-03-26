@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useCanvasDrawing } from "../../hooks/useCanvasDrawing";
@@ -7,7 +7,7 @@ import { DailyMandalaCanvas } from "./components/DailyMandalaCanvas";
 import { useAlert } from "../../components/shared/AlertProvider";
 import { useConfirm } from "../../components/shared/ConfirmProvider";
 import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntryByType } from "../../utils/dailyLimit";
-import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, saveRecentPaintColors } from "../../utils/paintColors";
+import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, pushRecentPaintColor, saveRecentPaintColors } from "../../utils/paintColors";
 
 /* ── constants ── */
 const PALETTE = [
@@ -67,6 +67,9 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
   const [symmetry, setSymmetry] = useState(8);
   const [tool, setTool] = useState<ToolType>("brush");
   const [activePopup, setActivePopup] = useState<string | null>(null);
+  const customColorStartRef = useRef<string>(PAINT_PRESET_COLORS[0]);
+  const customColorDraftRef = useRef<string>(PAINT_PRESET_COLORS[0]);
+  const customColorCommitTimerRef = useRef<number | null>(null);
 
   const drawing = useCanvasDrawing({ paintColor, brushSize, tool, symmetry });
 
@@ -89,15 +92,89 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
   };
 
   useEffect(() => {
-    setRecentColors(getRecentPaintColors());
+    const stored = getRecentPaintColors();
+    if (stored.length > 0) {
+      setRecentColors(stored);
+      return;
+    }
+    const seeded = addRecentPaintColor(paintColor, []);
+    saveRecentPaintColors(seeded);
+    setRecentColors(seeded);
   }, []);
 
   const selectPaintColor = (color: string) => {
     setPaintColor(color);
-    const nextRecent = addRecentPaintColor(color, recentColors);
+    const nextRecent = pushRecentPaintColor(color);
     setRecentColors(nextRecent);
-    saveRecentPaintColors(nextRecent);
   };
+
+  const handleCustomColorFocus = () => {
+    customColorStartRef.current = paintColor;
+    customColorDraftRef.current = paintColor;
+  };
+
+  const commitCustomColorIfNeeded = () => {
+    const nextColor = customColorDraftRef.current;
+    if (nextColor.toUpperCase() === customColorStartRef.current.toUpperCase()) {
+      return;
+    }
+    selectPaintColor(nextColor);
+    customColorDraftRef.current = nextColor;
+    customColorStartRef.current = nextColor;
+  };
+
+  const flushCustomColorCommit = () => {
+    if (customColorCommitTimerRef.current !== null) {
+      window.clearTimeout(customColorCommitTimerRef.current);
+      customColorCommitTimerRef.current = null;
+    }
+    commitCustomColorIfNeeded();
+  };
+
+  const handleCustomColorInput = (nextColor: string) => {
+    if (customColorCommitTimerRef.current !== null) {
+      window.clearTimeout(customColorCommitTimerRef.current);
+    }
+    customColorDraftRef.current = nextColor;
+    setPaintColor(nextColor);
+    customColorCommitTimerRef.current = window.setTimeout(() => {
+      customColorCommitTimerRef.current = null;
+      commitCustomColorIfNeeded();
+    }, 400);
+  };
+
+  const handleCustomColorBlur = () => {
+    flushCustomColorCommit();
+  };
+
+  const closeActivePopup = () => {
+    if (activePopup === "color") {
+      flushCustomColorCommit();
+    }
+    setActivePopup(null);
+  };
+
+  useEffect(() => {
+    if (activePopup !== "color") return;
+    const handleDocumentPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(".toolbar-popup, .toolbar-area")) return;
+      flushCustomColorCommit();
+      setActivePopup(null);
+    };
+    document.addEventListener("pointerdown", handleDocumentPointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", handleDocumentPointerDown, true);
+    };
+  }, [activePopup, paintColor]);
+
+  useEffect(() => {
+    return () => {
+      if (customColorCommitTimerRef.current !== null) {
+        window.clearTimeout(customColorCommitTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!isModal && !canEnterMandalaFromSelection()) {
@@ -163,7 +240,12 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
     navigate("/daily/complete");
   };
 
-  const togglePopup = (name: string) => setActivePopup(prev => prev === name ? null : name);
+  const togglePopup = (name: string) => {
+    if (activePopup === "color") {
+      commitCustomColorIfNeeded();
+    }
+    setActivePopup((prev) => (prev === name ? null : name));
+  };
 
   const exportAndComplete = () => {
     const originalCanvas = drawing.canvasRef.current;
@@ -195,7 +277,7 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
       className={`relative flex w-full flex-col overflow-hidden bg-zinc-950 text-zinc-100 ${isModal ? "h-full" : "h-[100dvh]"}`}
       onPointerDown={(e) => {
         if ((e.target as HTMLElement).closest('.toolbar-area, .toolbar-popup')) return;
-        setActivePopup(null);
+        closeActivePopup();
       }}
     >
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.08),transparent_55%)]" />
@@ -228,13 +310,13 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
         <div className="toolbar-area z-40 shrink-0 flex w-20 flex-col items-center gap-1.5 overflow-visible border-r border-white/10 bg-zinc-900/95 py-3 backdrop-blur-md">
 
           {/* 도구 */}
-          <ToolBtn active={tool === "brush"} onClick={() => { setTool("brush"); setActivePopup(null); }} title="그리기">
+          <ToolBtn active={tool === "brush"} onClick={() => { setTool("brush"); closeActivePopup(); }} title="그리기">
             <span className="flex flex-col items-center leading-none"><BrushIcon /><span className="mt-0.5 text-[9px] font-semibold">그리기</span></span>
           </ToolBtn>
-          <ToolBtn active={tool === "fill"} onClick={() => { setTool("fill"); setActivePopup(null); }} title="채우기">
+          <ToolBtn active={tool === "fill"} onClick={() => { setTool("fill"); closeActivePopup(); }} title="채우기">
             <span className="flex flex-col items-center leading-none"><FillIcon /><span className="mt-0.5 text-[9px] font-semibold">채우기</span></span>
           </ToolBtn>
-          <ToolBtn active={tool === "eraser"} onClick={() => { setTool("eraser"); setActivePopup(null); }} title="지우기">
+          <ToolBtn active={tool === "eraser"} onClick={() => { setTool("eraser"); closeActivePopup(); }} title="지우기">
             <span className="flex flex-col items-center leading-none"><EraserIcon /><span className="mt-0.5 text-[9px] font-semibold">지우기</span></span>
           </ToolBtn>
 
@@ -268,15 +350,15 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
                       style={{ backgroundColor: c }} />
                   )) : <span className="col-span-6 text-[10px] text-zinc-500">아직 사용한 색상이 없습니다.</span>}
                 </div>
-                <label className="flex h-8 w-full cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-zinc-900/95 text-xs text-zinc-300 transition-colors hover:bg-zinc-800">
+                <label className="relative flex h-8 w-full cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-zinc-900/95 text-xs text-zinc-300 transition-colors hover:bg-zinc-800">
                   커스텀 색상
                   <input
                     type="color"
                     value={paintColor}
-                    onInput={(e) => setPaintColor((e.target as HTMLInputElement).value)}
-                    onChange={(e) => setPaintColor((e.target as HTMLInputElement).value)}
-                    onBlur={(e) => selectPaintColor((e.target as HTMLInputElement).value)}
-                    className="absolute opacity-0 w-0 h-0"
+                    onFocus={handleCustomColorFocus}
+                    onInput={(e) => handleCustomColorInput((e.target as HTMLInputElement).value)}
+                    onBlur={handleCustomColorBlur}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                   />
                 </label>
               </div>
@@ -346,7 +428,8 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
           <ToolBtn disabled={!drawing.canRedo} onClick={drawing.handleRedo} title="다시실행">
             <span className="flex flex-col items-center leading-none"><RedoIcon /><span className="mt-0.5 text-[9px] font-semibold">다시실행</span></span>
           </ToolBtn>
-          <ToolBtn onClick={() => { drawing.handleClearCanvas(); setActivePopup(null); }} title="전체 지우기">
+
+          <ToolBtn onClick={() => { drawing.handleClearCanvas(); closeActivePopup(); }} title="전체 지우기">
             <span className="flex flex-col items-center leading-none"><TrashIcon /><span className="mt-0.5 text-[9px] font-semibold">초기화</span></span>
           </ToolBtn>
         </div>
@@ -354,7 +437,7 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
         {/* ─── 캔버스 영역 ─── */}
         <div
           className="flex-1 flex flex-col items-center justify-start min-w-0 min-h-0 overflow-hidden p-3 pt-4 relative"
-          onPointerDown={() => setActivePopup(null)}
+          onPointerDown={closeActivePopup}
         >
           {/* 가이드 메시지 */}
           <div className="z-10 bg-zinc-900/72 backdrop-blur-md border border-white/12 px-5 py-2.5 rounded-full shadow-xl pointer-events-none text-center shrink-0">

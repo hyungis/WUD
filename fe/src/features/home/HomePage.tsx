@@ -724,6 +724,16 @@ function HomePage() {
   }, [selectedStarId, timelineItems, mypageStar.id]);
 
   const hoveredPlanetMeta = useMemo(() => (hoveredPlanet ? timelineItems.find(i => i.id === hoveredPlanet.id) : null), [hoveredPlanet, timelineItems]);
+  const hoveredPlanetDateLabel = useMemo(() => {
+    if (!hoveredPlanetMeta?.createdAt) return "";
+    const parsed = new Date(hoveredPlanetMeta.createdAt);
+    if (Number.isNaN(parsed.getTime())) return "";
+    return parsed.toLocaleDateString("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  }, [hoveredPlanetMeta]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-black text-slate-100 animate-[fadeIn_0.6s_ease-out]">
@@ -777,6 +787,11 @@ function HomePage() {
               {hoveredPlanetMeta.original.isTemporary ? "분석 중..." : hoveredPlanetMeta.label}
             </span>
           </div>
+          {hoveredPlanetDateLabel && (
+            <div className="mt-2 text-[11px] text-slate-400">
+              {hoveredPlanetDateLabel}
+            </div>
+          )}
         </div>
       )}
 

@@ -1,10 +1,11 @@
 export const PAINT_PRESET_COLORS = [
-  "#000000",
-  "#8C8C8C",
-  "#A40011",
-  "#ED1C24",
-  "#F58220",
-  "#FFE600",
+  "#FF0000",
+  "#FF7F00",
+  "#FFFF00",
+  "#00AA00",
+  "#0000FF",
+  "#000080",
+  "#8B00FF",
 ] as const;
 
 const RECENT_COLORS_KEY = "recentPaintColors";
@@ -47,4 +48,11 @@ export function saveRecentPaintColors(colors: string[]): void {
   } catch {
     // no-op for private mode / storage failures
   }
+}
+
+export function pushRecentPaintColor(color: string, current?: string[]): string[] {
+  const base = current ?? getRecentPaintColors();
+  const next = addRecentPaintColor(color, base);
+  saveRecentPaintColors(next);
+  return next;
 }

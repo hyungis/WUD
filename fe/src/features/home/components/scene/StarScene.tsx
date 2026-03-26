@@ -711,7 +711,7 @@ function CameraFocus({ focusPosition, focusKey, controlsRef, countRatio, reportP
 }
 
 // 🚨 [수정됨] 별자리 선 애니메이션 개선 (비활성 상태에서도 은은하게 반짝임 유지)
-function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = false, lowCountMode = false }: { weekKey: string; pts: Vector3[]; isHovered: boolean; freezeMotion?: boolean; lowCountMode?: boolean }) {
+function AnimatedConstellationLine({ weekKey, pts, isHovered, isVisible = false, freezeMotion = false, lowCountMode = false }: { weekKey: string; pts: Vector3[]; isHovered: boolean; isVisible?: boolean; freezeMotion?: boolean; lowCountMode?: boolean }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const lineRef = useRef<any>(null);
 
@@ -780,13 +780,13 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, freezeMotion = fal
         // Smoothstep 공식을 통해 곡선의 양 끝을 둥글게 깎아 은은한 페이드 인/아웃 생성
         const smooth = normalized * normalized * (3 - 2 * normalized);
 
-        // 평소(0.02)에서 최대 0.35까지 부드럽게 밝아짐
-        const baseOpacity = lowCountMode ? 0.08 : 0.02;
+        // 선택/표시 중인 선은 약하게 항상 보이고, 파동으로 추가 강조
+        const baseOpacity = isVisible ? 0.12 : (lowCountMode ? 0.08 : 0.02);
         goalOpacity = baseOpacity + (smooth * 0.33);
         goalWidth = 0.8 + (smooth * 0.2);
       } else {
-        // 별 수가 적을 땐 선이 완전히 사라지지 않도록 하한을 둔다.
-        goalOpacity = lowCountMode ? 0.08 : 0.0;
+        // 선택/표시 중인 선은 파동이 없어도 희미하게 유지
+        goalOpacity = isVisible ? 0.12 : (lowCountMode ? 0.08 : 0.0);
         goalWidth = 0.8;
       }
     }
@@ -1138,7 +1138,9 @@ export function StarScene({
   }, [selectedStarId, timelineItems, mypageStar.id]);
 
   const normalizedSelectedWeekKey = selectedWeekKey ? normalizeWeekKey(selectedWeekKey) : null;
-  const highlightedWeekKey = hoveredLineGroupKey || normalizedSelectedWeekKey || selectedLineGroupKey;
+  // 선택된 주차 선은 "보이기"만 유지하고, 실제 밝기 강조는 hover에서만 켠다.
+  const visibleWeekKey = hoveredLineGroupKey || normalizedSelectedWeekKey || selectedLineGroupKey;
+  const highlightedWeekKey = hoveredLineGroupKey;
   const lowCountMode = timelineItems.length <= 10;
 
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
@@ -1212,7 +1214,7 @@ export function StarScene({
             <SpreadScaleGroup>
               {constellationLines
                 .filter((line) => {
-                  if (highlightedWeekKey && line.weekKey === highlightedWeekKey) {
+                  if (visibleWeekKey && line.weekKey === visibleWeekKey) {
                     return true;
                   }
                   if (lowCountMode) {
@@ -1226,6 +1228,7 @@ export function StarScene({
                     weekKey={weekKey}
                     pts={pts}
                     isHovered={highlightedWeekKey === weekKey}
+                    isVisible={visibleWeekKey === weekKey}
                     freezeMotion={freezeSceneMotion}
                     lowCountMode={lowCountMode}
                   />
