@@ -276,10 +276,40 @@ function CustomizeTabContent({ cardCls, labelCls }: { cardCls: string; labelCls:
   const { currentShape, currentColor, setShape, setColor, saveToBackend } = useCustomStarStore();
   const [saved, setSaved] = useState(false);
 
+  // 패널이 닫히거나 탭이 바뀔 때 자동 저장
+  const saveToBackendRef = useRef(saveToBackend);
+  const currentShapeRef = useRef(currentShape);
+  const currentColorRef = useRef(currentColor);
+  const initialShapeRef = useRef(currentShape);
+  const initialColorRef = useRef(currentColor);
+
+  useEffect(() => {
+    saveToBackendRef.current = saveToBackend;
+  }, [saveToBackend]);
+
+  useEffect(() => {
+    currentShapeRef.current = currentShape;
+    currentColorRef.current = currentColor;
+  }, [currentShape, currentColor]);
+
+  useEffect(() => {
+    return () => {
+      // 변경사항이 있을 때만 저장
+      if (
+        currentShapeRef.current !== initialShapeRef.current ||
+        currentColorRef.current !== initialColorRef.current
+      ) {
+        saveToBackendRef.current().catch((e: unknown) => console.error("자동 저장 실패:", e));
+      }
+    };
+  }, []);
+
   const handleSave = async () => {
     try {
       await saveToBackend();
       setSaved(true);
+      initialShapeRef.current = currentShape;
+      initialColorRef.current = currentColor;
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
       console.error("서버 저장 실패:", e);
