@@ -1,6 +1,6 @@
 // 드로잉 엔진
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /* ── Flood‑fill (기존과 동일) ── */
 function floodFill(
@@ -105,6 +105,16 @@ export function useCanvasDrawing({
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const canvasSizeRef = useRef({ width: 0, height: 0 });
+  
+  // 브러시 속성들을 Ref로 관리하여 쓰기 동작 시 최신 값을 즉시 참조하고, 
+  // 포인터 이벤트 핸들러가 자주 바뀌어 렉이 걸리는 현상을 방지함
+  const brushSizeRef = useRef(brushSize);
+  const paintColorRef = useRef(paintColor);
+  const toolRef = useRef(tool);
+
+  useEffect(() => { brushSizeRef.current = brushSize; }, [brushSize]);
+  useEffect(() => { paintColorRef.current = paintColor; }, [paintColor]);
+  useEffect(() => { toolRef.current = tool; }, [tool]);
 
   // 🚨 Undo / Redo 상태 관리
   const historyRef = useRef<ImageData[]>([]);
@@ -115,18 +125,22 @@ export function useCanvasDrawing({
   // 현재 캔버스 상태를 역사(History)에 저장하는 함수
   const saveHistory = useCallback(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx || canvas.width === 0) return;
+    if (!canvas || canvas.width === 0) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     try {
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
       // 새로운 그림을 그리면 앞으로 가기(Redo) 기록은 삭제
       historyRef.current = historyRef.current.slice(0, historyStepRef.current + 1);
       historyRef.current.push(data);
+      
       if (historyRef.current.length > MAX_HISTORY_STEPS) {
         historyRef.current.shift();
+        historyStepRef.current = historyRef.current.length - 1;
+      } else {
+        historyStepRef.current += 1;
       }
-      historyStepRef.current = historyRef.current.length - 1;
 
       setCanUndo(historyStepRef.current > 0);
       setCanRedo(historyStepRef.current < historyRef.current.length - 1);
@@ -135,11 +149,12 @@ export function useCanvasDrawing({
     }
   }, [MAX_HISTORY_STEPS]);
 
-  // 외부(useEffect 등)에서 캔버스를 수동으로 업데이트한 후 호출하는 초기화 함수
+  // 외부에서 캔버스를 수동으로 업데이트한 후 호출하는 초기화 함수
   const resetHistory = useCallback(() => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx || canvas.width === 0) return;
+    if (!canvas || canvas.width === 0) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     try {
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -152,15 +167,7 @@ export function useCanvasDrawing({
     }
   }, []);
 
-  const finalizeStrokeIfNeeded = useCallback(() => {
-    if (!isDrawingRef.current) return;
-    saveHistory();
-    isDrawingRef.current = false;
-    lastPointRef.current = null;
-  }, [saveHistory]);
-
   const handleUndo = useCallback(() => {
-    finalizeStrokeIfNeeded();
     if (historyStepRef.current > 0) {
       historyStepRef.current -= 1;
       const data = historyRef.current[historyStepRef.current];
@@ -168,10 +175,9 @@ export function useCanvasDrawing({
       setCanUndo(historyStepRef.current > 0);
       setCanRedo(true);
     }
-  }, [finalizeStrokeIfNeeded]);
+  }, []);
 
   const handleRedo = useCallback(() => {
-    finalizeStrokeIfNeeded();
     if (historyStepRef.current < historyRef.current.length - 1) {
       historyStepRef.current += 1;
       const data = historyRef.current[historyStepRef.current];
@@ -179,7 +185,7 @@ export function useCanvasDrawing({
       setCanUndo(true);
       setCanRedo(historyStepRef.current < historyRef.current.length - 1);
     }
-  }, [finalizeStrokeIfNeeded]);
+  }, []);
 
   /* 캔버스 초기화 & 리사이즈 방어 */
   useEffect(() => {
@@ -188,102 +194,92 @@ export function useCanvasDrawing({
     const resizeCanvas = () => {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
+      
+      // getBoundingClientRect 대신 offsetWidth/Height 사용 (Transform 영향 방지 및 성능)
       const width = canvas.offsetWidth;
       const height = canvas.offsetHeight;
       if (width === 0 || height === 0) return;
+
+      const dpr = window.devicePixelRatio || 1;
+      const newW = Math.round(width * dpr);
+      const newH = Math.round(height * dpr);
+
+      // 실제 픽셀 크기가 바뀌지 않았다면 아무것도 안함 (애니메이션 도중 중복 redraw 방지)
+      if (canvas.width === newW && canvas.height === newH) return;
 
       const tempCanvas = document.createElement("canvas");
       tempCanvas.width = canvas.width || 1;
       tempCanvas.height = canvas.height || 1;
       const tempCtx = tempCanvas.getContext("2d");
-      if (tempCtx && canvas.width > 0) tempCtx.drawImage(canvas, 0, 0);
+      if (tempCtx && canvas.width > 0) {
+        tempCtx.drawImage(canvas, 0, 0);
+      }
 
-      const dpr = window.devicePixelRatio || 1;
       canvasSizeRef.current = { width, height };
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
+      canvas.width = newW;
+      canvas.height = newH;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      // 물리적 픽셀 변경 후 tempCanvas 원상복구
+      
+      // 이전 내용을 복구 (비율 유지)
       ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, width, height);
 
-      // 초기 로드 시 빈 화면을 첫 히스토리로 저장
       if (historyRef.current.length === 0) saveHistory();
     };
-    resizeCanvas();
     const observer = new ResizeObserver(() => resizeCanvas());
     observer.observe(canvas);
     return () => observer.disconnect();
   }, [saveHistory]);
 
-  useEffect(() => {
-    const ctx = canvasRef.current?.getContext("2d");
-    if (!ctx) return;
-    ctx.lineWidth = brushSize;
-    ctx.strokeStyle = paintColor;
-  }, [brushSize, paintColor]);
-
   const getPoint = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = event.currentTarget;
-    const rect = canvas.getBoundingClientRect();
-    const ctx = canvas.getContext("2d");
-    const transform = ctx?.getTransform();
-    const transformX = transform?.a || 1;
-    const transformY = transform?.d || 1;
-
-    // CSS 표시 크기(rect)와 내부 버퍼(canvas.width/height) 비율을 이용해 좌표를 정규화한다.
-    // brush/eraser는 논리 좌표(CSS px)를 사용하고, fill은 아래에서 dpr을 곱해 내부 픽셀 좌표로 변환한다.
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
+    // nativeEvent.offsetX / offsetY를 사용하여 레이아웃 리플로우(reflow) 방지
     return {
-      x: (event.clientX - rect.left) * (scaleX / transformX),
-      y: (event.clientY - rect.top) * (scaleY / transformY),
+      x: event.nativeEvent.offsetX,
+      y: event.nativeEvent.offsetY,
     };
   }, []);
 
   const handlePointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!ctx || !canvas) return;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
     try {
       canvas.setPointerCapture(event.pointerId);
-    } catch {
-      // 일부 환경에서는 포인터 캡처가 실패할 수 있으므로 무시
-    }
+    } catch (e) { /* ignore */ }
 
-    if (tool === "fill") {
-      if (historyRef.current.length === 0) saveHistory();
+    if (toolRef.current === "fill") {
       const dpr = window.devicePixelRatio || 1;
       const point = getPoint(event);
       const boundaryCtx = boundaryCanvasRef?.current?.getContext("2d");
-      floodFill(ctx, point.x * dpr, point.y * dpr, paintColor, boundaryCtx);
-      saveHistory(); // 채우기 후 히스토리 저장
+      floodFill(ctx, point.x * dpr, point.y * dpr, paintColorRef.current, boundaryCtx);
+      saveHistory();
       return;
     }
-    if (historyRef.current.length === 0) saveHistory();
     isDrawingRef.current = true;
     lastPointRef.current = getPoint(event);
-  }, [tool, paintColor, getPoint, saveHistory, boundaryCanvasRef]);
+  }, [getPoint, saveHistory, boundaryCanvasRef]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!ctx || !isDrawingRef.current) return;
+    if (!canvas || !isDrawingRef.current) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
     const point = getPoint(event);
     const lastPoint = lastPointRef.current;
     if (!lastPoint) { lastPointRef.current = point; return; }
 
-    const { width, height } = canvasSizeRef.current;
-    const centerX = width / 2;
-    const centerY = height / 2;
+    const curTool = toolRef.current;
+    const curBrushSize = brushSizeRef.current;
+    const curColor = paintColorRef.current;
 
-    if (tool === "eraser") {
+    if (curTool === "eraser") {
       ctx.save();
       ctx.globalCompositeOperation = "destination-out";
-      ctx.lineWidth = brushSize * 2;
+      ctx.lineWidth = curBrushSize * 2;
       ctx.beginPath();
       ctx.moveTo(lastPoint.x, lastPoint.y);
       ctx.lineTo(point.x, point.y);
@@ -291,56 +287,60 @@ export function useCanvasDrawing({
       ctx.restore();
     } else {
       const segments = Math.max(1, symmetry);
-      const step = (Math.PI * 2) / segments;
-      ctx.lineWidth = brushSize;
-      ctx.strokeStyle = paintColor;
-      for (let i = 0; i < segments; i += 1) {
-        const angle = step * i;
-        const cos = Math.cos(angle);
-        const sin = Math.sin(angle);
-        const fromX = cos * (lastPoint.x - centerX) - sin * (lastPoint.y - centerY) + centerX;
-        const fromY = sin * (lastPoint.x - centerX) + cos * (lastPoint.y - centerY) + centerY;
-        const toX = cos * (point.x - centerX) - sin * (point.y - centerY) + centerX;
-        const toY = sin * (point.x - centerX) + cos * (point.y - centerY) + centerY;
+      ctx.lineWidth = curBrushSize;
+      ctx.strokeStyle = curColor;
+
+      if (segments === 1) {
         ctx.beginPath();
-        ctx.moveTo(fromX, fromY);
-        ctx.lineTo(toX, toY);
+        ctx.moveTo(lastPoint.x, lastPoint.y);
+        ctx.lineTo(point.x, point.y);
         ctx.stroke();
+      } else {
+        const { width, height } = canvasSizeRef.current;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const step = (Math.PI * 2) / segments;
+        for (let i = 0; i < segments; i += 1) {
+          const angle = step * i;
+          const cos = Math.cos(angle);
+          const sin = Math.sin(angle);
+          const fromX = cos * (lastPoint.x - centerX) - sin * (lastPoint.y - centerY) + centerX;
+          const fromY = sin * (lastPoint.x - centerX) + cos * (lastPoint.y - centerY) + centerY;
+          const toX = cos * (point.x - centerX) - sin * (point.y - centerY) + centerX;
+          const toY = sin * (point.x - centerX) + cos * (point.y - centerY) + centerY;
+          ctx.beginPath();
+          ctx.moveTo(fromX, fromY);
+          ctx.lineTo(toX, toY);
+          ctx.stroke();
+        }
       }
     }
     lastPointRef.current = point;
-  }, [tool, symmetry, brushSize, paintColor, getPoint]);
+  }, [symmetry, getPoint]);
 
-  const handlePointerUp = useCallback((event?: React.PointerEvent<HTMLCanvasElement>) => {
+  const handlePointerUp = useCallback(() => {
     if (isDrawingRef.current) {
-      saveHistory(); // 선 긋기 완료 후 히스토리 저장
-    }
-    const canvas = canvasRef.current;
-    if (canvas && event) {
-      try {
-        canvas.releasePointerCapture(event.pointerId);
-      } catch {
-        // 캡처 해제 실패는 기능상 치명적이지 않으므로 무시
-      }
+      saveHistory();
     }
     isDrawingRef.current = false;
     lastPointRef.current = null;
   }, [saveHistory]);
 
-  const handlePointerCancel = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
-    handlePointerUp(event);
-  }, [handlePointerUp]);
+  const handlePointerCancel = useCallback(() => {
+    isDrawingRef.current = false;
+    lastPointRef.current = null;
+  }, []);
 
   const handleClearCanvas = useCallback(() => {
-    finalizeStrokeIfNeeded();
     const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!ctx || !canvas) return;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    saveHistory(); // 지우기 후 히스토리 저장
-  }, [finalizeStrokeIfNeeded, saveHistory]);
+    saveHistory();
+  }, [saveHistory]);
 
-  return {
+  return useMemo(() => ({
     canvasRef,
     handlePointerDown,
     handlePointerMove,
@@ -348,11 +348,23 @@ export function useCanvasDrawing({
     handlePointerCancel,
     handleClearCanvas,
     canvasSize: canvasSizeRef.current,
-    handleUndo,  // 밖으로 꺼내줌
-    handleRedo,  // 밖으로 꺼내줌
-    resetHistory, // 히스토리 리셋용 (단계 전환 등)
-    saveHistory,  // 수동 저장용 (이미지 로드 후 등)
-    canUndo,     // 상태 UI용
-    canRedo,     // 상태 UI용
-  };
+    handleUndo,
+    handleRedo,
+    resetHistory,
+    saveHistory,
+    canUndo,
+    canRedo,
+  }), [
+    handlePointerDown,
+    handlePointerMove,
+    handlePointerUp,
+    handlePointerCancel,
+    handleClearCanvas,
+    handleUndo,
+    handleRedo,
+    resetHistory,
+    saveHistory,
+    canUndo,
+    canRedo,
+  ]);
 }

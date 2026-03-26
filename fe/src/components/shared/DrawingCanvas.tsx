@@ -10,7 +10,7 @@ interface DrawingCanvasProps {
   cursor: string;
 }
 
-export function DrawingCanvas({
+export const DrawingCanvas = React.memo(function DrawingCanvas({
   canvasRef,
   onPointerDown,
   onPointerMove,
@@ -30,4 +30,4 @@ export function DrawingCanvas({
       onPointerCancel={onPointerCancel}
     />
   );
-}
+});
