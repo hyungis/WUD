@@ -959,7 +959,7 @@ function HomePage() {
       )}
 
       {/* 📊 탐험 HUD (속도, 거리, 성진 수집, 근접 스캔 등 표시) */}
-      {isExplorationMode && !isSidePanelOpen && (
+      {isExplorationMode && !isSidePanelOpen && !isCinematicMode && (
         <>
           {/* 하단 메인 텔레메트리 */}
           <div className="fixed bottom-8 left-8 z-40 flex flex-col gap-1 p-5 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-xl text-white font-mono shadow-2xl pointer-events-none select-none min-w-[200px]">
@@ -1008,12 +1008,17 @@ function HomePage() {
           {/* 🎮 조작 도움말 워터마크 안내 */}
           <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 flex gap-6 px-8 py-3.5 rounded-full border border-white/5 bg-white/[0.02] backdrop-blur-md pointer-events-none select-none animate-in fade-in slide-in-from-bottom-4 duration-1000">
             <div className="flex items-center gap-2">
-              <div className="flex gap-1">
-                {['W', 'A', 'S', 'D'].map(key => (
-                  <span key={key} className="flex h-5 w-5 items-center justify-center rounded border border-white/20 bg-white/5 text-[10px] font-bold text-white/40">{key}</span>
-                ))}
+              <div className="flex gap-1 items-center">
+                <div className="flex flex-col gap-0.5 items-center">
+                  <span className="flex h-4 w-4 items-center justify-center rounded border border-white/20 bg-white/5 text-[9px] font-bold text-white/40">↑</span>
+                  <div className="flex gap-0.5">
+                    <span className="flex h-4 w-4 items-center justify-center rounded border border-white/20 bg-white/5 text-[9px] font-bold text-white/40">←</span>
+                    <span className="flex h-4 w-4 items-center justify-center rounded border border-white/20 bg-white/5 text-[9px] font-bold text-white/40">↓</span>
+                    <span className="flex h-4 w-4 items-center justify-center rounded border border-white/20 bg-white/5 text-[9px] font-bold text-white/40">→</span>
+                  </div>
+                </div>
               </div>
-              <span className="text-[10px] tracking-widest text-white/30 font-medium ml-1">이동</span>
+              <span className="text-[10px] tracking-widest text-white/30 font-medium ml-1">방향키</span>
             </div>
             <div className="h-3 w-[1px] bg-white/10 self-center" />
             <div className="flex items-center gap-2">
@@ -1022,43 +1027,11 @@ function HomePage() {
             </div>
             <div className="h-3 w-[1px] bg-white/10 self-center" />
             <div className="flex items-center gap-2">
-              <div className="flex gap-1 items-center">
-                <span className="px-2 py-0.5 rounded border border-white/20 bg-white/5 text-[10px] font-bold text-white/40 uppercase">F</span>
-                <span className="text-[9px] text-white/20">/</span>
-                <span className="text-[10px] font-bold text-white/40 uppercase">Click</span>
-              </div>
+              <span className="px-2 py-0.5 rounded border border-white/20 bg-white/5 text-[10px] font-bold text-white/40 uppercase">F</span>
               <span className="text-[10px] tracking-widest text-white/30 font-medium">공격</span>
             </div>
           </div>
         </>
-      )}
-
-      {/* 🎮 조작 도움말 워터마크 안내 */}
-      {isExplorationMode && (
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 flex gap-6 px-8 py-3.5 rounded-full border border-white/5 bg-white/[0.02] backdrop-blur-md pointer-events-none select-none animate-in fade-in slide-in-from-bottom-4 duration-1000">
-          <div className="flex items-center gap-2">
-            <div className="flex gap-1">
-              {['W', 'A', 'S', 'D'].map(key => (
-                <span key={key} className="flex h-5 w-5 items-center justify-center rounded border border-white/20 bg-white/5 text-[10px] font-bold text-white/40">{key}</span>
-              ))}
-            </div>
-            <span className="text-[10px] tracking-widest text-white/30 font-medium ml-1">이동</span>
-          </div>
-          <div className="h-3 w-[1px] bg-white/10 self-center" />
-          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded border border-white/20 bg-white/5 text-[10px] font-bold text-white/40 uppercase">Shift</span>
-            <span className="text-[10px] tracking-widest text-white/30 font-medium">부스트</span>
-          </div>
-          <div className="h-3 w-[1px] bg-white/10 self-center" />
-          <div className="flex items-center gap-2">
-            <div className="flex gap-1 items-center">
-              <span className="px-2 py-0.5 rounded border border-white/20 bg-white/5 text-[10px] font-bold text-white/40 uppercase">F</span>
-              <span className="text-[9px] text-white/20">/</span>
-              <span className="text-[10px] font-bold text-white/40 uppercase">Click</span>
-            </div>
-            <span className="text-[10px] tracking-widest text-white/30 font-medium">공격</span>
-          </div>
-        </div>
       )}
 
       {/* HUD 우측 사이드 패널 (상세 리포트) */}
