@@ -741,7 +741,7 @@ function HomePage() {
         {/* 🔮 브랜드 로고 (상단 좌측) */}
         {!isCinematicMode && (
           <div className="fixed top-8 left-8 z-[60] pointer-events-none select-none animate-[fadeIn_1s_ease-out]">
-            <h1 className="logo-text">WOULD YOU DRAW</h1>
+            <h1 className="logo-text text-2xl">WOULD YOU DRAW</h1>
           </div>
         )}
 
