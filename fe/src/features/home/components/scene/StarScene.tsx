@@ -98,6 +98,7 @@ function CustomCenterStar({
   const lastTrigger = useRef(animationTrigger);
 
   const geometry = SHAPE_GEOMETRIES[currentShape] || STAR_STELLATED_GEOMETRY;
+  const tonedColor = useMemo(() => new Color(currentColor).multiplyScalar(0.89), [currentColor]);
   const baseSize = 2.4;
 
   useFrame((_, delta) => {
@@ -133,8 +134,8 @@ function CustomCenterStar({
 
     // PointLight 색상 및 강도 동기화
     if (lightRef.current) {
-      lightRef.current.color.set(currentColor);
-      lightRef.current.intensity = 80 * intensityFactor;
+      lightRef.current.color.copy(tonedColor);
+      lightRef.current.intensity = 68 * intensityFactor;
     }
     
     if (meshRef.current?.material) {
@@ -142,7 +143,7 @@ function CustomCenterStar({
     }
   });
 
-  const emissiveIntensity = isActive ? 3.0 : 1.6;
+  const emissiveIntensity = isActive ? 2.65 : 1.42;
 
   const body = (
     <group>
@@ -155,8 +156,8 @@ function CustomCenterStar({
         rotation={[0.2, 0.4, isActive ? 0.24 : 0.08]}
       >
         <meshPhysicalMaterial
-          color={currentColor}
-          emissive={currentColor}
+          color={tonedColor}
+          emissive={tonedColor}
           emissiveIntensity={emissiveIntensity}
           transparent
           opacity={0.95}
@@ -175,7 +176,7 @@ function CustomCenterStar({
         <meshBasicMaterial color="#ffffff" toneMapped={false} opacity={1} transparent />
       </mesh>
       {/* 별 색상과 동기화되는 포인트 라이트 */}
-      <pointLight ref={lightRef} position={[0, 0, 0]} intensity={80} color={currentColor} distance={40} decay={2} />
+      <pointLight ref={lightRef} position={[0, 0, 0]} intensity={65} color={tonedColor} distance={40} decay={2} />
     </group>
   );
 

@@ -100,6 +100,7 @@ export function useCanvasDrawing({
   symmetry = 1,
   boundaryCanvasRef,
 }: UseCanvasDrawingProps) {
+  const MAX_HISTORY_STEPS = 30;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
@@ -122,14 +123,17 @@ export function useCanvasDrawing({
       // 새로운 그림을 그리면 앞으로 가기(Redo) 기록은 삭제
       historyRef.current = historyRef.current.slice(0, historyStepRef.current + 1);
       historyRef.current.push(data);
-      historyStepRef.current += 1;
+      if (historyRef.current.length > MAX_HISTORY_STEPS) {
+        historyRef.current.shift();
+      }
+      historyStepRef.current = historyRef.current.length - 1;
 
       setCanUndo(historyStepRef.current > 0);
       setCanRedo(historyStepRef.current < historyRef.current.length - 1);
     } catch (e) {
       console.warn("Failed to save history:", e);
     }
-  }, []);
+  }, [MAX_HISTORY_STEPS]);
 
   // 외부(useEffect 등)에서 캔버스를 수동으로 업데이트한 후 호출하는 초기화 함수
   const resetHistory = useCallback(() => {
@@ -148,7 +152,15 @@ export function useCanvasDrawing({
     }
   }, []);
 
+  const finalizeStrokeIfNeeded = useCallback(() => {
+    if (!isDrawingRef.current) return;
+    saveHistory();
+    isDrawingRef.current = false;
+    lastPointRef.current = null;
+  }, [saveHistory]);
+
   const handleUndo = useCallback(() => {
+    finalizeStrokeIfNeeded();
     if (historyStepRef.current > 0) {
       historyStepRef.current -= 1;
       const data = historyRef.current[historyStepRef.current];
@@ -156,9 +168,10 @@ export function useCanvasDrawing({
       setCanUndo(historyStepRef.current > 0);
       setCanRedo(true);
     }
-  }, []);
+  }, [finalizeStrokeIfNeeded]);
 
   const handleRedo = useCallback(() => {
+    finalizeStrokeIfNeeded();
     if (historyStepRef.current < historyRef.current.length - 1) {
       historyStepRef.current += 1;
       const data = historyRef.current[historyStepRef.current];
@@ -166,7 +179,7 @@ export function useCanvasDrawing({
       setCanUndo(true);
       setCanRedo(historyStepRef.current < historyRef.current.length - 1);
     }
-  }, []);
+  }, [finalizeStrokeIfNeeded]);
 
   /* 캔버스 초기화 & 리사이즈 방어 */
   useEffect(() => {
@@ -198,6 +211,7 @@ export function useCanvasDrawing({
       // 초기 로드 시 빈 화면을 첫 히스토리로 저장
       if (historyRef.current.length === 0) saveHistory();
     };
+    resizeCanvas();
     const observer = new ResizeObserver(() => resizeCanvas());
     observer.observe(canvas);
     return () => observer.disconnect();
@@ -234,7 +248,14 @@ export function useCanvasDrawing({
     const ctx = canvas?.getContext("2d");
     if (!ctx || !canvas) return;
 
+    try {
+      canvas.setPointerCapture(event.pointerId);
+    } catch {
+      // 일부 환경에서는 포인터 캡처가 실패할 수 있으므로 무시
+    }
+
     if (tool === "fill") {
+      if (historyRef.current.length === 0) saveHistory();
       const dpr = window.devicePixelRatio || 1;
       const point = getPoint(event);
       const boundaryCtx = boundaryCanvasRef?.current?.getContext("2d");
@@ -242,6 +263,7 @@ export function useCanvasDrawing({
       saveHistory(); // 채우기 후 히스토리 저장
       return;
     }
+    if (historyRef.current.length === 0) saveHistory();
     isDrawingRef.current = true;
     lastPointRef.current = getPoint(event);
   }, [tool, paintColor, getPoint, saveHistory, boundaryCanvasRef]);
@@ -289,27 +311,41 @@ export function useCanvasDrawing({
     lastPointRef.current = point;
   }, [tool, symmetry, brushSize, paintColor, getPoint]);
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((event?: React.PointerEvent<HTMLCanvasElement>) => {
     if (isDrawingRef.current) {
       saveHistory(); // 선 긋기 완료 후 히스토리 저장
+    }
+    const canvas = canvasRef.current;
+    if (canvas && event) {
+      try {
+        canvas.releasePointerCapture(event.pointerId);
+      } catch {
+        // 캡처 해제 실패는 기능상 치명적이지 않으므로 무시
+      }
     }
     isDrawingRef.current = false;
     lastPointRef.current = null;
   }, [saveHistory]);
 
+  const handlePointerCancel = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    handlePointerUp(event);
+  }, [handlePointerUp]);
+
   const handleClearCanvas = useCallback(() => {
+    finalizeStrokeIfNeeded();
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!ctx || !canvas) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     saveHistory(); // 지우기 후 히스토리 저장
-  }, [saveHistory]);
+  }, [finalizeStrokeIfNeeded, saveHistory]);
 
   return {
     canvasRef,
     handlePointerDown,
     handlePointerMove,
     handlePointerUp,
+    handlePointerCancel,
     handleClearCanvas,
     canvasSize: canvasSizeRef.current,
     handleUndo,  // 밖으로 꺼내줌

@@ -980,7 +980,7 @@ export function MyUniverseModal({
               >
                 <span className={tab === t.key ? "text-white" : "text-zinc-600 group-hover:text-zinc-400"}>{t.icon}</span>
                 <span>{t.label}</span>
-                {t.key !== "overview" && t.key !== "profile" && (
+                {(t.key === "daily" || t.key === "deep") && (
                   <span className={`text-[9px] px-1 py-px rounded ${tab === t.key ? "bg-white/10 text-zinc-300" : "bg-white/[0.04] text-zinc-600"}`}>
                     {t.key === "daily" ? dailyPlanets.length : deepStars.length}
                   </span>

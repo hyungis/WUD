@@ -93,6 +93,25 @@ export function TimelineHUD({
     return groups;
   }, [calendarGrid, timelineItems]);
 
+  // 외부에서 특정 별/주차를 선택하면, 해당 날짜가 속한 월로 달력을 먼저 이동시킨다.
+  useEffect(() => {
+    if (!selectedWeekKey) return;
+    const matchItem = timelineItems.find((it) => it.weekKey === selectedWeekKey);
+    if (!matchItem?.createdAt) return;
+
+    const selectedDate = new Date(matchItem.createdAt);
+    if (Number.isNaN(selectedDate.getTime())) return;
+
+    const targetMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+    if (
+      targetMonth.getFullYear() !== currentMonth.getFullYear()
+      || targetMonth.getMonth() !== currentMonth.getMonth()
+    ) {
+      setSlideDirection(targetMonth > currentMonth ? "up" : "down");
+      setCurrentMonth(targetMonth);
+    }
+  }, [selectedWeekKey, timelineItems, currentMonth]);
+
   useEffect(() => {
     if (selectedWeekKey) {
       // 외부에서 ISO weekKey가 올 경우, 해당 아이템의 날짜로 매칭되는 행 찾기
