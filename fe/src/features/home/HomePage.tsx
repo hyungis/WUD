@@ -746,6 +746,13 @@ function HomePage() {
   return (
     <div className="relative min-h-screen overflow-hidden bg-black text-slate-100 animate-[fadeIn_0.6s_ease-out]">
       <div className="absolute inset-0 z-0">
+        {/* 🔮 브랜드 로고 (상단 좌측) */}
+        {!isCinematicMode && (
+          <div className="fixed top-8 left-8 z-[60] pointer-events-none select-none animate-[fadeIn_1s_ease-out]">
+            <h1 className="logo-text text-2xl">WOULD YOU DRAW</h1>
+          </div>
+        )}
+
         {/* 코치마크 센터 앵커 */}
         <div id="center-star-anchor" className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1 h-1 pointer-events-none" />
         <StarScene

@@ -103,10 +103,10 @@ export default function LoginPage() {
       {/* 로고 (idle 상태) */}
       {phase === "idle" && (
         <div className="relative z-10 text-center transition-opacity duration-700 select-none">
-          <h1 className="text-4xl font-bold text-white tracking-wide drop-shadow-[0_0_30px_rgba(255,255,255,0.3)]">
+          <h1 className="logo-text text-4xl !tracking-wider drop-shadow-[0_0_40px_rgba(255,255,255,0.45)]">
             Would You Draw
           </h1>
-          <p className="mt-3 text-sm text-white/40">Click here to log in</p>
+          <p className="mt-6 text-base text-white/40 tracking-[0.2em] uppercase">Click here to log in</p>
         </div>
       )}
 
@@ -130,7 +130,7 @@ export default function LoginPage() {
               ✕
             </button>
 
-            <h1 className="text-2xl font-bold text-center text-white mb-1">
+            <h1 className="logo-text text-2xl text-center mb-1">
               Would You Draw
             </h1>
             <p className="text-sm text-white/40 text-center mb-8">
