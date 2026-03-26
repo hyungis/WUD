@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
 import type { DailyPlanet, DeepStar } from "../../utils/homeHelpers";
 import { getWeekKey, formatDate } from "../../utils/homeHelpers";
 import { useAuthStore } from "../../../../store/authStore";
@@ -98,6 +99,21 @@ const DAILY_CACHE_TTL_MS = 5 * 60 * 1000;
 const DAILY_INITIAL_VISIBLE = 24;
 const DAILY_INCREMENT_VISIBLE = 24;
 const DAILY_CUSTOM_MAX_MONTHS = 3;
+
+/** HSL -> HEX 변환 헬퍼 */
+const hslToHex = (h: number, s: number, l: number) => {
+  const lightness = l / 100;
+  const a = (s * Math.min(lightness, 1 - lightness)) / 100;
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const color = lightness - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, "0");
+  };
+  return `#${f(0)}${f(8)}${f(4)}`.toLowerCase();
+};
+
+const PALETTE_HUES = [0, 30, 60, 120, 180, 210, 250, 280, 320, 345];
+const PALETTE_LIGHTNESS = [35, 50, 65, 80];
 
 type DailyCachePayload = {
   fetchedAt: number;
@@ -304,39 +320,87 @@ function CustomizeTabContent({ cardCls, labelCls }: { cardCls: string; labelCls:
 
       {/* 색상 선택 */}
       <div className={cardCls}>
-        <p className={labelCls}>색상 선택</p>
-        <div className="grid grid-cols-4 gap-3">
-          {STAR_COLORS.map((c) => {
-            const isActive = currentColor === c.hex;
-            return (
-              <button
-                key={c.hex}
-                onClick={() => setColor(c.hex)}
-                className="group flex flex-col items-center gap-2"
-              >
-                <div className="relative">
-                  <div
-                    className={`h-10 w-10 rounded-full transition-all duration-200 ${isActive
-                      ? "ring-2 ring-white/60 ring-offset-2 ring-offset-[#0a0a0f] scale-110"
-                      : "hover:scale-105"
-                      }`}
-                    style={{
-                      backgroundColor: c.hex,
-                      boxShadow: isActive ? `0 0 20px ${c.hex}66` : `0 0 8px ${c.hex}22`,
-                    }}
-                  />
-                  {isActive && (
-                    <svg className="absolute inset-0 m-auto h-4 w-4 drop-shadow-md" viewBox="0 0 24 24" fill="none" stroke="#0a0a0f" strokeWidth="3">
-                      <path d="M5 13l4 4L19 7" />
-                    </svg>
-                  )}
-                </div>
-                <span className={`text-[10px] transition-colors ${isActive ? "text-white font-medium" : "text-zinc-600 group-hover:text-zinc-400"}`}>
-                  {c.label}
-                </span>
-              </button>
-            );
-          })}
+        <div className="flex items-center justify-between mb-4">
+          <p className={labelCls}>색상 선택</p>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono text-zinc-400 bg-white/[0.04] px-2.5 py-1 rounded-md border border-white/[0.08] shadow-sm tracking-wider">
+              {currentColor.toUpperCase()}
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {/* 가로 스펙트럼 그리드 */}
+          <div className="grid grid-cols-10 gap-1.5 p-1 bg-black/20 rounded-xl border border-white/[0.05]">
+            {PALETTE_HUES.map((h) => (
+              <div key={h} className="flex flex-col gap-1.5">
+                {PALETTE_LIGHTNESS.map((l) => {
+                  const hex = hslToHex(h, 85, l);
+                  const isActive = currentColor.toLowerCase() === hex;
+                  return (
+                    <motion.button
+                      key={hex}
+                      whileHover={{ scale: 1.15, zIndex: 10 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => setColor(hex)}
+                      className={`relative w-full aspect-square rounded-md transition-shadow duration-300 ${isActive ? "ring-2 ring-white ring-offset-2 ring-offset-[#0a0a0f] z-10" : ""
+                        }`}
+                      style={{
+                        backgroundColor: hex,
+                        boxShadow: isActive ? `0 0 15px ${hex}88` : "none",
+                      }}
+                    >
+                      {isActive && (
+                        <motion.div
+                          layoutId="active-dot"
+                          className="absolute inset-0 flex items-center justify-center"
+                        >
+                          <div className="w-1.5 h-1.5 rounded-full bg-white shadow-sm" />
+                        </motion.div>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-3">
+            <label className="flex-1 flex items-center gap-3 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors cursor-pointer group">
+              <div className="relative shrink-0">
+                <div
+                  className="h-10 w-10 rounded-full border border-white/10"
+                  style={{ backgroundColor: currentColor }}
+                />
+                <input
+                  type="color"
+                  value={currentColor}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-semibold text-white mb-0.5 group-hover:text-amber-200 transition-colors">기타 색상 선택</p>
+                <p className="text-[9px] text-zinc-500 truncate">더 세밀한 색상 조절이 필요하신가요?</p>
+              </div>
+            </label>
+
+            <div className="flex-[0.6] flex items-center gap-2 p-3 rounded-xl border border-white/[0.06] bg-white/[0.02]">
+              <div className="text-[10px] text-zinc-500 font-mono">HEX</div>
+              <input
+                type="text"
+                value={currentColor.toUpperCase()}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (/^#[0-9A-F]{0,6}$/i.test(val)) {
+                    setColor(val);
+                  }
+                }}
+                className="w-full bg-transparent border-none outline-none text-[11px] font-mono text-white p-0"
+                placeholder="#FFFFFF"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -353,7 +417,7 @@ function CustomizeTabContent({ cardCls, labelCls }: { cardCls: string; labelCls:
             />
             <div>
               <p className="text-xs text-white font-medium">
-                {STAR_SHAPES.find((s) => s.key === currentShape)?.label} · {STAR_COLORS.find((c) => c.hex === currentColor)?.label}
+                {STAR_SHAPES.find((s) => s.key === currentShape)?.label} · {STAR_COLORS.find((c) => c.hex.toLowerCase() === currentColor.toLowerCase())?.label || "나만의 색상"}
               </p>
               <p className="text-[10px] text-zinc-600 mt-0.5">변경사항은 저장 후 유지됩니다</p>
             </div>
