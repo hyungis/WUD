@@ -225,7 +225,7 @@ export function TimelineHUD({
   return (
     <div
       id="timeline-hud-container"
-      className={`fixed bottom-[4.5rem] sm:bottom-[4.75rem] lg:bottom-[5.25rem] 2xl:bottom-6 z-30 transition-all duration-300
+      className={`fixed bottom-[4.5rem] sm:bottom-[4.75rem] lg:bottom-[5.25rem] 2xl:bottom-6 z-50 transition-all duration-300
         ${isTimelineOpen
           ? "right-2 sm:right-4 lg:right-6"
           : "left-1/2 -translate-x-1/2 bottom-[5.75rem] sm:bottom-[6.5rem] xl:left-auto xl:translate-x-0 xl:bottom-6 xl:right-6"
