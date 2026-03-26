@@ -19,6 +19,7 @@ import OAuthSuccessPage from "./features/auth/OAuthSuccessPage";
 import PrivateRoute from "./routes/PrivateRoute";
 import PublicRoute from "./routes/PublicRoute";
 import { useAuthStore } from "./store/authStore";
+import { useUiStore } from "./store/uiStore";
 
 import { FloatingDock } from "./components/shared/floating-dock";
 
@@ -86,6 +87,7 @@ import { fetchMe } from "./services/auth";
 function App() {
   const location = useLocation();
   const { isAuthenticated } = useAuthStore();
+  const isExplorationMode = useUiStore((state) => state.isExplorationMode);
   const [isInitializing, setIsInitializing] = useState(true);
   const initCalledRef = useRef(false);
 
@@ -283,7 +285,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
 
-      {isAuthenticated && location.pathname === "/" && <FloatingDock />}
+      {isAuthenticated && location.pathname === "/" && !isExplorationMode && <FloatingDock />}
     </>
   );
 }
