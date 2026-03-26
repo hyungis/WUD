@@ -1544,12 +1544,10 @@ export function MyUniverseModal({
               ) : (
                 <>
                   <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 backdrop-blur-sm">
-                    <div className="flex items-start gap-3">
-                      <div
-                        className="h-12 w-12 rounded-xl flex items-center justify-center text-lg font-bold text-white flex-shrink-0"
-                        style={{ background: `linear-gradient(135deg, ${displayToneColor}66, ${displayToneColor}22)` }}
-                      >
-                        {displayName.slice(0, 1)}
+                    <div className="flex items-start gap-4">
+                      {/* 프로필 탭 내 로고 (커스텀 별) */}
+                      <div className="relative flex-shrink-0 h-14 w-14 rounded-2xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
+                        <SmallStarView />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
