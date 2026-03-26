@@ -913,11 +913,10 @@ function HomePage() {
         <button
           id="exploration-mode-btn"
           onClick={() => setIsExplorationMode(!isExplorationMode)}
-          className={`fixed top-20 right-6 z-[60] flex h-10 w-10 items-center justify-center rounded-xl border backdrop-blur-md transition-all hover:scale-110 shadow-lg ${
-            isExplorationMode 
-              ? "border-orange-400/50 bg-orange-500/20 text-orange-400" 
+          className={`fixed top-20 right-6 z-[60] flex h-10 w-10 items-center justify-center rounded-xl border backdrop-blur-md transition-all hover:scale-110 shadow-lg ${isExplorationMode
+              ? "border-orange-400/50 bg-orange-500/20 text-orange-400"
               : "border-white/20 bg-white/10 text-white/50 hover:border-white/40 hover:bg-white/20 hover:text-white"
-          }`}
+            }`}
           title={isExplorationMode ? "탐험 모드 종료" : "우주 탐험 모드 (조작)"}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -938,22 +937,22 @@ function HomePage() {
               <div className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />
               <span className="text-[9px] uppercase tracking-[0.2em] text-white/40 font-bold">Flight Telemetry</span>
             </div>
-            
+
             <div className="flex flex-col gap-0">
               <div className="flex items-baseline gap-2">
                 <span className="text-3xl font-light text-white tracking-tighter">{(explorationSpeed * 10).toFixed(0)}</span>
                 <span className="text-[10px] text-white/30 uppercase">SPD</span>
               </div>
-              
+
               <div className="h-[1px] w-full bg-white/5 my-2" />
-              
+
               <div className="flex justify-between items-center mb-1">
                 <span className="text-[10px] text-white/30 uppercase tracking-wider">Distance</span>
                 <span className="text-sm font-medium text-orange-400/80">{(explorationDistance / 10).toFixed(1)} <small className="text-[9px] opacity-50">LY</small></span>
               </div>
-              
+
               <div className="h-[1px] w-full bg-white/5 my-1" />
-              
+
               <div className="flex justify-between items-center">
                 <span className="text-[10px] text-white/30 uppercase tracking-wider">Void Sentinels</span>
                 <span className="text-sm font-medium text-purple-400">{monstersDefeated} <small className="text-[9px] opacity-50">KILLS</small></span>
@@ -1134,11 +1133,11 @@ function HomePage() {
               setWeeklyHtpModalOpen(false);
               const starColor = colorFromId(String(sid), "DEEP");
               const createdAt = new Date().toISOString();
-                const deepWeekKey = getSundayWeekKey(new Date(createdAt));
-                const existingDeepStar = useUiStore.getState().stars.find((s) => {
-                  if (s.kind !== "DEEP" || s.isTemporary) return false;
-                  return normalizeWeekKey(s.weekStartDate, s.createdAt) === deepWeekKey;
-                });
+              const deepWeekKey = getSundayWeekKey(new Date(createdAt));
+              const existingDeepStar = useUiStore.getState().stars.find((s) => {
+                if (s.kind !== "DEEP" || s.isTemporary) return false;
+                return normalizeWeekKey(s.weekStartDate, s.createdAt) === deepWeekKey;
+              });
               setSelectedWeekKey(deepWeekKey);
               const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt, weekKey: deepWeekKey, label: "HTP", deepType: "HTP" } as any;
               if (!existingDeepStar) {
@@ -1187,11 +1186,11 @@ function HomePage() {
               setWeeklyPirModalOpen(false);
               const starColor = colorFromId(String(sid), "DEEP");
               const createdAt = new Date().toISOString();
-                const deepWeekKey = getSundayWeekKey(new Date(createdAt));
-                const existingDeepStar = useUiStore.getState().stars.find((s) => {
-                  if (s.kind !== "DEEP" || s.isTemporary) return false;
-                  return normalizeWeekKey(s.weekStartDate, s.createdAt) === deepWeekKey;
-                });
+              const deepWeekKey = getSundayWeekKey(new Date(createdAt));
+              const existingDeepStar = useUiStore.getState().stars.find((s) => {
+                if (s.kind !== "DEEP" || s.isTemporary) return false;
+                return normalizeWeekKey(s.weekStartDate, s.createdAt) === deepWeekKey;
+              });
               setSelectedWeekKey(deepWeekKey);
               const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt, weekKey: deepWeekKey, label: "PIR", deepType: "PERSON_IN_RAIN" } as any;
               if (!existingDeepStar) {
@@ -1240,11 +1239,11 @@ function HomePage() {
               setWeeklySwModalOpen(false);
               const starColor = colorFromId(String(sid), "DEEP");
               const createdAt = new Date().toISOString();
-                const deepWeekKey = getSundayWeekKey(new Date(createdAt));
-                const existingDeepStar = useUiStore.getState().stars.find((s) => {
-                  if (s.kind !== "DEEP" || s.isTemporary) return false;
-                  return normalizeWeekKey(s.weekStartDate, s.createdAt) === deepWeekKey;
-                });
+              const deepWeekKey = getSundayWeekKey(new Date(createdAt));
+              const existingDeepStar = useUiStore.getState().stars.find((s) => {
+                if (s.kind !== "DEEP" || s.isTemporary) return false;
+                return normalizeWeekKey(s.weekStartDate, s.createdAt) === deepWeekKey;
+              });
               setSelectedWeekKey(deepWeekKey);
               const reportPayload = { id: String(sid), targetId: sid, toneColor: starColor, createdAt, weekKey: deepWeekKey, label: "SW", deepType: "STAR_WAVE" } as any;
               if (!existingDeepStar) {
