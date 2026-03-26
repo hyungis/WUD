@@ -779,7 +779,7 @@ function HomePage() {
         {/* 🔮 브랜드 로고 (상단 좌측) */}
         {!isCinematicMode && !isExplorationMode && (
           <div className="fixed top-8 left-8 z-[60] pointer-events-none select-none animate-[fadeIn_1s_ease-out]">
-            <h1 className="logo-text text-2xl">WOULD YOU DRAW</h1>
+            <h1 className="logo-text text-2xl opacity-50 tracking-[0.2em]">WOULD YOU DRAW</h1>
           </div>
         )}
 
@@ -891,7 +891,7 @@ function HomePage() {
         <button
           id="re-tutorial-btn"
           onClick={handleStartTutorial}
-          className="fixed bottom-4 left-4 z-[60] flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/50 backdrop-blur-md transition-all hover:scale-110 hover:border-white/40 hover:bg-white/20 hover:text-white"
+          className="fixed bottom-4 left-4 z-40 flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/50 backdrop-blur-md transition-all hover:scale-110 hover:border-white/40 hover:bg-white/20 hover:text-white"
           title="튜토리얼 다시보기"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -905,7 +905,7 @@ function HomePage() {
         <button
           id="exit-cinematic-btn"
           onClick={() => setIsCinematicMode(false)}
-          className="fixed top-6 right-6 z-[60] flex h-10 w-10 items-center justify-center rounded-xl border border-white/5 bg-white/5 text-white/10 backdrop-blur-[2px] transition-all hover:scale-110 hover:border-white/30 hover:bg-white/15 hover:text-white/60 group"
+          className="fixed top-6 right-6 z-40 flex h-10 w-10 items-center justify-center rounded-xl border border-white/5 bg-white/5 text-white/10 backdrop-blur-[2px] transition-all hover:scale-110 hover:border-white/30 hover:bg-white/15 hover:text-white/60 group"
           title="UI 다시 보기"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-colors">
@@ -922,7 +922,7 @@ function HomePage() {
         <button
           id="enter-cinematic-btn"
           onClick={() => setIsCinematicMode(true)}
-          className="fixed top-6 right-6 z-[60] flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white/50 backdrop-blur-md transition-all hover:scale-110 hover:border-white/40 hover:bg-white/20 hover:text-white group shadow-lg"
+          className="fixed top-6 right-6 z-40 flex h-10 w-10 items-center justify-center rounded-xl border border-white/20 bg-white/10 text-white/50 backdrop-blur-md transition-all hover:scale-110 hover:border-white/40 hover:bg-white/20 hover:text-white group shadow-lg"
           title="UI 숨기기 (시네마틱 모드)"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="transition-colors group-hover:text-white">
@@ -933,13 +933,13 @@ function HomePage() {
       )}
 
       {/* 🚀 우주 탐험 모드 토글 버튼 (시네마틱 모드 버튼 아래) */}
-      {!isSidePanelOpen && (
+      {!isSidePanelOpen && !isCinematicMode && (
         <button
           id="exploration-mode-btn"
           onClick={() => setIsExplorationMode(!isExplorationMode)}
-          className={`fixed top-20 right-6 z-[60] flex h-10 w-10 items-center justify-center rounded-xl border backdrop-blur-md transition-all hover:scale-110 shadow-lg ${isExplorationMode
-              ? "border-orange-400/50 bg-orange-500/20 text-orange-400"
-              : "border-white/20 bg-white/10 text-white/50 hover:border-white/40 hover:bg-white/20 hover:text-white"
+          className={`fixed top-20 right-6 z-40 flex h-10 w-10 items-center justify-center rounded-xl border backdrop-blur-md transition-all hover:scale-110 shadow-lg ${isExplorationMode
+            ? "border-orange-400/50 bg-orange-500/20 text-orange-400"
+            : "border-white/20 bg-white/10 text-white/50 hover:border-white/40 hover:bg-white/20 hover:text-white"
             }`}
           title={isExplorationMode ? "탐험 모드 종료" : "우주 탐험 모드 (조작)"}
         >
@@ -956,7 +956,7 @@ function HomePage() {
       {isExplorationMode && !isSidePanelOpen && (
         <>
           {/* 하단 메인 텔레메트리 */}
-          <div className="fixed bottom-8 left-8 z-[60] flex flex-col gap-1 p-5 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-xl text-white font-mono shadow-2xl pointer-events-none select-none min-w-[200px]">
+          <div className="fixed bottom-8 left-8 z-40 flex flex-col gap-1 p-5 rounded-2xl border border-white/10 bg-zinc-950/60 backdrop-blur-xl text-white font-mono shadow-2xl pointer-events-none select-none min-w-[200px]">
             <div className="flex items-center gap-2 mb-1">
               <div className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse" />
               <span className="text-[9px] uppercase tracking-[0.2em] text-white/40 font-bold">Flight Telemetry</span>
@@ -986,7 +986,7 @@ function HomePage() {
 
           {/* 우측 하단 근접 스캔 홀로그램 (Proximity Scan) */}
           {nearestStarInfo && (
-            <div className="fixed bottom-8 right-8 z-[60] flex flex-col items-end gap-3 animate-in fade-in slide-in-from-right-10 duration-500 pointer-events-none select-none">
+            <div className="fixed bottom-8 right-8 z-40 flex flex-col items-end gap-3 animate-in fade-in slide-in-from-right-10 duration-500 pointer-events-none select-none">
               <div className="px-5 py-1.5 rounded-full border border-orange-400/30 bg-orange-500/10 backdrop-blur-md">
                 <span className="text-orange-400 text-[10px] font-bold tracking-[0.3em] uppercase animate-pulse shrink-0">Proximity Scan Active</span>
               </div>
@@ -998,7 +998,61 @@ function HomePage() {
               </div>
             </div>
           )}
+
+          {/* 🎮 조작 도움말 워터마크 안내 */}
+          <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 flex gap-6 px-8 py-3.5 rounded-full border border-white/5 bg-white/[0.02] backdrop-blur-md pointer-events-none select-none animate-in fade-in slide-in-from-bottom-4 duration-1000">
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1">
+                {['W', 'A', 'S', 'D'].map(key => (
+                  <span key={key} className="flex h-5 w-5 items-center justify-center rounded border border-white/20 bg-white/5 text-[10px] font-bold text-white/40">{key}</span>
+                ))}
+              </div>
+              <span className="text-[10px] tracking-widest text-white/30 font-medium ml-1">이동</span>
+            </div>
+            <div className="h-3 w-[1px] bg-white/10 self-center" />
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded border border-white/20 bg-white/5 text-[10px] font-bold text-white/40 uppercase">Shift</span>
+              <span className="text-[10px] tracking-widest text-white/30 font-medium">부스트</span>
+            </div>
+            <div className="h-3 w-[1px] bg-white/10 self-center" />
+            <div className="flex items-center gap-2">
+              <div className="flex gap-1 items-center">
+                <span className="px-2 py-0.5 rounded border border-white/20 bg-white/5 text-[10px] font-bold text-white/40 uppercase">F</span>
+                <span className="text-[9px] text-white/20">/</span>
+                <span className="text-[10px] font-bold text-white/40 uppercase">Click</span>
+              </div>
+              <span className="text-[10px] tracking-widest text-white/30 font-medium">공격</span>
+            </div>
+          </div>
         </>
+      )}
+
+      {/* 🎮 조작 도움말 워터마크 안내 */}
+      {isExplorationMode && (
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 z-40 flex gap-6 px-8 py-3.5 rounded-full border border-white/5 bg-white/[0.02] backdrop-blur-md pointer-events-none select-none animate-in fade-in slide-in-from-bottom-4 duration-1000">
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1">
+              {['W', 'A', 'S', 'D'].map(key => (
+                <span key={key} className="flex h-5 w-5 items-center justify-center rounded border border-white/20 bg-white/5 text-[10px] font-bold text-white/40">{key}</span>
+              ))}
+            </div>
+            <span className="text-[10px] tracking-widest text-white/30 font-medium ml-1">이동</span>
+          </div>
+          <div className="h-3 w-[1px] bg-white/10 self-center" />
+          <div className="flex items-center gap-2">
+            <span className="px-2 py-0.5 rounded border border-white/20 bg-white/5 text-[10px] font-bold text-white/40 uppercase">Shift</span>
+            <span className="text-[10px] tracking-widest text-white/30 font-medium">부스트</span>
+          </div>
+          <div className="h-3 w-[1px] bg-white/10 self-center" />
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1 items-center">
+              <span className="px-2 py-0.5 rounded border border-white/20 bg-white/5 text-[10px] font-bold text-white/40 uppercase">F</span>
+              <span className="text-[9px] text-white/20">/</span>
+              <span className="text-[10px] font-bold text-white/40 uppercase">Click</span>
+            </div>
+            <span className="text-[10px] tracking-widest text-white/30 font-medium">공격</span>
+          </div>
+        </div>
       )}
 
       {/* HUD 우측 사이드 패널 (상세 리포트) */}
