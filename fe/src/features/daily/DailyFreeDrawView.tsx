@@ -475,6 +475,7 @@ export default function DailyFreeDrawView({ isModal = false, onClose, onBackToCo
               onPointerDown={drawing.handlePointerDown}
               onPointerMove={drawing.handlePointerMove}
               onPointerUp={drawing.handlePointerUp}
+              onPointerCancel={drawing.handlePointerCancel}
               cursor={cursor}
             />
           </div>

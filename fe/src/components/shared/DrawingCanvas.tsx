@@ -6,6 +6,7 @@ interface DrawingCanvasProps {
   onPointerDown: React.PointerEventHandler<HTMLCanvasElement>;
   onPointerMove: React.PointerEventHandler<HTMLCanvasElement>;
   onPointerUp: React.PointerEventHandler<HTMLCanvasElement>;
+  onPointerCancel?: React.PointerEventHandler<HTMLCanvasElement>;
   cursor: string;
 }
 
@@ -14,6 +15,7 @@ export function DrawingCanvas({
   onPointerDown,
   onPointerMove,
   onPointerUp,
+  onPointerCancel,
   cursor,
 }: DrawingCanvasProps) {
   return (
@@ -25,7 +27,7 @@ export function DrawingCanvas({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerLeave={onPointerUp}
+      onPointerCancel={onPointerCancel}
     />
   );
 }
