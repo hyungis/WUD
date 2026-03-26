@@ -7,7 +7,7 @@ import { DailyMandalaCanvas } from "./components/DailyMandalaCanvas";
 import { useAlert } from "../../components/shared/AlertProvider";
 import { useConfirm } from "../../components/shared/ConfirmProvider";
 import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntryByType } from "../../utils/dailyLimit";
-import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, pushRecentPaintColor, saveRecentPaintColors } from "../../utils/paintColors";
+import { DEFAULT_PAINT_COLOR, PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, pushRecentPaintColor, saveRecentPaintColors } from "../../utils/paintColors";
 
 /* ── constants ── */
 const PALETTE = [
@@ -61,14 +61,14 @@ function DailyDetailView({ isModal = false, onClose, onBackToContent, onComplete
   const { showConfirm } = useConfirm();
 
   const [shellColor] = useState(() => localStorage.getItem("dailyMoodColor") || PALETTE[0]);
-  const [paintColor, setPaintColor] = useState<string>(PAINT_PRESET_COLORS[0]);
+  const [paintColor, setPaintColor] = useState<string>(DEFAULT_PAINT_COLOR);
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const [brushSize, setBrushSize] = useState(4);
   const [symmetry, setSymmetry] = useState(8);
   const [tool, setTool] = useState<ToolType>("brush");
   const [activePopup, setActivePopup] = useState<string | null>(null);
-  const customColorStartRef = useRef<string>(PAINT_PRESET_COLORS[0]);
-  const customColorDraftRef = useRef<string>(PAINT_PRESET_COLORS[0]);
+  const customColorStartRef = useRef<string>(DEFAULT_PAINT_COLOR);
+  const customColorDraftRef = useRef<string>(DEFAULT_PAINT_COLOR);
   const customColorCommitTimerRef = useRef<number | null>(null);
 
   const drawing = useCanvasDrawing({ paintColor, brushSize, tool, symmetry });

@@ -6,7 +6,7 @@ import { imageApi } from "../../api/image";
 import type { DeepDetailResponse } from "../../types/deep";
 import HTPResultView from "./components/HTPResultView";
 import { getToolCursor } from "../../utils/toolCursors";
-import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, pushRecentPaintColor, saveRecentPaintColors } from "../../utils/paintColors";
+import { DEFAULT_PAINT_COLOR, PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, pushRecentPaintColor, saveRecentPaintColors } from "../../utils/paintColors";
 
 type HtpStep = "house" | "tree" | "person";
 type HtpPhase = "survey" | "draw" | "result";
@@ -158,7 +158,7 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
   const [phase, setPhase] = useState<HtpPhase>("survey");
-  const [paintColor, setPaintColor] = useState<string>(PAINT_PRESET_COLORS[0]);
+  const [paintColor, setPaintColor] = useState<string>(DEFAULT_PAINT_COLOR);
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const [brushSize, setBrushSize] = useState(4);
   const [tool, setTool] = useState<ToolType>("brush");

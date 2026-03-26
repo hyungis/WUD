@@ -13,7 +13,7 @@ import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
 import { useUiStore } from "../../store/uiStore";
 import { WEEKLY_LIMIT_MESSAGE, hasWeeklyDeepEntryByType } from "../../utils/dailyLimit";
 import { getToolCursor } from "../../utils/toolCursors";
-import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, pushRecentPaintColor, saveRecentPaintColors } from "../../utils/paintColors";
+import { DEFAULT_PAINT_COLOR, PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, pushRecentPaintColor, saveRecentPaintColors } from "../../utils/paintColors";
 
 type DrawPhase = "survey" | "draw" | "result";
 
@@ -117,13 +117,13 @@ function WeeklySingleDrawView({ testType, isModal = false, onClose, onBackToWeek
   const [isWho5Skipped, setIsWho5Skipped] = useState(false);
   const [isSpaneSkipped, setIsSpaneSkipped] = useState(false);
 
-  const [paintColor, setPaintColor] = useState<string>(PAINT_PRESET_COLORS[0]);
+  const [paintColor, setPaintColor] = useState<string>(DEFAULT_PAINT_COLOR);
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const [brushSize, setBrushSize] = useState(4);
   const [tool, setTool] = useState<ToolType>("brush");
   const [activePopup, setActivePopup] = useState<string | null>(null);
-  const customColorStartRef = useRef<string>(PAINT_PRESET_COLORS[0]);
-  const customColorDraftRef = useRef<string>(PAINT_PRESET_COLORS[0]);
+  const customColorStartRef = useRef<string>(DEFAULT_PAINT_COLOR);
+  const customColorDraftRef = useRef<string>(DEFAULT_PAINT_COLOR);
   const customColorCommitTimerRef = useRef<number | null>(null);
 
   const [totalStrokes, setTotalStrokes] = useState(0);
