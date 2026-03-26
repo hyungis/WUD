@@ -5,6 +5,7 @@ import { deepApi } from "../../api/deep";
 import { imageApi } from "../../api/image";
 import type { DeepDetailResponse } from "../../types/deep";
 import HTPResultView from "./components/HTPResultView";
+import TestInfoAccordion from "../../components/shared/TestInfoAccordion";
 import { getToolCursor } from "../../utils/toolCursors";
 import { DEFAULT_PAINT_COLOR, PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, pushRecentPaintColor, saveRecentPaintColors } from "../../utils/paintColors";
 
@@ -632,9 +633,15 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
                 <h2 className="mt-4 text-3xl font-semibold text-slate-100">
                   심층 검사 전 설문
                 </h2>
-                <p className="mt-3 text-sm text-slate-300">
+                <p className="mt-3 text-sm text-slate-300 mb-6">
                   최근 2주간의 기분을 솔직하게 선택해 주세요.
                 </p>
+                <TestInfoAccordion
+                  title="WHO-5 안내"
+                  fullName="WHO-5 (World Health Organization-Five Well-Being Index)"
+                  purpose="지난 2주간 얼마나 긍정적이고 평안한 마음으로 지내셨는지, 전반적인 마음 건강 상태를 알아보기 위한 기준입니다. 이 결과를 바탕으로 우주 속 당신의 별자리에 감정의 빛을 더해줍니다."
+                  method="제시되는 5개의 질문을 읽고, '지난 2주 동안' 본인이 얼마나 자주 그렇게 느꼈는지 가장 가까운 빈도(예: 전혀 아님 ~ 항상 그럼)에 체크해 주세요."
+                />
               </div>
 
               <div className="rounded-2xl border border-white/12 bg-white/[0.06] p-4 text-left">
