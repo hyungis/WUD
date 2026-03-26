@@ -6,7 +6,7 @@ import { imageApi } from "../../api/image";
 import type { DeepDetailResponse } from "../../types/deep";
 import HTPResultView from "./components/HTPResultView";
 import { getToolCursor } from "../../utils/toolCursors";
-import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, saveRecentPaintColors } from "../../utils/paintColors";
+import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, pushRecentPaintColor, saveRecentPaintColors } from "../../utils/paintColors";
 
 type HtpStep = "house" | "tree" | "person";
 type HtpPhase = "survey" | "draw" | "result";
@@ -169,17 +169,62 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
   const [stepDrawings, setStepDrawings] = useState<Partial<Record<HtpStep, string>>>({});
   const [who5Answers, setWho5Answers] = useState<number[]>([3, 3, 3, 3, 3]);
   const [latestResult, setLatestResult] = useState<DeepDetailResponse | null>(null);
+  const customColorCommitTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    setRecentColors(getRecentPaintColors());
+    const stored = getRecentPaintColors();
+    if (stored.length > 0) {
+      setRecentColors(stored);
+      return;
+    }
+    const seeded = addRecentPaintColor(paintColor, []);
+    saveRecentPaintColors(seeded);
+    setRecentColors(seeded);
   }, []);
 
   const selectPaintColor = (color: string) => {
     setPaintColor(color);
-    const nextRecent = addRecentPaintColor(color, recentColors);
+    const nextRecent = pushRecentPaintColor(color);
     setRecentColors(nextRecent);
-    saveRecentPaintColors(nextRecent);
   };
+
+  const lastInputColorRef = useRef<string | null>(null);
+
+  const saveLastInputColor = () => {
+    const c = lastInputColorRef.current;
+    if (c !== null) {
+      lastInputColorRef.current = null;
+      selectPaintColor(c);
+    }
+  };
+
+  const handleCustomColorInput = (nextColor: string) => {
+    if (customColorCommitTimerRef.current !== null) {
+      window.clearTimeout(customColorCommitTimerRef.current);
+    }
+    lastInputColorRef.current = nextColor;
+    setPaintColor(nextColor);
+    customColorCommitTimerRef.current = window.setTimeout(() => {
+      customColorCommitTimerRef.current = null;
+      saveLastInputColor();
+    }, 400);
+  };
+
+  const flushCustomColorCommit = () => {
+    if (customColorCommitTimerRef.current !== null) {
+      window.clearTimeout(customColorCommitTimerRef.current);
+      customColorCommitTimerRef.current = null;
+    }
+    saveLastInputColor();
+  };
+
+  useEffect(() => {
+    return () => {
+      if (customColorCommitTimerRef.current !== null) {
+        window.clearTimeout(customColorCommitTimerRef.current);
+      }
+    };
+  }, []);
 
   const currentStep = STEPS[stepIndex];
 
@@ -240,6 +285,7 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
   }, []);
 
   const handlePointerDown = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
+    flushCustomColorCommit();
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext("2d");
     if (!ctx || !canvas) return;
@@ -253,7 +299,7 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
 
     isDrawingRef.current = true;
     lastPointRef.current = getPoint(event);
-  }, [tool, paintColor, getPoint]);
+  }, [tool, paintColor, getPoint, recentColors]);
 
   const handlePointerMove = useCallback((event: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
@@ -712,12 +758,11 @@ function HTPPage({ isModal = false, onClose, onBackToDeepContent }: HTPPageProps
                         <input
                           type="color"
                           value={paintColor}
-                          onInput={(event) => setPaintColor((event.target as HTMLInputElement).value)}
-                          onChange={(event) => setPaintColor((event.target as HTMLInputElement).value)}
-                          onBlur={(event) => selectPaintColor((event.target as HTMLInputElement).value)}
+                          onInput={(event) => handleCustomColorInput((event.target as HTMLInputElement).value)}
+                          onBlur={flushCustomColorCommit}
                           className="h-6 w-6 cursor-pointer rounded-full border-2 border-dashed border-white/20 bg-transparent transition hover:border-white/40"
-                          aria-label="직접 색상 선택"
-                          title="직접 색상 선택"
+                          aria-label="커스텀 색상"
+                          title="커스텀 색상"
                         />
                       </div>
                     </div>

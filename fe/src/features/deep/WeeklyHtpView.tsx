@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useCanvasDrawing } from "../../hooks/useCanvasDrawing";
@@ -9,7 +9,7 @@ import type { DeepDetailResponse } from "../../types/deep";
 import HTPResultView from "./components/HTPResultView";
 import { useAlert } from "../../components/shared/AlertProvider";
 import { useConfirm } from "../../components/shared/ConfirmProvider";
-import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, saveRecentPaintColors } from "../../utils/paintColors";
+import { PAINT_PRESET_COLORS, getRecentPaintColors, pushRecentPaintColor } from "../../utils/paintColors";
 import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
 import { getToolCursor } from "../../utils/toolCursors";
 import { useUiStore } from "../../store/uiStore";
@@ -107,6 +107,8 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
   const [brushSize, setBrushSize] = useState(4);
   const [tool, setTool] = useState<ToolType>("brush");
   const [activePopup, setActivePopup] = useState<string | null>(null);
+  const customColorCommitTimerRef = useRef<number | null>(null);
+  const lastInputColorRef = useRef<string | null>(null);
 
   const [totalStrokes, setTotalStrokes] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
@@ -199,17 +201,71 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
     }
   }, [stepIndex, phase, currentStep.key]);
 
-  const togglePopup = (name: string) => setActivePopup(prev => prev === name ? null : name);
+  const togglePopup = (name: string) => {
+    if (activePopup === "color") {
+      saveLastInputColor();
+    }
+    setActivePopup((prev) => (prev === name ? null : name));
+  };
 
   useEffect(() => {
     setRecentColors(getRecentPaintColors());
   }, []);
 
+  useEffect(() => {
+    if (activePopup !== "color") return;
+    const handleDocumentPointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest(".toolbar-popup, .toolbar-area")) return;
+      saveLastInputColor();
+      setActivePopup(null);
+    };
+    document.addEventListener("pointerdown", handleDocumentPointerDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", handleDocumentPointerDown, true);
+    };
+  }, [activePopup]);
+
+  useEffect(() => {
+    return () => {
+      if (customColorCommitTimerRef.current !== null) {
+        window.clearTimeout(customColorCommitTimerRef.current);
+      }
+    };
+  }, []);
+
   const selectPaintColor = (color: string) => {
     setPaintColor(color);
-    const nextRecent = addRecentPaintColor(color, recentColors);
+    const nextRecent = pushRecentPaintColor(color);
     setRecentColors(nextRecent);
-    saveRecentPaintColors(nextRecent);
+  };
+
+  const saveLastInputColor = () => {
+    const c = lastInputColorRef.current;
+    if (c !== null) {
+      lastInputColorRef.current = null;
+      selectPaintColor(c);
+    }
+  };
+
+  const handleCustomColorInput = (nextColor: string) => {
+    if (customColorCommitTimerRef.current !== null) {
+      window.clearTimeout(customColorCommitTimerRef.current);
+    }
+    lastInputColorRef.current = nextColor;
+    setPaintColor(nextColor);
+    customColorCommitTimerRef.current = window.setTimeout(() => {
+      customColorCommitTimerRef.current = null;
+      saveLastInputColor();
+    }, 400);
+  };
+
+  const handleCustomColorBlur = () => {
+    if (customColorCommitTimerRef.current !== null) {
+      window.clearTimeout(customColorCommitTimerRef.current);
+      customColorCommitTimerRef.current = null;
+    }
+    saveLastInputColor();
   };
 
   const handleClose = async () => {
@@ -734,9 +790,8 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
                   <input
                     type="color"
                     value={paintColor}
-                    onInput={(e) => setPaintColor((e.target as HTMLInputElement).value)}
-                    onChange={(e) => setPaintColor((e.target as HTMLInputElement).value)}
-                    onBlur={(e) => selectPaintColor((e.target as HTMLInputElement).value)}
+                    onInput={(e) => handleCustomColorInput((e.target as HTMLInputElement).value)}
+                    onBlur={handleCustomColorBlur}
                     className="absolute opacity-0 w-0 h-0"
                   />
                 </label>

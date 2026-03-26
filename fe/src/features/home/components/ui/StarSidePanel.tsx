@@ -134,6 +134,7 @@ export function StarSidePanel({
   const reportTitle = isDeep
     ? deepPages.length > 1 ? "WEEKLY 분석" : `${DEEP_TYPE_LABELS[currentPage?.deepType] ?? currentPage?.deepType ?? "HTP"} WEEKLY 분석`
     : "감정 분석 리포트";
+  const showDailyDeleteButton = isDaily && !reportLoading && !reportError && !!selectedDailyPlanet && !!onDeleteDaily;
 
   return (
     <div
@@ -180,7 +181,7 @@ export function StarSidePanel({
 
           {/* ── 본문 ── */}
           <div
-            className={`custom-scrollbar flex-1 overflow-y-auto px-5 py-4 sm:px-7 sm:py-4 ${onBack ? "pb-20 sm:pb-24" : ""}`}
+            className={`custom-scrollbar flex-1 overflow-y-auto px-5 py-4 sm:px-7 sm:py-4 ${(onBack || showDailyDeleteButton) ? "pb-20 sm:pb-24" : ""}`}
             style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.12) transparent" }}
           >
             <div className="flex flex-col gap-4">
@@ -406,27 +407,6 @@ export function StarSidePanel({
                       <p className="text-xs font-semibold text-slate-200">{emotionFromColor(selectedDailyPlanet.shell)}</p>
                       <p className="text-[11px] text-slate-500 mt-0.5">{formatDateTimeKST(selectedDailyPlanet.createdAt)}</p>
                     </div>
-                    {onDeleteDaily && (
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const dailyId = Number((selectedDailyPlanet as any).targetId ?? selectedDailyPlanet.id ?? 0);
-                          if (!dailyId) return;
-                          const ok = window.confirm("이 데일리 리포트를 삭제하시겠습니까?");
-                          if (!ok) return;
-                          try {
-                            setDeletingDailyId(dailyId);
-                            await onDeleteDaily(dailyId);
-                          } finally {
-                            setDeletingDailyId(null);
-                          }
-                        }}
-                        disabled={deletingDailyId === Number((selectedDailyPlanet as any).targetId ?? selectedDailyPlanet.id ?? 0)}
-                        className="h-9 rounded-lg border border-rose-400/25 bg-rose-500/10 px-3 text-xs font-semibold text-rose-200 transition hover:bg-rose-500/20 disabled:opacity-60"
-                      >
-                        {deletingDailyId === Number((selectedDailyPlanet as any).targetId ?? selectedDailyPlanet.id ?? 0) ? "삭제 중..." : "삭제"}
-                      </button>
-                    )}
                   </div>
 
                   {/* AI 인사이트 */}
@@ -458,6 +438,7 @@ export function StarSidePanel({
                       </div>
                     </div>
                   )}
+
                 </>
               )}
           </div>
@@ -472,6 +453,28 @@ export function StarSidePanel({
                 <path d="M15 18l-6-6 6-6" />
               </svg>
               뒤로가기
+            </button>
+          )}
+
+          {showDailyDeleteButton && (
+            <button
+              type="button"
+              onClick={async () => {
+                const dailyId = Number((selectedDailyPlanet as any).targetId ?? selectedDailyPlanet.id ?? 0);
+                if (!dailyId) return;
+                const ok = window.confirm("이 데일리 리포트를 삭제하시겠습니까?");
+                if (!ok) return;
+                try {
+                  setDeletingDailyId(dailyId);
+                  await onDeleteDaily(dailyId);
+                } finally {
+                  setDeletingDailyId(null);
+                }
+              }}
+              disabled={deletingDailyId === Number((selectedDailyPlanet as any).targetId ?? selectedDailyPlanet.id ?? 0)}
+              className="absolute bottom-4 right-5 z-20 h-9 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 text-xs font-semibold text-rose-200 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-rose-500/20 hover:shadow-[0_8px_20px_rgba(244,63,94,0.28)] active:translate-y-0 disabled:opacity-60 sm:bottom-5 sm:right-7"
+            >
+              {deletingDailyId === Number((selectedDailyPlanet as any).targetId ?? selectedDailyPlanet.id ?? 0) ? "삭제 중..." : "삭제"}
             </button>
           )}
       </div>
