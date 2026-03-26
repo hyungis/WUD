@@ -351,7 +351,9 @@ function HomePage() {
     options?: { silent?: boolean; source?: "mypage" | "scene" },
   ) => {
     if (options?.source === "mypage") {
-      setSelectedStarId(star.id);
+      const sessionIdNum = Number(star.targetId ?? star.id);
+      const matchedStar = stars.find(s => s.kind === "DEEP" && s.targetId === sessionIdNum);
+      setSelectedStarId(matchedStar?.id ?? star.id);
       setTimelineFocusNonce();
     }
     setReportError(null);
@@ -373,14 +375,23 @@ function HomePage() {
       setReportLoading(true);
     }
     try {
-      // 모든 완료/분석중 세션을 가져와 검사별 탭으로 구성
+      // 클릭한 별의 세션과 같은 주(week)의 세션들만 모아서 탭으로 구성
       const sessionsRes = await deepApi.getPastSessions();
       const allSessions = sessionsRes.success && Array.isArray(sessionsRes.data) ? sessionsRes.data : [];
 
-      // deepType별로 최신 세션만 1개씩 보여줌 (DRAFT/FAILED 제외)
+      // 클릭한 별의 weekKey 기준으로 같은 주 세션만 필터
+      const targetWeekKey = star.weekKey;
+      const sameWeekSessions = targetWeekKey
+        ? allSessions.filter((s: any) => {
+            if (s.status === "DRAFT" || s.status === "FAILED") return false;
+            const sWeekKey = normalizeWeekKey(undefined, s.createdAt);
+            return sWeekKey === targetWeekKey;
+          })
+        : [];
+
+      // deepType별로 같은 주 내 최신 세션 1개씩
       const byType = new Map<string, any>();
-      for (const s of allSessions) {
-        if (s.status === "DRAFT" || s.status === "FAILED") continue;
+      for (const s of sameWeekSessions) {
         const existing = byType.get(s.deepType);
         if (!existing || new Date(s.createdAt) > new Date(existing.createdAt)) {
           byType.set(s.deepType, s);
@@ -446,13 +457,6 @@ function HomePage() {
       });
 
       pages.sort((a, b) => (TYPE_ORDER[a.deepType] ?? 99) - (TYPE_ORDER[b.deepType] ?? 99));
-
-      // 방금 요청한 세션을 맨 앞으로 올려 즉시 해당 리포트가 보이도록 한다.
-      const targetIdx = pages.findIndex((p) => Number(p.sessionId) === sessionId);
-      if (targetIdx > 0) {
-        const [targetPage] = pages.splice(targetIdx, 1);
-        pages.unshift(targetPage);
-      }
       setDeepPages(pages);
 
       // 헤더용으로 대표 세션 데이터 설정
@@ -548,7 +552,9 @@ function HomePage() {
     options?: { source?: "mypage" | "scene" },
   ) => {
     if (options?.source === "mypage") {
-      setSelectedStarId(planet.id);
+      const dailyIdNum = Number(planet.targetId ?? planet.id);
+      const matchedStar = stars.find(s => s.kind === "DAILY" && s.targetId === dailyIdNum);
+      setSelectedStarId(matchedStar?.id ?? planet.id);
       setTimelineFocusNonce();
     }
     setReportError(null);

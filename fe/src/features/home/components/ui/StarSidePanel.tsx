@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { DailyPlanet, DeepStar } from "../../utils/homeHelpers";
 import { formatDateTimeKST } from "../../utils/homeHelpers";
 
@@ -60,8 +60,13 @@ export function StarSidePanel({
     });
   }, [deepPages.length]);
 
-  // 새 리포트를 열 때는 요청한 세션 탭으로 이동
+  // 새 별을 클릭했을 때만 해당 세션 탭으로 이동 (폴링 갱신 시에는 유지)
+  const prevStarIdRef = useRef<string | null>(null);
   useEffect(() => {
+    const starId = (selectedDeepStar as any)?.id ?? null;
+    if (starId === prevStarIdRef.current) return; // 같은 별이면 탭 유지
+    prevStarIdRef.current = starId;
+
     const targetSessionId = Number((selectedDeepStar as any)?.targetId ?? 0);
     if (!targetSessionId || !deepPages.length) return;
     const idx = deepPages.findIndex((p: any) => Number(p?.sessionId) === targetSessionId);
