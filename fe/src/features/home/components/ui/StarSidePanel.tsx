@@ -32,6 +32,7 @@ interface StarSidePanelProps {
   deepPages?: any[];
   onRefresh?: () => void;
   onDeleteDaily?: (dailyId: number) => Promise<void> | void;
+  onDeleteDeepSession?: (sessionId: number) => Promise<void> | void;
 }
 
 export function StarSidePanel({
@@ -45,9 +46,11 @@ export function StarSidePanel({
   deepPages = [],
   onRefresh,
   onDeleteDaily,
+  onDeleteDeepSession,
 }: StarSidePanelProps) {
   const [pageIdx, setPageIdx] = useState(0);
   const [deletingDailyId, setDeletingDailyId] = useState<number | null>(null);
+  const [deletingDeepSessionId, setDeletingDeepSessionId] = useState<number | null>(null);
 
   // deepPages 갱신 시 사용자가 보던 탭을 유지하고, 범위를 벗어나면 마지막 탭으로 보정
   useEffect(() => {
@@ -135,6 +138,7 @@ export function StarSidePanel({
     ? deepPages.length > 1 ? "WEEKLY 분석" : `${DEEP_TYPE_LABELS[currentPage?.deepType] ?? currentPage?.deepType ?? "HTP"} WEEKLY 분석`
     : "감정 분석 리포트";
   const showDailyDeleteButton = isDaily && !reportLoading && !reportError && !!selectedDailyPlanet && !!onDeleteDaily;
+  const showDeepDeleteButton = isDeep && !reportLoading && !reportError && !!currentPage && !!onDeleteDeepSession && currentPage.status !== "ANALYZING" && currentPage.status !== "SUBMITTED";
 
   return (
     <div
@@ -384,6 +388,31 @@ export function StarSidePanel({
                 </>
               )}
 
+              {/* ═══ DEEP 검사 삭제 버튼 ═══ */}
+              {showDeepDeleteButton && currentPage && (
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const sid = Number(currentPage.sessionId ?? 0);
+                      if (!sid) return;
+                      const typeName = DEEP_TYPE_LABELS[currentPage.deepType] ?? currentPage.deepType;
+                      const ok = window.confirm(`${typeName} 검사를 삭제하시겠습니까?`);
+                      if (!ok) return;
+                      try {
+                        setDeletingDeepSessionId(sid);
+                        await onDeleteDeepSession!(sid);
+                      } finally {
+                        setDeletingDeepSessionId(null);
+                      }
+                    }}
+                    disabled={deletingDeepSessionId === Number(currentPage.sessionId ?? 0)}
+                    className="h-9 rounded-lg border border-rose-400/30 bg-rose-500/10 px-3 text-xs font-semibold text-rose-200 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:bg-rose-500/20 hover:shadow-[0_8px_20px_rgba(244,63,94,0.28)] active:translate-y-0 disabled:opacity-60"
+                  >
+                    {deletingDeepSessionId === Number(currentPage.sessionId ?? 0) ? "삭제 중..." : `${DEEP_TYPE_LABELS[currentPage.deepType] ?? "검사"} 삭제`}
+                  </button>
+                </div>
+              )}
               {/* ═══ DAILY PLANET ═══ */}
               {isDaily && !reportLoading && !reportError && selectedDailyPlanet && (
                 <>
