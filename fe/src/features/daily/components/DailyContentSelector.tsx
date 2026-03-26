@@ -402,18 +402,14 @@ export default function DailyContentSelector({ isModal = false, onClose }: Daily
   const { showConfirm } = useConfirm();
 
   const handleCloseAttempt = async () => {
-    if (step > 0) {
-      const confirmed = await showConfirm({
-        title: "작업 중단",
-        message: "현재 진행 중인 정보가 사라집니다. 정말로 나가시겠습니까?",
-        confirmText: "나가기",
-        cancelText: "계속하기",
-        type: "danger",
-      });
-      if (confirmed) {
-        onClose();
-      }
-    } else {
+    const confirmed = await showConfirm({
+      title: "작업 중단",
+      message: "현재 진행 중인 정보가 사라집니다. 정말로 나가시겠습니까?",
+      confirmText: "나가기",
+      cancelText: "계속하기",
+      type: "danger",
+    });
+    if (confirmed) {
       onClose();
     }
   };
