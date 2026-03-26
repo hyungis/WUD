@@ -350,6 +350,10 @@ function HomePage() {
     star: DeepStar & { targetId?: number; aiSummary?: string; questions?: string[]; deepType?: string },
     options?: { silent?: boolean; source?: "mypage" | "scene" },
   ) => {
+    if (options?.source === "mypage") {
+      setSelectedStarId(star.id);
+      setTimelineFocusNonce();
+    }
     setReportError(null);
     setSelectedDeepStar(star);
     setSelectedDailyPlanet(null);
@@ -543,6 +547,10 @@ function HomePage() {
     planet: DailyPlanet & { targetId?: number; aiSummary?: string },
     options?: { source?: "mypage" | "scene" },
   ) => {
+    if (options?.source === "mypage") {
+      setSelectedStarId(planet.id);
+      setTimelineFocusNonce();
+    }
     setReportError(null);
     setSelectedDailyPlanet(planet);
     setSelectedDeepStar(null);
