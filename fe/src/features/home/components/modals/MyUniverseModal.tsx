@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import type { DailyPlanet, DeepStar } from "../../utils/homeHelpers";
 import { getWeekKey, formatDate } from "../../utils/homeHelpers";
 import { useAuthStore } from "../../../../store/authStore";
+import SmallStarView from "../../../../components/shared/SmallStarView";
 import { useCustomStarStore, STAR_SHAPES, STAR_COLORS } from "../../../../store/customStarStore";
 import { userApi } from "../../../../api/user";
 import { dailyApi } from "../../../../api/daily";
@@ -945,18 +946,9 @@ export function MyUniverseModal({
           />
 
           <div className="flex items-center gap-4 relative z-10 mb-5">
-            {/* 아바타 */}
-            <div className="relative flex-shrink-0">
-              <div
-                className="h-12 w-12 rounded-xl flex items-center justify-center text-lg font-bold text-white"
-                style={{ background: `linear-gradient(135deg, ${displayToneColor}88, ${displayToneColor}33)` }}
-              >
-                {displayName.slice(0, 1)}
-              </div>
-              <div
-                className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#0a0a0f]"
-                style={{ backgroundColor: displayToneColor }}
-              />
+            {/* 아바타 (커스텀 별) */}
+            <div className="relative flex-shrink-0 h-14 w-14 rounded-2xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
+              <SmallStarView />
             </div>
 
             <div className="flex-1 min-w-0">
