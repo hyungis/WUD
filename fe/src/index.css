@@ -110,6 +110,20 @@
   100% { opacity: 0; }
 }
 
+/* 로고 텍스트 스타일 */
+.logo-text {
+  font-family: 'Audiowide', cursive;
+  font-size: 1.25rem;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  color: #ffffff;
+  text-transform: uppercase;
+  text-shadow: 
+    0 0 10px rgba(255, 255, 255, 0.4),
+    0 0 20px rgba(129, 140, 248, 0.3);
+  user-select: none;
+}
+
 body {
   font-family: "Noto Sans KR", "Pretendard", sans-serif;
   margin: 0;
