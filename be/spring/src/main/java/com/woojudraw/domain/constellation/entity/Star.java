@@ -5,6 +5,7 @@ import java.time.OffsetDateTime;
 import com.woojudraw.domain.daily.entity.Daily;
 import com.woojudraw.domain.deep.entity.DeepSession;
 import com.woojudraw.domain.user.entity.User;
+import com.woojudraw.global.time.AppTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -115,5 +116,10 @@ public class Star {
 
 	void attachTo(Constellation constellation) {
 		this.constellation = constellation;
+	}
+
+	public void reassignDeepSession(DeepSession newSession) {
+		this.deepSession = newSession;
+		this.updatedAt = AppTime.nowKst();
 	}
 }

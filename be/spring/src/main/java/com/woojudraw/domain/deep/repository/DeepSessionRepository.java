@@ -24,4 +24,6 @@ public interface DeepSessionRepository extends JpaRepository<DeepSession, Long> 
 		Collection<DeepStatus> statuses,
 		OffsetDateTime after
 	);
+
+	List<DeepSession> findAllByUser_IdAndStatusAndIdNot(Long userId, DeepStatus status, Long excludeId);
 }

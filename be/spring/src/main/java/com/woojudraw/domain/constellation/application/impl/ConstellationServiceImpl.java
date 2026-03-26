@@ -123,6 +123,17 @@ public class ConstellationServiceImpl implements ConstellationService {
 	}
 
 	@Override
+	public void reassignOrDeleteDeepStar(Long deepSessionId, DeepSession fallbackSession) {
+		starRepository.findByDeepSession_Id(deepSessionId).ifPresent(star -> {
+			if (fallbackSession != null) {
+				star.reassignDeepSession(fallbackSession);
+			} else {
+				deleteStarAndEmptyConstellationIfNeeded(star);
+			}
+		});
+	}
+
+	@Override
 	public void deleteDailyStarIfExists(Long dailyId) {
 		starRepository.findByDailyEntry_Id(dailyId)
 			.ifPresent(this::deleteStarAndEmptyConstellationIfNeeded);
