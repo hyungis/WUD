@@ -488,7 +488,7 @@ function DailyColoringView({ isModal = false, onClose, onBackToContent, onComple
 
           {/* 캔버스 래퍼 */}
           <div
-            className="relative h-[min(88vw,calc(100dvh-180px))] w-[min(88vw,calc(100dvh-180px))] max-h-[760px] max-w-[760px] rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_16px_64px_rgba(0,0,0,0.5)] bg-white shrink-0 mt-2 mx-auto"
+            className="relative h-[min(88vw,calc(100dvh-180px))] w-[min(88vw,calc(100dvh-180px))] max-h-[760px] max-w-[760px] rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_16px_64px_rgba(0,0,0,0.5)] bg-white shrink-0 mt-2 mx-auto transform-gpu"
           >
             <div onPointerDown={closeActivePopup} className="h-full w-full">
               <DailyColoringCanvas drawing={drawing} tool={tool} paintColor={paintColor} outlineUrl={selectedMasterpiece.url} brushSize={brushSize} boundaryCanvasRef={boundaryCanvasRef} />

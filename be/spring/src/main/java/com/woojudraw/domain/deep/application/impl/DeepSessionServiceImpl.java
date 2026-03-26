@@ -421,22 +421,41 @@ public class DeepSessionServiceImpl implements DeepSessionService {
 			throw new BusinessException(ResponseCode.DEEP_SESSION_ACCESS_DENIED);
 		}
 
-		constellationService.deleteDeepStarIfExists(sessionId);
-		deepResultRepository.findByDeepSession_Id(sessionId)
-			.ifPresent(deepResultRepository::delete);
+		// 같은 유저의 DONE 상태인 다른 세션 중 같은 주차에 속하는 세션 찾기
+		DeepSession fallbackSession = findFallbackSessionInSameWeek(userId, sessionId, deepSession);
 
-		List<DeepSubmission> submissions = deepSubmissionRepository.findAllByDeepSession_IdOrderByIdAsc(sessionId);
-		if (!submissions.isEmpty()) {
-			deepSubmissionRepository.deleteAllInBatch(submissions);
-		}
+		// 별 재할당 또는 삭제 (먼저 flush하여 Star FK 변경을 DB에 반영)
+		constellationService.reassignOrDeleteDeepStar(sessionId, fallbackSession);
 
-		List<DeepPsychAssessment> psychAssessments = deepPsychAssessmentRepository
-			.findAllByDeepSession_IdOrderByIdAsc(sessionId);
-		if (!psychAssessments.isEmpty()) {
-			deepPsychAssessmentRepository.deleteAllInBatch(psychAssessments);
-		}
+		// DeepResult를 명시적으로 분리 (cascade 이전에 처리)
+		deepSession.assignDeepResult(null);
+
+		// 컬렉션을 비워서 orphanRemoval이 자식 삭제를 처리하게 함
+		deepSession.getSubmissions().clear();
+		deepSession.getPsychAssessments().clear();
 
 		deepSessionRepository.delete(deepSession);
+		deepSessionRepository.flush();
+	}
+
+	private DeepSession findFallbackSessionInSameWeek(Long userId, Long sessionId, DeepSession deepSession) {
+		if (deepSession.getCreatedAt() == null) {
+			return null;
+		}
+		LocalDate weekStart = getWeekStartDate(deepSession.getCreatedAt().toLocalDate());
+		LocalDate weekEnd = weekStart.plusDays(7);
+
+		List<DeepSession> candidates = deepSessionRepository
+			.findAllByUser_IdAndStatusAndIdNot(userId, DeepStatus.DONE, sessionId);
+
+		return candidates.stream()
+			.filter(s -> s.getCreatedAt() != null)
+			.filter(s -> {
+				LocalDate d = s.getCreatedAt().toLocalDate();
+				return !d.isBefore(weekStart) && d.isBefore(weekEnd);
+			})
+			.findFirst()
+			.orElse(null);
 	}
 
 	private void validateWho5Answers(SubmitWho5Req request) {

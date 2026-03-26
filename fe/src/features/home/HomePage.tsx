@@ -721,6 +721,30 @@ function HomePage() {
     }
   };
 
+  const handleDeleteDeepSession = async (sessionId: number) => {
+    try {
+      setReportError(null);
+      setReportLoading(true);
+      await deepApi.deleteSession(sessionId);
+
+      const remainingPages = deepPages.filter((p: any) => Number(p.sessionId) !== sessionId);
+      setDeepPages(remainingPages);
+
+      if (remainingPages.length === 0) {
+        // 마지막 검사 삭제 → 패널 닫기 + 별 새로고침
+        setSelectedDeepStar(null);
+        setSelectedDailyPlanet(null);
+        setIsSidePanelOpen(false);
+      }
+
+      await fetchStarMap();
+    } catch (e) {
+      setReportError(getApiErrorMessage(e, "검사를 삭제하지 못했습니다."));
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!selectedStarId && mypageStar) {
       setSelectedStarId(mypageStar.id);
@@ -999,6 +1023,7 @@ function HomePage() {
         deepPages={deepPages}
         onRefresh={selectedDeepStar ? () => void openDeepReport(selectedDeepStar as any, { silent: true }) : undefined}
         onDeleteDaily={handleDeleteDaily}
+        onDeleteDeepSession={handleDeleteDeepSession}
       />
 
       <MyUniverseModal

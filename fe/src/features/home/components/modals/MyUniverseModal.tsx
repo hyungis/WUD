@@ -926,7 +926,7 @@ export function MyUniverseModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex pointer-events-auto"
+      className="fixed inset-0 z-[70] flex pointer-events-auto"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       {/* 좌측 투명 영역 (별이 보임) */}

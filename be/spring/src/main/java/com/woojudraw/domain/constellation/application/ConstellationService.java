@@ -14,6 +14,8 @@ public interface ConstellationService {
 
 	void deleteDeepStarIfExists(Long deepSessionId);
 
+	void reassignOrDeleteDeepStar(Long deepSessionId, DeepSession fallbackSession);
+
 	void deleteDailyStarIfExists(Long dailyId);
 
 	GetCenterStarResp getCenterStar(Long userId);
