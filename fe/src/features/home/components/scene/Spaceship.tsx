@@ -50,17 +50,12 @@ export function Spaceship({
       setKeys(prev => ({ ...prev, [e.code]: true }));
     };
     const handleKeyUp = (e: KeyboardEvent) => setKeys(prev => ({ ...prev, [e.code]: false }));
-    const handleMouseDown = (e: MouseEvent) => {
-      if (e.button === 0) fireLaser();
-    };
-
+    
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("keyup", handleKeyUp);
-    window.addEventListener("mousedown", handleMouseDown);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
-      window.removeEventListener("mousedown", handleMouseDown);
     };
   }, []);
 
@@ -102,10 +97,10 @@ export function Spaceship({
     let targetYaw = 0;
     let targetRoll = 0;
 
-    if (keys["ArrowUp"] || keys["KeyW"]) targetPitch = -ROTATION_SPEED;
-    if (keys["ArrowDown"] || keys["KeyS"]) targetPitch = ROTATION_SPEED;
-    if (keys["ArrowLeft"] || keys["KeyA"]) targetYaw = ROTATION_SPEED;
-    if (keys["ArrowRight"] || keys["KeyD"]) targetYaw = -ROTATION_SPEED;
+    if (keys["ArrowUp"]) targetPitch = -ROTATION_SPEED;
+    if (keys["ArrowDown"]) targetPitch = ROTATION_SPEED;
+    if (keys["ArrowLeft"]) targetYaw = ROTATION_SPEED;
+    if (keys["ArrowRight"]) targetYaw = -ROTATION_SPEED;
     
     // 회전 속도 보간 (더 부드럽게)
     rotationVelocity.current.x += (targetPitch - rotationVelocity.current.x) * dt * 3;
