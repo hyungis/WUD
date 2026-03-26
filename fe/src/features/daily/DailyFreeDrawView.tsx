@@ -7,7 +7,7 @@ import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
 import { useAlert } from "../../components/shared/AlertProvider";
 import { useConfirm } from "../../components/shared/ConfirmProvider";
 import { DAILY_LIMIT_MESSAGE, hasTodayDailyEntryByType } from "../../utils/dailyLimit";
-import { PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, pushRecentPaintColor, saveRecentPaintColors } from "../../utils/paintColors";
+import { DEFAULT_PAINT_COLOR, PAINT_PRESET_COLORS, addRecentPaintColor, getRecentPaintColors, pushRecentPaintColor, saveRecentPaintColors } from "../../utils/paintColors";
 import { useUiStore } from "../../store/uiStore";
 import { getToolCursor } from "../../utils/toolCursors";
 
@@ -62,7 +62,7 @@ export default function DailyFreeDrawView({ isModal = false, onClose, onBackToCo
   } = useUiStore();
 
   const [shellColor] = useState(() => localStorage.getItem("dailyMoodColor") || PALETTE[0]);
-  const [paintColor, setPaintColor] = useState<string>(PAINT_PRESET_COLORS[0]);
+  const [paintColor, setPaintColor] = useState<string>(DEFAULT_PAINT_COLOR);
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const [brushSize, setBrushSize] = useState(6);
   const [tool, setTool] = useState<ToolType>("brush");
@@ -88,8 +88,8 @@ export default function DailyFreeDrawView({ isModal = false, onClose, onBackToCo
     setRecentColors(nextRecent);
   };
 
-  const customColorStartRef = useRef<string>(PAINT_PRESET_COLORS[0]);
-  const customColorDraftRef = useRef<string>(PAINT_PRESET_COLORS[0]);
+  const customColorStartRef = useRef<string>(DEFAULT_PAINT_COLOR);
+  const customColorDraftRef = useRef<string>(DEFAULT_PAINT_COLOR);
   const customColorCommitTimerRef = useRef<number | null>(null);
 
   const handleCustomColorFocus = () => {

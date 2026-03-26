@@ -1,4 +1,7 @@
 export const PAINT_PRESET_COLORS = [
+  "#000000",
+  "#808080",
+  "#FFFFFF",
   "#FF0000",
   "#FF7F00",
   "#FFFF00",
@@ -7,6 +10,8 @@ export const PAINT_PRESET_COLORS = [
   "#000080",
   "#8B00FF",
 ] as const;
+
+export const DEFAULT_PAINT_COLOR = "#000000";
 
 const RECENT_COLORS_KEY = "recentPaintColors";
 const MAX_RECENT_COLORS = 10;
