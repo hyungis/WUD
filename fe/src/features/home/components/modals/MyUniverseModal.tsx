@@ -491,15 +491,16 @@ export function MyUniverseModal({
   const emotionRatioSource = dailyPlanets.reduce<Record<string, number>>((acc, planet) => {
     const colorKey = (planet.shell || "").toUpperCase();
     if (!colorKey) return acc;
-    acc[colorKey] = (acc[colorKey] || 0) + 1;
+    const label = emotionFromColor(colorKey);
+    acc[label] = (acc[label] || 0) + 1;
     return acc;
   }, {});
 
   const totalEmotionCount = Object.values(emotionRatioSource).reduce((sum, count) => sum + count, 0);
   const emotionRatioItems: EmotionRatioItem[] = Object.entries(emotionRatioSource)
-    .map(([color, count]) => ({
-      color,
-      label: emotionFromColor(color),
+    .map(([label, count]) => ({
+      color: emotionLabelToColor(label),
+      label,
       count,
       ratio: (count / Math.max(totalEmotionCount, 1)) * 100,
     }))
