@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { DailyPlanet, DeepStar } from "../../utils/homeHelpers";
 import { formatDateTimeKST } from "../../utils/homeHelpers";
+import { useConfirm } from "../../../../components/shared/ConfirmProvider";
 
 const DEEP_TYPE_LABELS: Record<string, string> = {
   HTP: "HTP",
@@ -48,6 +49,7 @@ export function StarSidePanel({
   onDeleteDaily,
   onDeleteDeepSession,
 }: StarSidePanelProps) {
+  const { showConfirm } = useConfirm();
   const [pageIdx, setPageIdx] = useState(0);
   const [deletingDailyId, setDeletingDailyId] = useState<number | null>(null);
   const [deletingDeepSessionId, setDeletingDeepSessionId] = useState<number | null>(null);
@@ -397,8 +399,14 @@ export function StarSidePanel({
                       const sid = Number(currentPage.sessionId ?? 0);
                       if (!sid) return;
                       const typeName = DEEP_TYPE_LABELS[currentPage.deepType] ?? currentPage.deepType;
-                      const ok = window.confirm(`${typeName} 검사를 삭제하시겠습니까?`);
-                      if (!ok) return;
+                      const confirmed = await showConfirm({
+                        title: "검사 삭제",
+                        message: `${typeName} 검사를 삭제하시겠습니까?`,
+                        confirmText: "삭제하기",
+                        cancelText: "취소",
+                        type: "danger",
+                      });
+                      if (!confirmed) return;
                       try {
                         setDeletingDeepSessionId(sid);
                         await onDeleteDeepSession!(sid);
@@ -491,8 +499,14 @@ export function StarSidePanel({
               onClick={async () => {
                 const dailyId = Number((selectedDailyPlanet as any).targetId ?? selectedDailyPlanet.id ?? 0);
                 if (!dailyId) return;
-                const ok = window.confirm("이 데일리 리포트를 삭제하시겠습니까?");
-                if (!ok) return;
+                const confirmed = await showConfirm({
+                  title: "리포트 삭제",
+                  message: "이 데일리 리포트를 삭제하시겠습니까?",
+                  confirmText: "삭제하기",
+                  cancelText: "취소",
+                  type: "danger",
+                });
+                if (!confirmed) return;
                 try {
                   setDeletingDailyId(dailyId);
                   await onDeleteDaily(dailyId);
