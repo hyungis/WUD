@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { DrawingCanvas } from "../../../components/shared/DrawingCanvas";
 import { useCanvasDrawing } from "../../../hooks/useCanvasDrawing";
 import type { ToolType } from "../../../hooks/useCanvasDrawing";
@@ -21,7 +21,7 @@ export function DailyColoringCanvas({
   brushSize,
   boundaryCanvasRef,
 }: DailyColoringCanvasProps) {
-  const cursor = getToolCursor(tool, paintColor, 18 + brushSize * 2);
+  const cursor = useMemo(() => getToolCursor(tool, paintColor, 18 + brushSize * 2), [tool, paintColor, brushSize]);
   const hasLoadedRef = useRef(false);
 
   // 명화 윤곽선 이미지를 상단 boundaryCanvas에 로드 및 리사이즈 감지

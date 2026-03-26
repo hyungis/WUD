@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useCanvasDrawing } from "../../hooks/useCanvasDrawing";
@@ -69,7 +69,7 @@ export default function DailyFreeDrawView({ isModal = false, onClose, onBackToCo
   const [activePopup, setActivePopup] = useState<string | null>(null);
 
   const drawing = useCanvasDrawing({ paintColor, brushSize, tool, symmetry: 1 });
-  const cursor = getToolCursor(tool, paintColor, 18 + brushSize * 2);
+  const cursor = useMemo(() => getToolCursor(tool, paintColor, 18 + brushSize * 2), [tool, paintColor, brushSize]);
 
   useEffect(() => {
     const stored = getRecentPaintColors();
@@ -468,7 +468,7 @@ export default function DailyFreeDrawView({ isModal = false, onClose, onBackToCo
 
           {/* 캔버스 래퍼 (정방형) */}
           <div
-            className="group relative h-[min(88vw,calc(100dvh-180px))] w-[min(88vw,calc(100dvh-180px))] max-h-[760px] max-w-[760px] rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_16px_64px_rgba(0,0,0,0.5)] bg-white shrink-0 mt-2 mx-auto"
+            className="group relative h-[min(88vw,calc(100dvh-180px))] w-[min(88vw,calc(100dvh-180px))] max-h-[760px] max-w-[760px] rounded-2xl overflow-hidden ring-1 ring-white/10 shadow-[0_16px_64px_rgba(0,0,0,0.5)] bg-white shrink-0 mt-2 mx-auto transform-gpu"
           >
             <DrawingCanvas
               canvasRef={drawing.canvasRef}
