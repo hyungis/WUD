@@ -11,6 +11,7 @@ import { useAlert } from "../../components/shared/AlertProvider";
 import { useConfirm } from "../../components/shared/ConfirmProvider";
 import { PAINT_PRESET_COLORS, getRecentPaintColors, pushRecentPaintColor } from "../../utils/paintColors";
 import { DrawingCanvas } from "../../components/shared/DrawingCanvas";
+import TestInfoAccordion from "../../components/shared/TestInfoAccordion";
 import { getToolCursor } from "../../utils/toolCursors";
 import { useUiStore } from "../../store/uiStore";
 import { WEEKLY_LIMIT_MESSAGE, hasWeeklyDeepEntryByType } from "../../utils/dailyLimit";
@@ -609,16 +610,32 @@ function WeeklyHtpView({ isModal = false, onClose, onBackToWeeklyContent, onSave
                 </div>
 
                 <h2 className="text-xl sm:text-2xl font-bold text-white mb-2 leading-tight">
-                  {surveyPageIndex === 0 ? "WHO-5: 지난 2주 동안, 당신의 마음은 어떠했나요?" : "SPANE: 최근 당신은 이러한 감정들을 얼마나 자주 느꼈나요?"}
+                  {surveyPageIndex === 0 ? "WHO-5: 지난 2주 동안, 당신의 마음은 어땠나요?" : "SPANE: 최근 당신은 이러한 감정들을 얼마나 자주 느꼈나요?"}
                 </h2>
 
-                <div className="space-y-1">
+                <div className="space-y-1 mb-4">
                   <p className="text-[13px] text-zinc-300 font-medium">
                     {surveyPageIndex === 0
                       ? "각 문항을 읽고 자신에게 가장 해당되는 점수를 선택해 주세요."
                       : "제시된 감정어들이 본인에게 나타난 빈도를 선택해 주세요."}
                   </p>
                 </div>
+
+                {surveyPageIndex === 0 ? (
+                  <TestInfoAccordion
+                    title="WHO-5 안내"
+                    fullName="WHO-5 (World Health Organization-Five Well-Being Index)"
+                    purpose="지난 2주간 얼마나 긍정적이고 평안한 마음으로 지내셨는지, 전반적인 마음 건강 상태를 알아보기 위한 기준입니다. 이 결과를 바탕으로 우주 속 당신의 별자리에 감정의 빛을 더해줍니다."
+                    method="제시되는 5개의 질문을 읽고, '지난 2주 동안' 본인이 얼마나 자주 그렇게 느꼈는지 가장 가까운 빈도(예: 전혀 아님 ~ 항상 그럼)에 체크해 주세요."
+                  />
+                ) : (
+                  <TestInfoAccordion
+                    title="감정 스펙트럼 안내 (SPANE)"
+                    fullName="SPANE (Scale of Positive and Negative Experience)"
+                    purpose="최근 4주 동안 긍정적인 감정과 부정적인 감정을 얼마나 자주 경험했는지 돌아보는 시간입니다. 다양한 감정의 모양과 색깔을 이해하고, 내면의 균형을 확인하기 위해 진행합니다."
+                    method="12가지 감정 단어를 보며, '최근 4주 동안' 각 감정을 얼마나 자주 느끼셨는지 빈도를 솔직하게 선택해 주세요."
+                  />
+                )}
               </div>
 
               {/* 설문 리스트 그리드 */}
