@@ -288,6 +288,36 @@ function CustomizeTabContent({ cardCls, labelCls }: { cardCls: string; labelCls:
 
   return (
     <div className="space-y-4">
+      {/* 현재 선택 미리보기 + 저장 */}
+      <div className={cardCls}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className="h-8 w-8 rounded-lg"
+              style={{
+                backgroundColor: currentColor,
+                boxShadow: `0 0 16px ${currentColor}44`,
+              }}
+            />
+            <div>
+              <p className="text-xs text-white font-medium">
+                {STAR_SHAPES.find((s) => s.key === currentShape)?.label} · {STAR_COLORS.find((c) => c.hex.toLowerCase() === currentColor.toLowerCase())?.label || "나만의 색상"}
+              </p>
+              <p className="text-[10px] text-zinc-600 mt-0.5">변경사항은 저장 후 유지됩니다</p>
+            </div>
+          </div>
+          <button
+            onClick={handleSave}
+            className={`rounded-lg px-4 py-2 text-xs font-medium transition-all duration-300 ${saved
+              ? "bg-emerald-500/20 border border-emerald-400/30 text-emerald-300"
+              : "bg-white/[0.08] border border-white/[0.1] text-white hover:bg-white/[0.14] hover:border-white/[0.2]"
+              }`}
+          >
+            {saved ? "✓ 저장됨" : "저장하기"}
+          </button>
+        </div>
+      </div>
+
       {/* 모양 선택 */}
       <div className={cardCls}>
         <p className={labelCls}>모양 선택</p>
@@ -330,10 +360,10 @@ function CustomizeTabContent({ cardCls, labelCls }: { cardCls: string; labelCls:
         </div>
 
         <div className="space-y-4">
-          {/* 가로 스펙트럼 그리드 */}
-          <div className="grid grid-cols-10 gap-1.5 p-1 bg-black/20 rounded-xl border border-white/[0.05]">
+          {/* 가로 스펙트럼 그리드 (최적화) */}
+          <div className="grid grid-cols-10 gap-1 p-1 bg-black/20 rounded-lg border border-white/[0.05]">
             {PALETTE_HUES.map((h) => (
-              <div key={h} className="flex flex-col gap-1.5">
+              <div key={h} className="flex flex-col gap-1">
                 {PALETTE_LIGHTNESS.map((l) => {
                   const hex = hslToHex(h, 85, l);
                   const isActive = currentColor.toLowerCase() === hex;
@@ -343,11 +373,11 @@ function CustomizeTabContent({ cardCls, labelCls }: { cardCls: string; labelCls:
                       whileHover={{ scale: 1.15, zIndex: 10 }}
                       whileTap={{ scale: 0.9 }}
                       onClick={() => setColor(hex)}
-                      className={`relative w-full aspect-square rounded-md transition-shadow duration-300 ${isActive ? "ring-2 ring-white ring-offset-2 ring-offset-[#0a0a0f] z-10" : ""
+                      className={`relative w-full h-4 rounded-sm transition-shadow duration-300 ${isActive ? "ring-1.5 ring-white ring-offset-1 ring-offset-[#0a0a0f] z-10" : ""
                         }`}
                       style={{
                         backgroundColor: hex,
-                        boxShadow: isActive ? `0 0 15px ${hex}88` : "none",
+                        boxShadow: isActive ? `0 0 10px ${hex}aa` : "none",
                       }}
                     >
                       {isActive && (
@@ -355,7 +385,7 @@ function CustomizeTabContent({ cardCls, labelCls }: { cardCls: string; labelCls:
                           layoutId="active-dot"
                           className="absolute inset-0 flex items-center justify-center"
                         >
-                          <div className="w-1.5 h-1.5 rounded-full bg-white shadow-sm" />
+                          <div className="w-1 h-1 rounded-full bg-white shadow-sm" />
                         </motion.div>
                       )}
                     </motion.button>
@@ -404,35 +434,6 @@ function CustomizeTabContent({ cardCls, labelCls }: { cardCls: string; labelCls:
         </div>
       </div>
 
-      {/* 현재 선택 미리보기 + 저장 */}
-      <div className={cardCls}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div
-              className="h-8 w-8 rounded-lg"
-              style={{
-                backgroundColor: currentColor,
-                boxShadow: `0 0 16px ${currentColor}44`,
-              }}
-            />
-            <div>
-              <p className="text-xs text-white font-medium">
-                {STAR_SHAPES.find((s) => s.key === currentShape)?.label} · {STAR_COLORS.find((c) => c.hex.toLowerCase() === currentColor.toLowerCase())?.label || "나만의 색상"}
-              </p>
-              <p className="text-[10px] text-zinc-600 mt-0.5">변경사항은 저장 후 유지됩니다</p>
-            </div>
-          </div>
-          <button
-            onClick={handleSave}
-            className={`rounded-lg px-4 py-2 text-xs font-medium transition-all duration-300 ${saved
-              ? "bg-emerald-500/20 border border-emerald-400/30 text-emerald-300"
-              : "bg-white/[0.08] border border-white/[0.1] text-white hover:bg-white/[0.14] hover:border-white/[0.2]"
-              }`}
-          >
-            {saved ? "✓ 저장됨" : "저장하기"}
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
