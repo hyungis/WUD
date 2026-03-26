@@ -751,7 +751,8 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, isVisible = false,
 
   useFrame((state, delta) => {
     if (!lineRef.current?.material) return;
-    if (freezeMotion) return;
+    // freezeMotion이어도 선택된(isVisible) 별자리는 opacity 업데이트 허용
+    if (freezeMotion && !isVisible && !isHovered) return;
 
     const dt = Math.min(delta, 0.1);
 
@@ -762,6 +763,10 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, isVisible = false,
       // 마우스를 올렸을 때는 무조건 뚜렷하게 점등
       goalOpacity = 0.9;
       goalWidth = 1.5;
+    } else if (isVisible) {
+      // 선택된 별자리 (달력/마이페이지에서 이동 시) — 뚜렷하게 표시
+      goalOpacity = 0.55;
+      goalWidth = 1.2;
     } else {
       const time = state.clock.elapsedTime;
       // 속도를 낮추어 매우 천천히 파동이 지나가게 설정
@@ -781,19 +786,17 @@ function AnimatedConstellationLine({ weekKey, pts, isHovered, isVisible = false,
         // Smoothstep 공식을 통해 곡선의 양 끝을 둥글게 깎아 은은한 페이드 인/아웃 생성
         const smooth = normalized * normalized * (3 - 2 * normalized);
 
-        // 선택/표시 중인 선은 약하게 항상 보이고, 파동으로 추가 강조
-        const baseOpacity = isVisible ? 0.12 : (lowCountMode ? 0.08 : 0.02);
+        const baseOpacity = lowCountMode ? 0.08 : 0.02;
         goalOpacity = baseOpacity + (smooth * 0.33);
         goalWidth = 0.8 + (smooth * 0.2);
       } else {
-        // 선택/표시 중인 선은 파동이 없어도 희미하게 유지
-        goalOpacity = isVisible ? 0.12 : (lowCountMode ? 0.08 : 0.0);
+        goalOpacity = lowCountMode ? 0.08 : 0.0;
         goalWidth = 0.8;
       }
     }
 
-    // 보간(Lerp) 속도. 평상시에는 dt * 0.5를 사용하여 목표값으로 스르륵 이동하게 만듦
-    const lerpSpeed = isHovered ? dt * 4.0 : dt * 0.5;
+    // 보간(Lerp) 속도
+    const lerpSpeed = isHovered ? dt * 4.0 : isVisible ? dt * 3.0 : dt * 0.5;
 
     currentOpacity.current += (goalOpacity - currentOpacity.current) * lerpSpeed;
     currentLineWidth.current += (goalWidth - currentLineWidth.current) * lerpSpeed;

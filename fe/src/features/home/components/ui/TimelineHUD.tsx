@@ -93,47 +93,58 @@ export function TimelineHUD({
     return groups;
   }, [calendarGrid, timelineItems]);
 
-  // 외부에서 특정 별/주차를 선택하면, 해당 날짜가 속한 월로 달력을 먼저 이동시킨다.
+  // selectedWeekKey가 바뀔 때만 해당 월로 달력 이동 + 해당 행 활성화
+  // (사용자가 수동으로 달을 넘길 때 되돌아가지 않도록 currentMonth는 deps에서 제외)
+  const currentMonthRef = useRef(currentMonth);
+  currentMonthRef.current = currentMonth;
+
   useEffect(() => {
-    if (!selectedWeekKey) return;
+    if (!selectedWeekKey) {
+      if (rowGroups.size > 0 && !activeWeekKey) {
+        setActiveWeekKey(Array.from(rowGroups.keys())[0]);
+      }
+      return;
+    }
+
     const matchItem = timelineItems.find((it) => it.weekKey === selectedWeekKey);
     if (!matchItem?.createdAt) return;
 
     const selectedDate = new Date(matchItem.createdAt);
     if (Number.isNaN(selectedDate.getTime())) return;
 
+    const cur = currentMonthRef.current;
     const targetMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
     if (
-      targetMonth.getFullYear() !== currentMonth.getFullYear()
-      || targetMonth.getMonth() !== currentMonth.getMonth()
+      targetMonth.getFullYear() !== cur.getFullYear()
+      || targetMonth.getMonth() !== cur.getMonth()
     ) {
-      setSlideDirection(targetMonth > currentMonth ? "up" : "down");
+      setSlideDirection(targetMonth > cur ? "up" : "down");
       setCurrentMonth(targetMonth);
     }
-  }, [selectedWeekKey, timelineItems, currentMonth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedWeekKey, timelineItems]);
 
+  // calendarGrid가 갱신된 후 selectedWeekKey에 맞는 행 활성화
   useEffect(() => {
-    if (selectedWeekKey) {
-      // 외부에서 ISO weekKey가 올 경우, 해당 아이템의 날짜로 매칭되는 행 찾기
-      const matchItem = timelineItems.find(it => it.weekKey === selectedWeekKey);
-      if (matchItem) {
-        const d = new Date(matchItem.createdAt);
-        for (const week of calendarGrid) {
-          const s = week[0], e = week[6];
-          if (d >= s && d <= new Date(e.getFullYear(), e.getMonth(), e.getDate(), 23, 59, 59, 999)) {
-            setActiveWeekKey(getRowKey(week));
-            return;
-          }
-        }
+    if (!selectedWeekKey) return;
+    const matchItem = timelineItems.find((it) => it.weekKey === selectedWeekKey);
+    if (!matchItem?.createdAt) return;
+    const d = new Date(matchItem.createdAt);
+    for (const week of calendarGrid) {
+      const s = week[0], e = week[6];
+      if (d >= s && d <= new Date(e.getFullYear(), e.getMonth(), e.getDate(), 23, 59, 59, 999)) {
+        setActiveWeekKey(getRowKey(week));
+        return;
       }
-      // 못 찾으면 첫 번째 그룹 선택
-      const keys = Array.from(rowGroups.keys());
-      if (keys.length > 0 && !activeWeekKey) setActiveWeekKey(keys[0]);
-    } else if (rowGroups.size > 0 && !activeWeekKey) {
+    }
+  }, [selectedWeekKey, calendarGrid, timelineItems]);
+
+  // 초기 로드 시 첫 번째 그룹 선택
+  useEffect(() => {
+    if (!activeWeekKey && rowGroups.size > 0) {
       setActiveWeekKey(Array.from(rowGroups.keys())[0]);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedWeekKey, rowGroups]);
+  }, [rowGroups, activeWeekKey]);
 
   const activeGroup = useMemo(() => {
     return rowGroups.get(activeWeekKey || "") || null;
