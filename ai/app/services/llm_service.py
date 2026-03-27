@@ -130,10 +130,8 @@ class LLMService:
             {"type": "text", "text": f"dailyId: {daily_id}"},
             {"type": "text", "text": f"dailyType: {daily_type_norm}"},
         ]
-        if emo:
-            text_parts.append({"type": "text", "text": f"emotion: {emo}"})
-        if emo_color:
-            text_parts.append({"type": "text", "text": f"emotionColor: {emo_color}"})
+        # 사용자가 직접 선택한 감정(emotion, emotionColor)은 LLM에 전달하지 않음
+        # → 그림의 시각적 요소만으로 숨겨진 내면을 독립적으로 분석하도록 함
         if diary:
             text_parts.append({"type": "text", "text": f"diary: {diary}"})
 
